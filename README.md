@@ -17,9 +17,16 @@ Operational web panel scaffold for the Salgados order-management MVP.
 
 ## Local Setup
 
+Prerequisites:
+
+- Node.js `20.x`
+- `corepack` enabled
+- `pnpm` `10.14.0` via the `packageManager` field in `package.json`
+
 1. Install dependencies:
 
 ```bash
+corepack enable
 pnpm install
 ```
 
