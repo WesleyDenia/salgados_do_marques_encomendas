@@ -1,12 +1,24 @@
 import axios, { AxiosError } from "axios";
 import { ApiError, ApiValidationError } from "@/types/api";
 
-export function isApiValidationError(data: any): data is ApiValidationError {
+type ApiErrorPayload = {
+  message: string;
+  code?: string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isApiErrorPayload(data: unknown): data is ApiErrorPayload {
+  return isRecord(data) && typeof data.message === "string";
+}
+
+export function isApiValidationError(data: unknown): data is ApiValidationError {
   return (
-    data &&
-    typeof data.message === "string" &&
-    data.errors &&
-    typeof data.errors === "object"
+    isApiErrorPayload(data) &&
+    "errors" in data &&
+    isRecord(data.errors)
   );
 }
 
@@ -27,11 +39,11 @@ export function normalizeError(error: unknown): ApiError {
     }
 
     // Handle general backend errors
-    if (data && typeof data === "object" && "message" in data) {
+    if (isApiErrorPayload(data)) {
       return {
-        message: (data as any).message,
+        message: data.message,
         status,
-        code: (data as any).code,
+        code: data.code,
         raw: data,
       };
     }

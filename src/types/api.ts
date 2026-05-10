@@ -15,14 +15,14 @@ export interface ApiMeta {
   current_page?: number;
   from?: number;
   last_page?: number;
-  links?: any[];
+  links?: Array<Record<string, unknown>>;
   path?: string;
   per_page?: number;
   to?: number;
   total?: number;
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   data: T;
   meta?: ApiMeta;
   message?: string;

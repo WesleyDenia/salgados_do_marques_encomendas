@@ -29,7 +29,11 @@ export function AccessProfileTable() {
 
   const users = response?.data ?? [];
 
-  const handleRoleChange = (userId: number, role: string) => {
+  const handleRoleChange = (userId: number, role: string | null) => {
+    if (!role) {
+      return;
+    }
+
     updateRoleMutation.mutate(
       { userId, role },
       {

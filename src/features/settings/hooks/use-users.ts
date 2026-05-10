@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getUsers, updateUserRole } from "../api";
-import { ApiError } from "@/types/api";
 
 export function useUsers() {
   return useQuery({

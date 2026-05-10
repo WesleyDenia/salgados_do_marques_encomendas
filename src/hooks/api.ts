@@ -17,7 +17,7 @@ export function useApiQuery<T>(
   });
 }
 
-export function useApiMutation<TVariables = void, TData = any>(
+export function useApiMutation<TVariables = void, TData = unknown>(
   mutationFn: (variables: TVariables) => Promise<TData>,
   options?: UseMutationOptions<TData, ApiError, TVariables>
 ) {
