@@ -1,0 +1,18 @@
+services:
+  panel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: salgados-encomendas-panel
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    expose:
+      - "3000"
+    networks:
+      - backend
+
+networks:
+  backend:
+    external: true
+    name: salgados_backend_net

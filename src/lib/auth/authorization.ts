@@ -76,7 +76,7 @@ const PANEL_ROLE_DEFINITIONS: Record<PanelRole, PanelRoleDefinition> = {
   operacional: {
     role: "operacional",
     label: "Operacional",
-    runtime: "planned",
+    runtime: "live",
     capabilities: [
       "dashboard:view",
       "orders:view",
@@ -88,7 +88,7 @@ const PANEL_ROLE_DEFINITIONS: Record<PanelRole, PanelRoleDefinition> = {
   atendimento: {
     role: "atendimento",
     label: "Atendimento",
-    runtime: "planned",
+    runtime: "live",
     capabilities: ["dashboard:view", "orders:view"],
   },
 };

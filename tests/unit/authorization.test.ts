@@ -41,19 +41,16 @@ test("authorizePanelRoute allows live admin access to protected routes", () => {
   }
 });
 
-test("authorizePanelRoute denies planned runtime roles until backend alignment exists", () => {
+test("authorizePanelRoute allows live runtime roles since backend alignment was added", () => {
   const authorization = authorizePanelRoute(
     createUser({ role: "operacional" }),
     "/planning",
   );
 
-  assert.deepEqual(authorization, {
-    allowed: false,
-    reason: "runtime-role-disabled",
-    route: authorization.route,
-    role: "operacional",
-    redirectTo: "/unauthorized?from=%2Fplanning",
-  });
+  assert.equal(authorization.allowed, true);
+  if (authorization.allowed) {
+    assert.equal(authorization.route.key, "planning");
+  }
 });
 
 test("authorizePanelRoute rejects inactive and unknown users by default", () => {
