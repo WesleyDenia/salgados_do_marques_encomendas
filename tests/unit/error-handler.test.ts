@@ -4,6 +4,8 @@ import axios from "axios";
 import { normalizeError } from "../../src/lib/api/error-handler";
 
 describe("normalizeError", () => {
+  const alwaysAxiosError = (() => true) as typeof axios.isAxiosError;
+
   it("should normalize 422 validation errors", () => {
     const error = {
       isAxiosError: true,
@@ -20,7 +22,7 @@ describe("normalizeError", () => {
 
     // Mocking axios.isAxiosError
     const originalIsAxiosError = axios.isAxiosError;
-    axios.isAxiosError = (err: any): err is any => true;
+    axios.isAxiosError = alwaysAxiosError;
 
     try {
       const normalized = normalizeError(error);
@@ -46,7 +48,7 @@ describe("normalizeError", () => {
     };
 
     const originalIsAxiosError = axios.isAxiosError;
-    axios.isAxiosError = (err: any): err is any => true;
+    axios.isAxiosError = alwaysAxiosError;
 
     try {
       const normalized = normalizeError(error);
@@ -65,7 +67,7 @@ describe("normalizeError", () => {
     };
 
     const originalIsAxiosError = axios.isAxiosError;
-    axios.isAxiosError = (err: any): err is any => true;
+    axios.isAxiosError = alwaysAxiosError;
 
     try {
       const normalized = normalizeError(error);
@@ -84,7 +86,7 @@ describe("normalizeError", () => {
     };
 
     const originalIsAxiosError = axios.isAxiosError;
-    axios.isAxiosError = (err: any): err is any => true;
+    axios.isAxiosError = alwaysAxiosError;
 
     try {
       const normalized = normalizeError(error);

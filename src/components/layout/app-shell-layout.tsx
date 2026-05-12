@@ -2,6 +2,7 @@ import React, { type ReactNode } from "react";
 import Link from "next/link";
 
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
+import { OrderComposerLauncher } from "@/features/orders/components/order-composer-launcher";
 import {
   getPanelNavigationItems,
   getPanelRoleLabel,
@@ -72,6 +73,7 @@ export function AppShellLayout({
                 </p>
               </div>
               <div className="flex items-center gap-4">
+                <OrderComposerLauncher role={sessionUser.role} />
                 <div className="text-right">
                   <p className="text-sm font-medium text-foreground">
                     {sessionUser.name}

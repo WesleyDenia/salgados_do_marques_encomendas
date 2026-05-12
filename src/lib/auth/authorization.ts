@@ -7,6 +7,7 @@ export type PanelRole = (typeof PANEL_ROLES)[number];
 export const PANEL_CAPABILITIES = [
   "dashboard:view",
   "orders:view",
+  "orders:create",
   "orders:manage",
   "planning:view",
   "planning:manage",
@@ -80,6 +81,7 @@ const PANEL_ROLE_DEFINITIONS: Record<PanelRole, PanelRoleDefinition> = {
     capabilities: [
       "dashboard:view",
       "orders:view",
+      "orders:create",
       "orders:manage",
       "planning:view",
       "planning:manage",
@@ -89,7 +91,7 @@ const PANEL_ROLE_DEFINITIONS: Record<PanelRole, PanelRoleDefinition> = {
     role: "atendimento",
     label: "Atendimento",
     runtime: "live",
-    capabilities: ["dashboard:view", "orders:view"],
+    capabilities: ["dashboard:view", "orders:view", "orders:create"],
   },
 };
 
@@ -112,7 +114,7 @@ export const PANEL_ROUTE_DEFINITIONS: readonly PanelRouteDefinition[] = [
     runtime: "live",
     allowedRoles: PANEL_ROLES,
     requiredCapability: "orders:view",
-    primaryCapability: "orders:manage",
+    primaryCapability: "orders:create",
     matcher: (pathname) => pathname === "/orders" || pathname.startsWith("/orders/"),
   },
   {
@@ -180,6 +182,10 @@ export function getPanelCapabilities(role: string) {
 
 export function hasPanelCapability(role: string, capability: PanelCapability) {
   return getPanelCapabilities(role).includes(capability);
+}
+
+export function canPerform(role: string, capability: PanelCapability) {
+  return hasPanelCapability(role, capability);
 }
 
 export function getPanelRouteDefinition(pathname: string) {

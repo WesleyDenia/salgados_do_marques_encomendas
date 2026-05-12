@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import React from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 
 // Mocking hooks before importing the component
 // Since we are using node:test and ES modules, mocking is tricky without a dedicated library.
@@ -19,6 +17,9 @@ test("AccessProfileTable component is exported correctly", () => {
 
 // In a real environment with proper mocking, we would do:
 /*
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+
 test("AccessProfileTable renders user list correctly", () => {
   // Setup mocks for useUsers and useUpdateUserRole
   const markup = renderToStaticMarkup(<AccessProfileTable />);

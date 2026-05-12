@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { authorizePanelRoute } from "@/lib/auth/authorization";
+import { authorizePanelRoute, canPerform } from "@/lib/auth/authorization";
 import {
   createPanelSessionValue,
   isAuthorizedPanelUser,
@@ -383,12 +383,27 @@ function buildProxyResponse(upstreamResponse: Response) {
   });
 }
 
-function authorizeApiProxy(session: PanelSession, pathSegments: string[]) {
+function authorizeApiProxy(
+  session: PanelSession,
+  pathSegments: string[],
+  method: string,
+) {
   const primarySegment = pathSegments[0];
+  const secondarySegment = pathSegments[1];
   
   // Routes that are always allowed if authenticated (self-management)
   if (primarySegment === "me") {
     return true;
+  }
+
+  if (primarySegment === "admin") {
+    if (secondarySegment === "orders") {
+      return authorizePanelRoute(session.user, "/orders").allowed;
+    }
+
+    if (secondarySegment === "users" || secondarySegment === "roles") {
+      return authorizePanelRoute(session.user, "/settings/access").allowed;
+    }
   }
 
   // Map API segments to frontend routes for capability validation
@@ -403,6 +418,10 @@ function authorizeApiProxy(session: PanelSession, pathSegments: string[]) {
   };
 
   const targetPath = pathMap[primarySegment];
+
+  if (primarySegment === "orders" && method === "POST") {
+    return canPerform(session.user.role, "orders:create");
+  }
 
   if (!targetPath) {
     // If we don't know the mapping, we default to dashboard view check as baseline
@@ -433,7 +452,7 @@ async function handleSessionAwareProxy(
   }
 
   // Defense in depth: validate panel authorization before proxying to backend
-  if (!authorizeApiProxy(session, pathSegments)) {
+  if (!authorizeApiProxy(session, pathSegments, request.method)) {
     return NextResponse.json(
       {
         message: "O seu perfil não tem autorização para realizar este pedido ao backend.",

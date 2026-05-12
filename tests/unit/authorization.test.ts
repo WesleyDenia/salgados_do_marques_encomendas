@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   authorizePanelRoute,
+  canPerform,
   getPanelNavigationItems,
   hasPanelCapability,
 } from "@/lib/auth/authorization";
@@ -24,8 +25,16 @@ test("hasPanelCapability resolves modeled future roles without granting live acc
   assert.equal(hasPanelCapability("operacional", "planning:manage"), true);
   assert.equal(hasPanelCapability("operacional", "settings:access:view"), false);
   assert.equal(hasPanelCapability("atendimento", "orders:view"), true);
+  assert.equal(hasPanelCapability("atendimento", "orders:create"), true);
   assert.equal(hasPanelCapability("atendimento", "orders:manage"), false);
   assert.equal(hasPanelCapability("desconhecido", "dashboard:view"), false);
+});
+
+test("canPerform exposes action-level capability checks", () => {
+  assert.equal(canPerform("admin", "orders:create"), true);
+  assert.equal(canPerform("operacional", "orders:create"), true);
+  assert.equal(canPerform("atendimento", "orders:create"), true);
+  assert.equal(canPerform("desconhecido", "orders:create"), false);
 });
 
 test("authorizePanelRoute allows live admin access to protected routes", () => {
