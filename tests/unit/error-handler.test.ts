@@ -4,7 +4,7 @@ import axios from "axios";
 import { normalizeError } from "../../src/lib/api/error-handler";
 
 describe("normalizeError", () => {
-  const alwaysAxiosError = (() => true) as typeof axios.isAxiosError;
+  const alwaysAxiosError = ((() => true) as unknown) as typeof axios.isAxiosError;
 
   it("should normalize 422 validation errors", () => {
     const error = {

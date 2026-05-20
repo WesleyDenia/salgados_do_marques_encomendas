@@ -4,7 +4,10 @@ import test from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { OrdersOperationalRecordContent } from "@/features/orders/components/orders-operational-record";
+import {
+  OrderDetailSheet,
+  OrdersOperationalRecordContent,
+} from "@/features/orders/components/orders-operational-record";
 
 test("OrdersOperationalRecordContent renders the persisted operational record", () => {
   const markup = renderToStaticMarkup(
@@ -37,14 +40,83 @@ test("OrdersOperationalRecordContent renders the persisted operational record", 
           createdAt: "2026-05-12T09:30:00+00:00",
         },
       ]}
+      meta={{ current_page: 1, last_page: 3, total: 41 }}
+      statusLabels={{ placed: "Realizado" }}
+      timeZone="Europe/Lisbon"
     />,
   );
 
   assert.match(markup, /Registo operacional/);
   assert.match(markup, /Maria Silva/);
   assert.match(markup, /Loja Centro/);
-  assert.match(markup, /12x Coxinha/);
+  assert.match(markup, /Realizado/);
+  assert.match(markup, />12</);
   assert.match(markup, /Pendente/);
   assert.match(markup, /Manhã/);
+  assert.match(markup, /20\/05\/2026, 10:30/);
   assert.match(markup, /Sem picante/);
+  assert.match(markup, /41 encomendas encontradas/);
+  assert.match(markup, /Página 1 de 3/);
+});
+
+test("OrderDetailSheet enables edit button when canEdit is true", () => {
+  const markup = renderToStaticMarkup(
+    <OrderDetailSheet
+      open={true}
+      onOpenChange={() => {}}
+      statusLabels={{ placed: "Realizado" }}
+      timeZone="Europe/Lisbon"
+      order={{
+        id: 42,
+        status: "placed",
+        canEdit: true,
+        items: [],
+      }}
+    />,
+  );
+
+  assert.match(markup, /Corrigir encomenda/);
+  assert.match(markup, /Realizado/);
+  assert.ok(!markup.includes('disabled=""'));
+});
+
+test("OrderDetailSheet disables edit button and shows reason when canEdit is false", () => {
+  const markup = renderToStaticMarkup(
+    <OrderDetailSheet
+      open={true}
+      onOpenChange={() => {}}
+      statusLabels={{ concluido: "Concluído" }}
+      timeZone="Europe/Lisbon"
+      order={{
+        id: 42,
+        status: "concluido",
+        canEdit: false,
+        items: [],
+      }}
+    />,
+  );
+
+  assert.match(markup, /Corrigir encomenda/);
+  assert.match(markup, /disabled=""/);
+  assert.match(markup, /Esta encomenda já não permite correções/);
+  assert.match(markup, /Concluído/);
+});
+
+test("OrderDetailSheet does not block corrections when canEdit is still unknown", () => {
+  const markup = renderToStaticMarkup(
+    <OrderDetailSheet
+      open={true}
+      onOpenChange={() => {}}
+      statusLabels={{ placed: "Realizado" }}
+      timeZone="Europe/Lisbon"
+      order={{
+        id: 42,
+        status: "placed",
+        items: [],
+      }}
+    />,
+  );
+
+  assert.match(markup, /Corrigir encomenda/);
+  assert.doesNotMatch(markup, /Esta encomenda já não permite correções/);
 });

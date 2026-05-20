@@ -6,6 +6,18 @@ export type OrderPaymentStatus = (typeof ORDER_PAYMENT_STATUSES)[number];
 
 export type OrderSlot = (typeof ORDER_SLOT_OPTIONS)[number];
 
+export const ORDER_PAYMENT_STATUS_LABELS: Record<OrderPaymentStatus, string> = {
+  pending: "Pendente",
+  partial: "Parcial",
+  paid: "Pago",
+};
+
+export const ORDER_SLOT_LABELS: Record<OrderSlot, string> = {
+  manha: "Manhã",
+  tarde: "Tarde",
+  noite: "Noite",
+};
+
 export type OrderProductOption = {
   id: number;
   name: string;
@@ -29,11 +41,16 @@ export type OrderItem = {
   productName: string;
   quantity: number;
   total?: number;
+  variantId?: number | null;
+  variantName?: string | null;
+  flavorIds?: number[];
+  flavorNames?: string[];
 };
 
 export type Order = {
   id: string | number;
   status: string;
+  canEdit?: boolean;
   paymentStatus?: OrderPaymentStatus | null;
   slot?: OrderSlot | null;
   customerName?: string | null;
@@ -45,6 +62,9 @@ export type Order = {
   store?: {
     id: number;
     name: string;
+    city?: string | null;
+    address?: string | null;
+    phone?: string | null;
   } | null;
   user?: {
     id: number;

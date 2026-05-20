@@ -28,49 +28,46 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
-import { useOrderProducts, useOrderStores } from "@/features/orders/hooks/use-order-queries";
-import { useCreateOrder } from "@/features/orders/hooks/use-order-mutations";
+import {
+  useOrderProducts,
+  useOrderSettings,
+  useOrderStores,
+} from "@/features/orders/hooks/use-order-queries";
+import {
+  useCreateOrder,
+  useUpdateOrder,
+} from "@/features/orders/hooks/use-order-mutations";
+import { useSlotCapacities } from "@/features/slots/hooks/use-slot-capacity";
+import { validateSlotSelection } from "@/features/slots/slot-validation";
 import {
   OrderCreateSchema,
   type NormalizedOrderCreateInput,
 } from "@/features/orders/schemas/order-schemas";
-import { ORDER_PAYMENT_STATUSES, ORDER_SLOT_OPTIONS } from "@/features/orders/types";
+import {
+  ORDER_PAYMENT_STATUS_LABELS,
+  ORDER_PAYMENT_STATUSES,
+  ORDER_SLOT_LABELS,
+  ORDER_SLOT_OPTIONS,
+  type Order,
+} from "@/features/orders/types";
+import {
+  getDateInputValueInTimeZone,
+  getTimeInputValueInTimeZone,
+} from "@/features/orders/utils/operational-timezone";
 import type { ApiError } from "@/types/api";
+import type { Path, UseFormSetError } from "react-hook-form";
 
-type OrderFormValues = {
-  storeId: number;
-  customerName: string;
-  customerContact: string;
-  items: Array<{
-    productId: number;
-    quantity: number;
-  }>;
-  observations: string;
-  date: string;
-  time: string;
-  slot: (typeof ORDER_SLOT_OPTIONS)[number];
-  paymentStatus: (typeof ORDER_PAYMENT_STATUSES)[number];
-};
+type OrderFormInput = NormalizedOrderCreateInput;
+type OrderFormValues = NormalizedOrderCreateInput;
 
 const EMPTY_PRODUCTS: Array<{
   id: number;
   name: string;
 }> = [];
 
-const paymentStatusLabels: Record<OrderFormValues["paymentStatus"], string> = {
-  pending: "Pendente",
-  partial: "Parcial",
-  paid: "Pago",
-};
-
-const slotLabels: Record<OrderFormValues["slot"], string> = {
-  manha: "Manha",
-  tarde: "Tarde",
-  noite: "Noite",
-};
-
-const defaultValues: OrderFormValues = {
+const defaultValues: OrderFormInput = {
   storeId: 0,
   customerName: "",
   customerContact: "",
@@ -87,13 +84,41 @@ const defaultValues: OrderFormValues = {
   paymentStatus: "pending",
 };
 
-const orderFormResolver = zodResolver(OrderCreateSchema as never) as Resolver<
-  OrderFormValues,
-  unknown,
-  NormalizedOrderCreateInput
->;
+function buildDefaultValues(
+  order?: Order | null,
+  timeZone = "Europe/Lisbon",
+): OrderFormInput {
+  if (!order) {
+    return defaultValues;
+  }
 
-function FieldMessage({ error }: Readonly<{ error?: FieldError }>) {
+  return {
+    storeId: order.store?.id ?? 0,
+    customerName: order.customerName ?? order.user?.name ?? "",
+    customerContact: order.customerContact ?? "",
+    items:
+      order.items.length > 0
+        ? order.items.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            variantId: item.variantId ?? null,
+            flavorIds: item.flavorIds ?? [],
+          }))
+        : defaultValues.items,
+    observations: order.notes ?? "",
+    date: getDateInputValueInTimeZone(order.scheduledAt, timeZone) || defaultValues.date,
+    time: getTimeInputValueInTimeZone(order.scheduledAt, timeZone),
+    slot: order.slot ?? "manha",
+    paymentStatus: order.paymentStatus ?? "pending",
+  };
+}
+
+const resolveOrderForm =
+  zodResolver as unknown as (
+    schema: typeof OrderCreateSchema,
+  ) => Resolver<OrderFormInput, unknown, OrderFormValues>;
+
+function FieldMessage({ error }: Readonly<{ error?: { message?: string } }>) {
   if (!error?.message) {
     return null;
   }
@@ -109,17 +134,99 @@ function getFirstValidationMessage(error: ApiError) {
   return entry?.[0] ?? null;
 }
 
+export function mapBackendErrorsToForm(
+  error: ApiError,
+  setError: UseFormSetError<OrderFormValues>,
+) {
+  if (error.validationErrors?.store_id?.[0]) {
+    setError("storeId", {
+      type: "server",
+      message: error.validationErrors.store_id[0],
+    });
+  }
+
+  if (error.validationErrors?.customer_name?.[0]) {
+    setError("customerName", {
+      type: "server",
+      message: error.validationErrors.customer_name[0],
+    });
+  }
+
+  if (error.validationErrors?.customer_contact?.[0]) {
+    setError("customerContact", {
+      type: "server",
+      message: error.validationErrors.customer_contact[0],
+    });
+  }
+
+  if (error.validationErrors?.scheduled_at?.[0]) {
+    setError("date", {
+      type: "server",
+      message: error.validationErrors.scheduled_at[0],
+    });
+    setError("time", {
+      type: "server",
+      message: error.validationErrors.scheduled_at[0],
+    });
+  }
+
+  if (error.validationErrors?.slot?.[0]) {
+    setError("slot", {
+      type: "server",
+      message: error.validationErrors.slot[0],
+    });
+  }
+
+  if (error.validationErrors?.payment_status?.[0]) {
+    setError("paymentStatus", {
+      type: "server",
+      message: error.validationErrors.payment_status[0],
+    });
+  }
+
+  if (error.validationErrors?.items?.[0]) {
+    setError("items", {
+      type: "server",
+      message: error.validationErrors.items[0],
+    });
+  }
+
+  Object.entries(error.validationErrors ?? {}).forEach(([key, messages]) => {
+    if (!messages || messages.length === 0) return;
+
+    const match = key.match(/^items\.(\d+)\.(product_id|quantity)$/);
+    if (match) {
+      const index = Number(match[1]);
+      const fieldName = match[2] === "product_id" ? "productId" : "quantity";
+      setError(`items.${index}.${fieldName}` as Path<OrderFormInput>, {
+        type: "server",
+        message: messages[0],
+      });
+    }
+  });
+}
+
 export function OrderComposerDrawer({
   open,
   onOpenChange,
+  mode = "create",
+  initialOrder = null,
+  onSuccess,
 }: Readonly<{
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  mode?: "create" | "edit";
+  initialOrder?: Order | null;
+  onSuccess?: () => void;
 }>) {
   const { toast } = useToast();
   const createOrderMutation = useCreateOrder();
+  const updateOrderMutation = useUpdateOrder();
   const productsQuery = useOrderProducts();
+  const settingsQuery = useOrderSettings();
   const storesQuery = useOrderStores();
+  const operationalTimeZone = settingsQuery.data?.timezone ?? "Europe/Lisbon";
+  
   const {
     control,
     formState: { errors },
@@ -129,19 +236,35 @@ export function OrderComposerDrawer({
     setError,
     setValue,
     watch,
-  } = useForm<OrderFormValues, unknown, NormalizedOrderCreateInput>({
-    resolver: orderFormResolver,
-    defaultValues,
+  } = useForm<OrderFormInput, unknown, OrderFormValues>({
+    resolver: resolveOrderForm(OrderCreateSchema),
+    defaultValues: buildDefaultValues(initialOrder, operationalTimeZone),
+    mode: "onChange",
   });
+
   const { fields, append, remove } = useFieldArray({
     control,
     name: "items",
   });
+
   const products = productsQuery.data?.data ?? EMPTY_PRODUCTS;
   const stores = storesQuery.data?.data;
   const storeId = watch("storeId");
   const slot = watch("slot");
   const paymentStatus = watch("paymentStatus");
+  const date = watch("date");
+
+  const slotCapacitiesQuery = useSlotCapacities({ storeId, date });
+  const slotCapacities = slotCapacitiesQuery.data?.data.slots ?? [];
+  const submitMutation = mode === "edit" ? updateOrderMutation : createOrderMutation;
+
+  React.useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    reset(buildDefaultValues(initialOrder, operationalTimeZone));
+  }, [initialOrder, open, operationalTimeZone, reset]);
 
   React.useEffect(() => {
     if (storeId > 0 || !stores?.length) {
@@ -160,46 +283,63 @@ export function OrderComposerDrawer({
   }, [setValue, storeId, stores]);
 
   const submitOrder = handleSubmit((values) => {
-    createOrderMutation.mutate(values, {
+    const slotValidationError = validateSlotSelection(values.slot, slotCapacities);
+    if (slotValidationError) {
+      setError("slot", {
+        type: "manual",
+        message: slotValidationError,
+      });
+      return;
+    }
+
+    const mutationOptions = {
       onSuccess: () => {
-        toast("Encomenda criada e enviada para o registo operacional.", "success");
+        toast(
+          mode === "edit"
+            ? "Encomenda atualizada para correção."
+            : "Encomenda criada e enviada para o registo operacional.",
+          "success",
+        );
         reset(defaultValues);
         onOpenChange(false);
+        onSuccess?.();
       },
       onError: (error: ApiError) => {
         const validationMessage = getFirstValidationMessage(error);
 
-        if (error.validationErrors?.store_id?.[0]) {
-          setError("storeId", {
-            type: "server",
-            message: error.validationErrors.store_id[0],
-          });
-        }
-
-        if (error.validationErrors?.scheduled_at?.[0]) {
-          setError("date", {
-            type: "server",
-            message: error.validationErrors.scheduled_at[0],
-          });
-          setError("time", {
-            type: "server",
-            message: error.validationErrors.scheduled_at[0],
-          });
-        }
-
-        if (error.validationErrors?.items?.[0]) {
-          setError("items", {
-            type: "server",
-            message: error.validationErrors.items[0],
-          });
-        }
+        mapBackendErrorsToForm(error, setError);
 
         toast(
-          validationMessage || error.message || "Nao foi possivel criar a encomenda.",
+          validationMessage ||
+            error.message ||
+            (mode === "edit"
+              ? "Não foi possível atualizar a encomenda."
+              : "Não foi possível criar a encomenda."),
           "error",
         );
       },
-    });
+    };
+
+    if (mode === "edit" && initialOrder) {
+      updateOrderMutation.mutate(
+        {
+          orderId: initialOrder.id,
+          input: values,
+          timeZone: operationalTimeZone,
+        },
+        mutationOptions,
+      );
+
+      return;
+    }
+
+    createOrderMutation.mutate(
+      {
+        input: values,
+        timeZone: operationalTimeZone,
+      },
+      mutationOptions,
+    );
   });
 
   return (
@@ -207,9 +347,13 @@ export function OrderComposerDrawer({
       <SheetContent>
         <div className="flex items-start justify-between gap-4 border-b border-border/70 px-5 py-4">
           <SheetHeader>
-            <SheetTitle>Nova encomenda</SheetTitle>
+            <SheetTitle>
+              {mode === "edit" ? "Corrigir encomenda" : "Nova encomenda"}
+            </SheetTitle>
             <SheetDescription>
-              Registo rapido com dados essenciais para atendimento.
+              {mode === "edit"
+                ? "Revise e corrija os dados operacionais antes de voltar ao registo."
+                : "Registo rápido com dados essenciais para atendimento."}
             </SheetDescription>
           </SheetHeader>
           <SheetClose />
@@ -229,7 +373,7 @@ export function OrderComposerDrawer({
                     })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-invalid={Boolean(errors.storeId)}>
                     <SelectValue placeholder="Selecionar loja" />
                   </SelectTrigger>
                   <SelectContent>
@@ -314,7 +458,7 @@ export function OrderComposerDrawer({
                           })
                         }
                       >
-                        <SelectTrigger id={`items.${index}.productId`}>
+                        <SelectTrigger id={`items.${index}.productId`} aria-invalid={Boolean(errors.items?.[index]?.productId)}>
                           <SelectValue placeholder="Selecionar produto" />
                         </SelectTrigger>
                         <SelectContent>
@@ -415,15 +559,29 @@ export function OrderComposerDrawer({
                     })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-invalid={Boolean(errors.slot)}>
                     <SelectValue placeholder="Selecionar slot" />
                   </SelectTrigger>
                   <SelectContent>
-                    {ORDER_SLOT_OPTIONS.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {slotLabels[option]}
-                      </SelectItem>
-                    ))}
+                    {ORDER_SLOT_OPTIONS.map((option) => {
+                      const capacity = slotCapacities.find((c) => c.slot === option);
+                      return (
+                        <SelectItem key={option} value={option} disabled={capacity?.state === "bloqueado"}>
+                          <div className="flex items-center justify-between w-full gap-3">
+                            <span>{ORDER_SLOT_LABELS[option]}</span>
+                            {capacity?.state === "disponível" && (
+                              <span className="text-[10px] uppercase tracking-wider font-semibold text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded ml-auto">Disponível</span>
+                            )}
+                            {capacity?.state === "limitado" && (
+                              <span className="text-[10px] uppercase tracking-wider font-semibold text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded ml-auto">Limitado</span>
+                            )}
+                            {capacity?.state === "bloqueado" && (
+                              <span className="text-[10px] uppercase tracking-wider font-semibold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded ml-auto">Bloqueado</span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
                 <FieldMessage error={errors.slot} />
@@ -446,13 +604,13 @@ export function OrderComposerDrawer({
                     )
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-invalid={Boolean(errors.paymentStatus)}>
                     <SelectValue placeholder="Selecionar estado" />
                   </SelectTrigger>
                   <SelectContent>
                     {ORDER_PAYMENT_STATUSES.map((option) => (
                       <SelectItem key={option} value={option}>
-                        {paymentStatusLabels[option]}
+                        {ORDER_PAYMENT_STATUS_LABELS[option]}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -463,11 +621,12 @@ export function OrderComposerDrawer({
 
             <section className="space-y-2">
               <label className="text-sm font-medium" htmlFor="observations">
-                Observacoes
+                Observações
               </label>
-              <textarea
+              <Textarea
                 id="observations"
-                className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="min-h-24"
+                aria-invalid={Boolean(errors.observations)}
                 {...register("observations")}
               />
             </section>
@@ -478,21 +637,23 @@ export function OrderComposerDrawer({
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={createOrderMutation.isPending}
+              disabled={submitMutation.isPending}
             >
               Cancelar
             </Button>
             <Button
               type="submit"
               disabled={
-                createOrderMutation.isPending ||
+                submitMutation.isPending ||
                 products.length === 0 ||
                 !stores?.length
               }
             >
-              {createOrderMutation.isPending
+              {submitMutation.isPending
                 ? "A guardar..."
-                : "Guardar encomenda"}
+                : mode === "edit"
+                  ? "Guardar correção"
+                  : "Guardar encomenda"}
             </Button>
           </div>
         </form>
