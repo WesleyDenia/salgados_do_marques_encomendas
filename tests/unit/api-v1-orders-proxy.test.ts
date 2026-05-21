@@ -114,3 +114,110 @@ test("POST /api/v1/orders proxies the same-origin payload to the backend with pa
     }
   }
 });
+
+test("GET /api/v1/admin/orders/daily keeps panel auth and query params for planning", async () => {
+  const originalFetch = global.fetch;
+  const previousSecret = process.env.SESSION_SECRET;
+  const previousUpstreamUrl = process.env.SALGADOS_API_UPSTREAM_URL;
+
+  process.env.SESSION_SECRET = "test-session-secret";
+  process.env.SALGADOS_API_UPSTREAM_URL = "http://backend.test/api/v1";
+
+  const { createPanelSessionValue, sessionConfig } = await import("@/lib/auth/session");
+  const { GET } = await import("@/app/api/v1/[...path]/route");
+
+  const sessionValue = createPanelSessionValue({
+    token: "panel-token",
+    user: {
+      id: 7,
+      name: "Operacional",
+      email: "operacional@example.com",
+      role: "operacional",
+      active: true,
+    },
+  });
+
+  assert.ok(sessionValue);
+
+  let capturedUrl = "";
+  let capturedAuthorization = "";
+
+  global.fetch = (async (input, init) => {
+    capturedUrl = String(input);
+    capturedAuthorization = new Headers(init?.headers).get("authorization") ?? "";
+
+    return new Response(
+      JSON.stringify({
+        data: [],
+        filters: {
+          day: "2026-05-20",
+        },
+        summary: {
+          orderCount: 0,
+          itemQuantity: 0,
+          paidCount: 0,
+          attentionCount: 0,
+          slotCounts: {},
+        },
+      }),
+      {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+        },
+      },
+    );
+  }) as typeof fetch;
+
+  try {
+    const request = new NextRequest(
+      "http://panel.test/api/v1/admin/orders/daily?day=2026-05-20",
+      {
+        method: "GET",
+        headers: {
+          cookie: `${sessionConfig.cookieName}=${sessionValue}`,
+        },
+      },
+    );
+
+    const response = await GET(request, {
+      params: Promise.resolve({
+        path: ["admin", "orders", "daily"],
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(
+      capturedUrl,
+      "http://backend.test/api/v1/admin/orders/daily?day=2026-05-20",
+    );
+    assert.equal(capturedAuthorization, "Bearer panel-token");
+    assert.deepEqual(await response.json(), {
+      data: [],
+      filters: {
+        day: "2026-05-20",
+      },
+      summary: {
+        orderCount: 0,
+        itemQuantity: 0,
+        paidCount: 0,
+        attentionCount: 0,
+        slotCounts: {},
+      },
+    });
+  } finally {
+    global.fetch = originalFetch;
+
+    if (previousSecret === undefined) {
+      delete process.env.SESSION_SECRET;
+    } else {
+      process.env.SESSION_SECRET = previousSecret;
+    }
+
+    if (previousUpstreamUrl === undefined) {
+      delete process.env.SALGADOS_API_UPSTREAM_URL;
+    } else {
+      process.env.SALGADOS_API_UPSTREAM_URL = previousUpstreamUrl;
+    }
+  }
+});

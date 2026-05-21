@@ -107,7 +107,7 @@ export type OrderSettings = {
   statusLabels: Record<string, string>;
 };
 
-function normalizeOrderResource(resource: BackendOrder): Order {
+export function normalizeOrderResource(resource: BackendOrder): Order {
   return {
     id: resource.id,
     status: resource.status,
@@ -302,7 +302,6 @@ export async function updateOrderStatus(
   return normalizeOrderResource(response.data.data);
 }
 
-export { normalizeOrderResource };
 
 function buildOrderWritePayload(
   payload: NormalizedOrderCreateInput,
