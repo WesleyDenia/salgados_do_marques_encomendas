@@ -128,7 +128,7 @@ export function buildOperationalPeriodDateRange(
         timeZone,
       ).toISOString(),
       scheduledTo: zonedDateTimeToUtcDate(
-        { ...today, hour: 23, minute: 59, second: 59, millisecond: 999 },
+        { ...today, hour: 23, minute: 59, second: 59 },
         timeZone,
       ).toISOString(),
     };
@@ -143,7 +143,7 @@ export function buildOperationalPeriodDateRange(
         timeZone,
       ).toISOString(),
       scheduledTo: zonedDateTimeToUtcDate(
-        { ...tomorrow, hour: 23, minute: 59, second: 59, millisecond: 999 },
+        { ...tomorrow, hour: 23, minute: 59, second: 59 },
         timeZone,
       ).toISOString(),
     };
@@ -157,7 +157,7 @@ export function buildOperationalPeriodDateRange(
       timeZone,
     ).toISOString(),
     scheduledTo: zonedDateTimeToUtcDate(
-      { ...seventhDay, hour: 23, minute: 59, second: 59, millisecond: 999 },
+      { ...seventhDay, hour: 23, minute: 59, second: 59 },
       timeZone,
     ).toISOString(),
   };
@@ -200,7 +200,7 @@ export function useOrderSearch(state: OrderSearchState) {
     timeZone,
   );
   const ordersQuery = useQuery({
-    queryKey: orderKeys.search("", 1).concat({
+    queryKey: orderKeys.search({
       search: filters.search ?? "",
       period: state.period,
       status: normalizedStatus ?? "",

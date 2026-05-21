@@ -8,11 +8,21 @@ import {
   getOrderStores,
 } from "@/features/orders/api";
 
+type OrderSearchQueryKeyParams = {
+  search: string;
+  page: number;
+  period?: string;
+  status?: string;
+  paymentStatus?: string;
+  slot?: string;
+  timeZone?: string;
+};
+
 export const orderKeys = {
   all: ["orders"] as const,
   list: () => [...orderKeys.all, "list"] as const,
-  search: (search: string, page: number) =>
-    [...orderKeys.all, "search", { search, page }] as const,
+  search: (params: OrderSearchQueryKeyParams) =>
+    [...orderKeys.all, "search", params] as const,
   detail: (orderId: number | string) =>
     [...orderKeys.all, "detail", String(orderId)] as const,
   settings: () => [...orderKeys.all, "settings"] as const,

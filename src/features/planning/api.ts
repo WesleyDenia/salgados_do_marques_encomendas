@@ -51,6 +51,10 @@ type BackendDailyPlanningResponse = {
   summary?: Partial<PlanningSummary> | null;
 };
 
+function normalizeSummaryCount(value: number | undefined) {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
 function normalizePlanningSummary(
   summary: Partial<PlanningSummary> | null | undefined,
 ): PlanningSummary | null {
@@ -59,12 +63,10 @@ function normalizePlanningSummary(
   }
 
   return {
-    orderCount: Number.isFinite(summary.orderCount) ? summary.orderCount : 0,
-    itemQuantity: Number.isFinite(summary.itemQuantity) ? summary.itemQuantity : 0,
-    paidCount: Number.isFinite(summary.paidCount) ? summary.paidCount : 0,
-    attentionCount: Number.isFinite(summary.attentionCount)
-      ? summary.attentionCount
-      : 0,
+    orderCount: normalizeSummaryCount(summary.orderCount),
+    itemQuantity: normalizeSummaryCount(summary.itemQuantity),
+    paidCount: normalizeSummaryCount(summary.paidCount),
+    attentionCount: normalizeSummaryCount(summary.attentionCount),
     slotCounts: summary.slotCounts ?? {},
   };
 }

@@ -796,22 +796,26 @@ export function OrdersOperationalRecord() {
   );
 
   const updateStatus = React.useCallback(
-    (nextStatus: string) => {
-      setStatus(nextStatus === "all" ? "" : nextStatus);
+    (nextStatus: string | null) => {
+      setStatus(!nextStatus || nextStatus === "all" ? "" : nextStatus);
     },
     [],
   );
 
   const updatePaymentStatus = React.useCallback(
-    (nextPaymentStatus: string) => {
-      setPaymentStatus(nextPaymentStatus === "all" ? "" : nextPaymentStatus);
+    (nextPaymentStatus: string | null) => {
+      setPaymentStatus(
+        !nextPaymentStatus || nextPaymentStatus === "all"
+          ? ""
+          : nextPaymentStatus,
+      );
     },
     [],
   );
 
   const updateSlot = React.useCallback(
-    (nextSlot: string) => {
-      setSlot(nextSlot === "all" ? "" : nextSlot);
+    (nextSlot: string | null) => {
+      setSlot(!nextSlot || nextSlot === "all" ? "" : nextSlot);
     },
     [],
   );
