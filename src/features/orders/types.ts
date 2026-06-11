@@ -47,6 +47,19 @@ export type OrderItem = {
   flavorNames?: string[];
 };
 
+export type OrderHistoryEntry = {
+  id: string | number;
+  userId?: number | null;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+  } | null;
+  action: string;
+  changes?: Record<string, unknown> | null;
+  createdAt?: string | null;
+};
+
 export type Order = {
   id: string | number;
   status: string;
@@ -58,6 +71,7 @@ export type Order = {
   items: OrderItem[];
   notes?: string | null;
   scheduledAt?: string | null;
+  cancelledAt?: string | null;
   total?: number;
   store?: {
     id: number;
@@ -71,5 +85,6 @@ export type Order = {
     name: string;
     email: string;
   } | null;
+  history?: OrderHistoryEntry[];
   createdAt?: string | null;
 };

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { ProtectedAreaPage } from "@/components/layout/protected-area-page";
-import { PlanningDailyView } from "@/features/planning/components/planning-daily-view";
+import { PlanningPeriodView } from "@/features/planning/components/planning-period-view";
 import { requirePanelRoute } from "@/lib/server/panel-access";
 
 export const metadata: Metadata = {
@@ -13,7 +13,7 @@ export default async function PlanningPage() {
 
   return (
     <ProtectedAreaPage routeKey="planning" sessionUser={currentUser}>
-      <PlanningDailyView />
+      <PlanningPeriodView role={currentUser.role} />
     </ProtectedAreaPage>
   );
 }

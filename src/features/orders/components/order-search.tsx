@@ -10,11 +10,19 @@ export function OrderSearch({
   onChange,
   onClear,
   loading,
+  label = "Pesquisar encomenda existente",
+  placeholder = "Pesquisar por nº da encomenda, cliente ou contacto",
+  helpTextIdle = "Use critérios operacionais relevantes para localizar rapidamente a encomenda certa.",
+  helpTextLoading = "A procurar encomendas no backend...",
 }: Readonly<{
   value: string;
   onChange: (value: string) => void;
   onClear: () => void;
   loading?: boolean;
+  label?: string;
+  placeholder?: string;
+  helpTextIdle?: string;
+  helpTextLoading?: string;
 }>) {
   return (
     <div className="space-y-2">
@@ -22,7 +30,7 @@ export function OrderSearch({
         htmlFor="orders-search"
         className="text-sm font-medium text-foreground"
       >
-        Pesquisar encomenda existente
+        {label}
       </label>
       <div className="flex flex-col gap-3 md:flex-row md:items-center">
         <div className="relative flex-1">
@@ -35,7 +43,7 @@ export function OrderSearch({
             type="search"
             value={value}
             onChange={(event) => onChange(event.target.value)}
-            placeholder="Pesquisar por nº da encomenda, cliente ou contacto"
+            placeholder={placeholder}
             className="pl-9"
             aria-describedby="orders-search-help"
           />
@@ -48,9 +56,7 @@ export function OrderSearch({
         ) : null}
       </div>
       <p id="orders-search-help" className="text-xs leading-5 text-muted-foreground">
-        {loading
-          ? "A procurar encomendas no backend..."
-          : "Use critérios operacionais relevantes para localizar rapidamente a encomenda certa."}
+        {loading ? helpTextLoading : helpTextIdle}
       </p>
     </div>
   );

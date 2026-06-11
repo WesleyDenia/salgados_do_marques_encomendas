@@ -50,6 +50,22 @@ test("OrdersOperationalRecordEmptyState guides the user when search returns no r
   assert.match(markup, /Limpar pesquisa/);
 });
 
+test("OrdersOperationalRecordEmptyState uses investigation copy for empty searches", () => {
+  const markup = renderToStaticMarkup(
+    <OrdersOperationalRecordEmptyState
+      mode="investigation"
+      searchTerm=""
+      periodLabel="Todos"
+      statusLabel="Realizado"
+    />,
+  );
+
+  assert.match(markup, /Nenhuma encomenda corresponde aos critérios atuais/);
+  assert.match(markup, /universo pesquisável/);
+  assert.match(markup, /Todos, estado Realizado/);
+  assert.doesNotMatch(markup, /Limpar pesquisa/);
+});
+
 test("buildOperationalPeriodDateRange converts today to operational timezone boundaries", () => {
   const range = buildOperationalPeriodDateRange(
     "today",
@@ -105,6 +121,8 @@ test("buildOrderSearchFilters keeps all-period requests without date filters", (
 test("normalizers restore valid URL values and fall back safely", () => {
   assert.equal(normalizeOrderOperationalPeriod("tomorrow"), "tomorrow");
   assert.equal(normalizeOrderOperationalPeriod("invalid"), "today");
+  assert.equal(normalizeOrderOperationalPeriod(undefined, "all"), "all");
+  assert.equal(normalizeOrderOperationalPeriod("invalid", "all"), "all");
   assert.equal(normalizeOrderSearchPage("4"), 4);
   assert.equal(normalizeOrderSearchPage("-2"), 1);
 });

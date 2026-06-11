@@ -171,9 +171,19 @@ export function mapBackendErrorsToForm(
   }
 
   if (error.validationErrors?.slot?.[0]) {
+    const code = error.validationErrors.slot[0];
+    const message =
+      code === "SLOT_CAPACITY_FULL"
+        ? "Capacidade atingida para este horário."
+        : code === "SLOT_LEAD_TIME_VIOLATION"
+          ? "Pedido demasiado em cima da hora para este horário."
+          : code === "SLOT_DATE_BLOCKED"
+            ? "Data bloqueada manualmente pelo administrador."
+            : code;
+
     setError("slot", {
       type: "server",
-      message: error.validationErrors.slot[0],
+      message: message,
     });
   }
 

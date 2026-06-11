@@ -7,6 +7,7 @@ import {
 } from "@/features/orders/schemas/order-schemas";
 import type {
   Order,
+  OrderHistoryEntry,
   OrderPaymentStatus,
   OrderProductOption,
   OrderSlot,
@@ -61,6 +62,21 @@ type BackendOrder = {
     name: string;
     email: string;
   } | null;
+  history?: BackendOrderHistory[];
+  created_at?: string | null;
+  cancelled_at?: string | null;
+};
+
+type BackendOrderHistory = {
+  id: number;
+  user_id?: number | null;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+  } | null;
+  action: string;
+  changes?: Record<string, unknown> | null;
   created_at?: string | null;
 };
 
@@ -107,6 +123,19 @@ export type OrderSettings = {
   statusLabels: Record<string, string>;
 };
 
+function normalizeOrderHistoryEntry(
+  resource: BackendOrderHistory,
+): OrderHistoryEntry {
+  return {
+    id: resource.id,
+    userId: resource.user_id ?? null,
+    user: resource.user ?? null,
+    action: resource.action,
+    changes: resource.changes ?? null,
+    createdAt: resource.created_at ?? null,
+  };
+}
+
 export function normalizeOrderResource(resource: BackendOrder): Order {
   return {
     id: resource.id,
@@ -129,9 +158,13 @@ export function normalizeOrderResource(resource: BackendOrder): Order {
     })),
     notes: resource.notes ?? null,
     scheduledAt: resource.scheduled_at ?? null,
+    cancelledAt: resource.cancelled_at ?? null,
     total: resource.total,
     store: resource.store ?? null,
     user: resource.user ?? null,
+    history: Array.isArray(resource.history)
+      ? resource.history.map(normalizeOrderHistoryEntry)
+      : [],
     createdAt: resource.created_at ?? null,
   };
 }

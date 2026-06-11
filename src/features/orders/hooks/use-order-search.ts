@@ -40,8 +40,9 @@ export type OrderSearchState = {
 
 export function normalizeOrderOperationalPeriod(
   value?: string | null,
+  fallback: OrderOperationalPeriod = "today",
 ): OrderOperationalPeriod {
-  return ORDER_OPERATIONAL_PERIODS.find((period) => period === value) ?? "today";
+  return ORDER_OPERATIONAL_PERIODS.find((period) => period === value) ?? fallback;
 }
 
 export function normalizeOrderSearchPage(value?: string | null): number {

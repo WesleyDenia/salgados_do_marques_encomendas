@@ -181,6 +181,65 @@ test("OrderDetailSheet hides transition actions for terminal statuses", () => {
   }
 });
 
+test("OrderDetailSheet renders audit context only in investigation mode and keeps it read-only", () => {
+  const order = {
+    id: 205,
+    status: "done",
+    canEdit: true,
+    paymentStatus: "pending" as const,
+    slot: "manha" as const,
+    scheduledAt: "2026-06-10T10:00:00Z",
+    items: [
+      {
+        id: 1,
+        productId: 9,
+        productName: "Kibe",
+        quantity: 1,
+        total: 3.5,
+      },
+    ],
+    store: { id: 1, name: "Loja Centro" },
+    history: [
+      {
+        id: 1,
+        user: { id: 9, name: "Supervisor", email: "sup@example.test" },
+        action: "status_changed",
+        changes: { status: { from: "placed", to: "accepted" } },
+        createdAt: "2026-06-10T09:30:00Z",
+      },
+    ],
+  };
+
+  const investigationMarkup = renderToStaticMarkup(
+    <OrderDetailSheet
+      mode="investigation"
+      open={true}
+      onOpenChange={() => {}}
+      order={order}
+      statusLabels={{ placed: "Realizada", accepted: "Aceite" }}
+    />,
+  );
+
+  const operationalMarkup = renderToStaticMarkup(
+    <OrderDetailSheet
+      mode="operational"
+      open={true}
+      onOpenChange={() => {}}
+      order={order}
+      statusLabels={{ placed: "Realizada", accepted: "Aceite" }}
+    />,
+  );
+
+  assert.match(investigationMarkup, /Contexto de Auditoria/);
+  assert.match(investigationMarkup, /Alertas de Diagnóstico/);
+  assert.match(investigationMarkup, /Concluída com pagamento pendente/i);
+  assert.match(investigationMarkup, /CRITICAL/);
+  assert.match(investigationMarkup, /Apenas leitura/);
+  assert.match(investigationMarkup, /Histórico de Alterações/);
+  assert.doesNotMatch(investigationMarkup, /Corrigir encomenda|Editar|Resolver/);
+  assert.doesNotMatch(operationalMarkup, /Contexto de Auditoria/);
+});
+
 test("OrderDetailSheet keeps status actions available even when data corrections are blocked", () => {
   const markup = renderToStaticMarkup(
     <OrderDetailSheet

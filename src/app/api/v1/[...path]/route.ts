@@ -390,6 +390,7 @@ function authorizeApiProxy(
 ) {
   const primarySegment = pathSegments[0];
   const secondarySegment = pathSegments[1];
+  const tertiarySegment = pathSegments[2];
   
   // Routes that are always allowed if authenticated (self-management)
   if (primarySegment === "me") {
@@ -397,7 +398,26 @@ function authorizeApiProxy(
   }
 
   if (primarySegment === "admin") {
+    if (secondarySegment === "planning" && tertiarySegment === "slot-capacities") {
+      return authorizePanelRoute(session.user, "/settings/access").allowed;
+    }
+
+    if (
+      secondarySegment === "settings" &&
+      (tertiarySegment === "operational" || tertiarySegment === "test-whatsapp")
+    ) {
+      return authorizePanelRoute(session.user, "/settings/operational").allowed;
+    }
+
     if (secondarySegment === "orders") {
+      if (
+        tertiarySegment === "daily" ||
+        tertiarySegment === "weekly" ||
+        tertiarySegment === "period"
+      ) {
+        return authorizePanelRoute(session.user, "/planning").allowed;
+      }
+
       return authorizePanelRoute(session.user, "/orders").allowed;
     }
 

@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { EmptyState } from "@/components/feedback/empty-state";
 import { Button } from "@/components/ui/button";
@@ -16,8 +15,8 @@ import {
 } from "@/components/ui/table";
 import { useOrderSettings } from "@/features/orders/hooks/use-order-queries";
 import { formatOperationalDateTime } from "@/features/orders/utils/operational-timezone";
-import { useSlotCapacities } from "@/features/slots/hooks/use-slot-capacity";
-import type { SlotCapacity } from "@/features/slots/types";
+import { PlanningSlotLoadSummary } from "@/features/planning/components/planning-slot-load-summary";
+import { PlanningSlotOccupancySummary } from "@/features/planning/components/planning-slot-occupancy-summary";
 import { useDailyPlanning } from "@/features/planning/hooks/use-daily-planning";
 import type { DailyPlanningResponse } from "@/features/planning/types";
 import {
@@ -26,22 +25,7 @@ import {
   buildPlanningLoadLabel,
   buildPlanningPaymentLabel,
   buildPlanningSlotLabel,
-  normalizePlanningDay,
-  resolvePlanningSlotContext,
 } from "@/features/planning/utils";
-
-function buildStatusTone(state: SlotCapacity["state"]) {
-  switch (state) {
-    case "disponível":
-      return "border-emerald-200 bg-emerald-50 text-emerald-700";
-    case "limitado":
-      return "border-amber-200 bg-amber-50 text-amber-700";
-    case "bloqueado":
-      return "border-rose-200 bg-rose-50 text-rose-700";
-    default:
-      return "border-border bg-card text-foreground";
-  }
-}
 
 function buildSummaryCards(data: DailyPlanningResponse) {
   if (!data.summary) {
@@ -76,24 +60,15 @@ export function PlanningDailyBoard({
   data,
   timeZone,
   day,
-  slotCapacities,
-  slotContextLoading,
-  slotContextStoreName,
-  slotContextError,
   statusLabels,
 }: Readonly<{
   data: DailyPlanningResponse;
   timeZone: string;
   day: string;
-  slotCapacities: SlotCapacity[];
-  slotContextLoading?: boolean;
-  slotContextStoreName?: string;
-  slotContextError?: string | null;
   statusLabels?: Record<string, string>;
 }>) {
   const summaryCards = buildSummaryCards(data);
   const dayRange = buildPlanningDayDateRange(day, timeZone);
-  const slotCounts = data.summary?.slotCounts ?? {};
 
   return (
     <section className="space-y-6">
@@ -141,63 +116,47 @@ export function PlanningDailyBoard({
         </div>
       )}
 
+      <section className="rounded-2xl border border-border/70 bg-card/90 p-5">
+        <PlanningSlotLoadSummary
+          title="Carga agregada por slot"
+          description="Leitura oficial da concentração de encomendas por slot para o dia operacional selecionado."
+          slotLabels={data.slotLabels}
+          groups={[
+            {
+              id: "daily-total",
+              label: "Total do dia",
+              slotCounts: data.summary?.slotCounts ?? {},
+            },
+          ]}
+        />
+      </section>
+
       <section className="space-y-4 rounded-2xl border border-border/70 bg-card/90 p-5">
         <div className="space-y-2">
           <h3 className="text-lg font-semibold tracking-tight">
-            Estados oficiais de slot
+            Ocupação oficial por slot
           </h3>
           <p className="text-sm leading-6 text-muted-foreground">
-            {slotContextStoreName
-              ? `Contexto de capacidade fornecido pelos contratos do backend para ${slotContextStoreName}.`
-              : "Contexto de capacidade ainda sem loja selecionada."}
+            A vista diária usa o contrato oficial embutido em
+            {" "}
+            <code>/admin/orders/daily</code>
+            {" "}
+            para evitar divergência permanente com
+            {" "}
+            <code>/orders/availability/slots</code>.
           </p>
         </div>
 
-        {slotContextLoading ? (
-          <p className="text-sm text-muted-foreground">
-            A carregar os estados oficiais de slot...
-          </p>
-        ) : null}
-
-        {slotContextError ? (
-          <EmptyState
-            title="Não foi possível carregar os estados de slot"
-            description={slotContextError}
-          />
-        ) : null}
-
-        {!slotContextError && !slotContextLoading ? (
-          <div className="grid gap-4 md:grid-cols-3">
-            {slotCapacities.map((slotCapacity) => {
-              const slotCount = slotCounts[slotCapacity.slot] ?? 0;
-              const slotLabel =
-                data.slotLabels[slotCapacity.slot] ?? slotCapacity.slot;
-
-              return (
-                <article
-                  key={slotCapacity.slot}
-                  className="rounded-2xl border border-border/70 bg-background/80 p-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">
-                        {slotLabel}
-                      </p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {slotCount} encomendas associadas neste dia.
-                      </p>
-                    </div>
-                    <span
-                      className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${buildStatusTone(slotCapacity.state)}`}
-                    >
-                      {slotCapacity.state}
-                    </span>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        ) : null}
+        <PlanningSlotOccupancySummary
+          slotLabels={data.slotLabels}
+          groups={[
+            {
+              id: "daily-occupancy",
+              label: "Total do dia",
+              slotOccupancy: data.slotOccupancy,
+            },
+          ]}
+        />
       </section>
 
       {data.orders.length === 0 ? (
@@ -294,69 +253,19 @@ export function PlanningDailyBoard({
   );
 }
 
-export function PlanningDailyView() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+export function PlanningDailyView({
+  day,
+  onDayChange,
+}: Readonly<{
+  day: string;
+  onDayChange: (value: string) => void;
+}>) {
   const settingsQuery = useOrderSettings();
   const timeZone = settingsQuery.data?.timezone;
   const normalizedTimeZone = timeZone ?? "Europe/Lisbon";
-  const day = normalizePlanningDay(searchParams.get("day"), normalizedTimeZone);
   const planningQuery = useDailyPlanning(day, settingsQuery.isSuccess);
-  const slotContext = planningQuery.data
-    ? resolvePlanningSlotContext(planningQuery.data)
-    : null;
-  const slotCapacitiesQuery = useSlotCapacities({
-    storeId: slotContext?.status === "ready" ? slotContext.storeId : 0,
-    date: day,
-  });
-
-  React.useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    let changed = false;
-
-    if (!searchParams.get("day")) {
-      params.set("day", day);
-      changed = true;
-    }
-
-    if (!changed) {
-      return;
-    }
-
-    router.replace(`${pathname}?${params.toString()}`, {
-      scroll: false,
-    });
-  }, [day, pathname, router, searchParams]);
-
-  function updateParam(name: string, value: string) {
-    const params = new URLSearchParams(searchParams.toString());
-
-    if (value) {
-      params.set(name, value);
-    } else {
-      params.delete(name);
-    }
-
-    router.replace(`${pathname}?${params.toString()}`, {
-      scroll: false,
-    });
-  }
-
   const initialLoading = settingsQuery.isLoading || planningQuery.isLoading;
   const fatalError = settingsQuery.error ?? planningQuery.error;
-  const slotContextStoreName =
-    slotContext?.status === "ready" ? slotContext.storeName : undefined;
-  const slotContextLoading =
-    slotContext?.status === "ready" && slotCapacitiesQuery.isLoading;
-  const slotContextError =
-    slotContext?.status === "mixed" || slotContext?.status === "empty"
-      ? slotContext.reason
-      : slotCapacitiesQuery.error instanceof Error
-        ? slotCapacitiesQuery.error.message
-        : slotCapacitiesQuery.error
-          ? "Não foi possível obter o estado oficial dos slots."
-          : null;
 
   if (!timeZone && settingsQuery.isLoading) {
     return (
@@ -427,12 +336,12 @@ export function PlanningDailyView() {
             id="planning-day"
             type="date"
             value={day}
-            onChange={(event) => updateParam("day", event.target.value)}
+            onChange={(event) => onDayChange(event.target.value)}
           />
         </div>
 
         <div className="text-sm text-muted-foreground">
-          {planningQuery.isFetching || slotCapacitiesQuery.isFetching
+          {planningQuery.isFetching
             ? "A atualizar leitura operacional..."
             : "Dados sincronizados com a boundary local /api/v1."}
         </div>
@@ -442,10 +351,6 @@ export function PlanningDailyView() {
         data={planningQuery.data}
         timeZone={normalizedTimeZone}
         day={day}
-        slotCapacities={slotCapacitiesQuery.data?.data.slots ?? []}
-        slotContextLoading={slotContextLoading}
-        slotContextStoreName={slotContextStoreName}
-        slotContextError={slotContextError}
         statusLabels={settingsQuery.data?.statusLabels}
       />
     </section>

@@ -27,6 +27,11 @@ const areaHighlights: Record<PanelRouteKey, readonly string[]> = {
     "Carga prevista por período",
     "Governança operacional de planeamento",
   ],
+  "settings-operational": [
+    "Parâmetros globais de agendamento e cancelamento",
+    "Validação de notificações WhatsApp",
+    "Controlo de concorrência para alterações críticas",
+  ],
   "settings-access": [
     "Perfis de staff e gestão de acessos",
     "Configuração administrativa crítica",
@@ -53,6 +58,7 @@ export function ProtectedAreaPage({
       dashboard: "/dashboard",
       orders: "/orders",
       planning: "/planning",
+      "settings-operational": "/settings/operational",
       "settings-access": "/settings/access",
       "audit-investigation": "/audit/investigation",
     }[routeKey],

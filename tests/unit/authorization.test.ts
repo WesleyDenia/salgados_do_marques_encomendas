@@ -40,13 +40,13 @@ test("canPerform exposes action-level capability checks", () => {
 test("authorizePanelRoute allows live admin access to protected routes", () => {
   const authorization = authorizePanelRoute(
     createUser({ role: "admin" }),
-    "/settings/access",
+    "/settings/operational",
   );
 
   assert.equal(authorization.allowed, true);
 
   if (authorization.allowed) {
-    assert.equal(authorization.route.key, "settings-access");
+    assert.equal(authorization.route.key, "settings-operational");
   }
 });
 
@@ -114,6 +114,7 @@ test("getPanelNavigationItems keeps navigation centralized and role-aware", () =
       "/dashboard",
       "/orders",
       "/planning",
+      "/settings/operational",
       "/settings/access",
       "/audit/investigation",
     ],

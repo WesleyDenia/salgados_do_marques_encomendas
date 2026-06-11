@@ -3,14 +3,15 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: salgados-encomendas-panel
     restart: unless-stopped
     env_file:
       - .env.production
     expose:
       - "3000"
     networks:
-      - backend
+      backend:
+        aliases:
+          - salgados-encomendas-panel
 
 networks:
   backend:

@@ -5,6 +5,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import {
+  buildOrdersRecordUrl,
   OrderDetailSheet,
   OrdersOperationalRecordContent,
 } from "@/features/orders/components/orders-operational-record";
@@ -57,6 +58,42 @@ test("OrdersOperationalRecordContent renders the persisted operational record", 
   assert.match(markup, /Sem picante/);
   assert.match(markup, /41 encomendas encontradas/);
   assert.match(markup, /Página 1 de 3/);
+  assert.match(markup, /Abrir/);
+});
+
+test("OrdersOperationalRecordContent adapts copy for investigation mode", () => {
+  const markup = renderToStaticMarkup(
+    <OrdersOperationalRecordContent
+      mode="investigation"
+      orders={[
+        {
+          id: 42,
+          status: "placed",
+          paymentStatus: "pending",
+          slot: "manha",
+          customerName: "Maria Silva",
+          customerContact: "912345678",
+          scheduledAt: "2026-05-20T09:30:00+00:00",
+          total: 24,
+          notes: "Sem picante",
+          store: {
+            id: 3,
+            name: "Loja Centro",
+          },
+          user: null,
+          items: [],
+          createdAt: "2026-05-12T09:30:00+00:00",
+        },
+      ]}
+      meta={{ current_page: 1, last_page: 1, total: 1 }}
+      statusLabels={{ placed: "Realizado" }}
+      timeZone="Europe/Lisbon"
+    />,
+  );
+
+  assert.match(markup, /Investigação de encomendas/);
+  assert.match(markup, /universo pesquisável/i);
+  assert.doesNotMatch(markup, /Registo operacional/);
 });
 
 test("OrderDetailSheet enables edit button when canEdit is true", () => {
@@ -119,4 +156,117 @@ test("OrderDetailSheet does not block corrections when canEdit is still unknown"
 
   assert.match(markup, /Corrigir encomenda/);
   assert.doesNotMatch(markup, /Esta encomenda já não permite correções/);
+});
+
+test("OrderDetailSheet hides operational actions in investigation mode", () => {
+  const markup = renderToStaticMarkup(
+    <OrderDetailSheet
+      mode="investigation"
+      open={true}
+      onOpenChange={() => {}}
+      onEditOrder={() => {}}
+      onStatusChange={() => {}}
+      onPrintOrder={() => {}}
+      statusLabels={{ placed: "Realizado", accepted: "Aceite" }}
+      timeZone="Europe/Lisbon"
+      order={{
+        id: 42,
+        status: "placed",
+        canEdit: true,
+        items: [],
+        createdAt: "2026-05-12T09:30:00+00:00",
+      }}
+    />,
+  );
+
+  assert.match(markup, /Detalhe da investigação/i);
+  assert.match(markup, /Criada em 12\/05\/2026, 10:30/);
+  assert.doesNotMatch(markup, /Corrigir encomenda/);
+  assert.doesNotMatch(markup, /Atualizar estado/);
+  assert.doesNotMatch(markup, /Reimpressão operacional/);
+});
+
+test("buildOrdersRecordUrl removes default or invalid investigation period params", () => {
+  assert.equal(
+    buildOrdersRecordUrl({
+      pathname: "/audit/investigation",
+      searchParams: new URLSearchParams("period=all"),
+      normalizedSearch: "",
+      effectivePage: 1,
+      period: "all",
+      defaultPeriod: "all",
+      status: "",
+      paymentStatus: "",
+      slot: "",
+    }),
+    "/audit/investigation",
+  );
+
+  assert.equal(
+    buildOrdersRecordUrl({
+      pathname: "/audit/investigation",
+      searchParams: new URLSearchParams("period=bogus"),
+      normalizedSearch: "",
+      effectivePage: 1,
+      period: "all",
+      defaultPeriod: "all",
+      status: "",
+      paymentStatus: "",
+      slot: "",
+    }),
+    "/audit/investigation",
+  );
+});
+
+test("buildOrdersRecordUrl removes invalid filters that normalize to investigation defaults", () => {
+  assert.equal(
+    buildOrdersRecordUrl({
+      pathname: "/audit/investigation",
+      searchParams: new URLSearchParams(
+        "status=bogus&payment_status=x&slot=y&page=abc",
+      ),
+      normalizedSearch: "",
+      effectivePage: 1,
+      period: "all",
+      defaultPeriod: "all",
+      status: "",
+      paymentStatus: "",
+      slot: "",
+    }),
+    "/audit/investigation",
+  );
+});
+
+test("buildOrdersRecordUrl keeps a canonical page param when only pagination changes", () => {
+  assert.equal(
+    buildOrdersRecordUrl({
+      pathname: "/audit/investigation",
+      searchParams: new URLSearchParams("page=1"),
+      normalizedSearch: "",
+      effectivePage: 3,
+      period: "all",
+      defaultPeriod: "all",
+      status: "",
+      paymentStatus: "",
+      slot: "",
+    }),
+    "/audit/investigation?page=3",
+  );
+});
+
+test("buildOrdersRecordUrl resets pagination when investigation filters change", () => {
+  assert.equal(
+    buildOrdersRecordUrl({
+      pathname: "/audit/investigation",
+      searchParams: new URLSearchParams("page=3&search=Maria"),
+      normalizedSearch: "Ana",
+      effectivePage: 1,
+      period: "all",
+      defaultPeriod: "all",
+      status: "",
+      paymentStatus: "",
+      slot: "",
+    }),
+    "/audit/investigation?search=Ana",
+  );
 });

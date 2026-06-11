@@ -23,6 +23,7 @@ export const PANEL_ROUTE_KEYS = [
   "dashboard",
   "orders",
   "planning",
+  "settings-operational",
   "settings-access",
   "audit-investigation",
 ] as const;
@@ -128,6 +129,18 @@ export const PANEL_ROUTE_DEFINITIONS: readonly PanelRouteDefinition[] = [
     primaryCapability: "planning:manage",
     matcher: (pathname) =>
       pathname === "/planning" || pathname.startsWith("/planning/"),
+  },
+  {
+    key: "settings-operational",
+    href: "/settings/operational",
+    label: "Governação operacional",
+    description: "Parâmetros nucleares da operação, validações e notificações.",
+    runtime: "live",
+    allowedRoles: ["admin"],
+    requiredCapability: "settings:access:view",
+    primaryCapability: "settings:access:manage",
+    matcher: (pathname) =>
+      pathname === "/settings/operational" || pathname.startsWith("/settings/operational/"),
   },
   {
     key: "settings-access",

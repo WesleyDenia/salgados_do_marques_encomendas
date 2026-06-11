@@ -2,8 +2,9 @@
 
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Printer } from "lucide-react";
+import { Printer, RefreshCcw, X } from "lucide-react";
 
+import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -31,6 +32,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { OrderComposerDrawer } from "@/features/orders/components/order-composer-drawer";
+import { OrderAuditContext } from "@/features/orders/components/order-audit-context";
+import { OrderHistoryList } from "@/features/orders/components/order-history-list";
 import { useUpdateOrderStatus } from "@/features/orders/hooks/use-order-mutations";
 import { useOrderDetail } from "@/features/orders/hooks/use-order-queries";
 import { OrderSearch } from "@/features/orders/components/order-search";
@@ -44,6 +47,10 @@ import {
   type OrderOperationalPeriod,
   useOrderSearch,
 } from "@/features/orders/hooks/use-order-search";
+import {
+  getOrderRecordModeConfig,
+  type OrderRecordMode,
+} from "@/features/orders/order-record-mode";
 import {
   ORDER_PAYMENT_STATUS_LABELS,
   ORDER_SLOT_LABELS,
@@ -64,6 +71,20 @@ const ORDER_OPERATIONAL_PERIOD_LABELS: Record<OrderOperationalPeriod, string> = 
   "next-7-days": "Próximos 7 dias",
   all: "Todos",
 };
+
+const REVALIDATE_MESSAGES = {
+  errorNotFound: "Esta encomenda já não existe. Deseja fechar o detalhe?",
+  errorUnknown: "Erro desconhecido",
+  errorPrefix: "Não foi possível revalidar o estado:",
+  errorGeneric: "Não foi possível revalidar o estado.",
+  successPrefix: "Estado atualizado:",
+  infoNoChanges: "O estado já se encontra atualizado",
+  fieldState: "Estado",
+  fieldPayment: "Pagamento",
+  fieldSchedule: "Agendamento atualizado",
+};
+
+type OrderRecordSearchParams = Pick<URLSearchParams, "get" | "toString">;
 
 export const ORDER_STATUS_TRANSITIONS: Record<string, string[]> = {
   placed: ["accepted", "rejected", "canceled"],
@@ -165,6 +186,128 @@ export function getAllowedOrderStatusTransitions(status: string) {
   return ORDER_STATUS_TRANSITIONS[status] ?? [];
 }
 
+export function buildOrdersRecordUrl({
+  pathname,
+  searchParams,
+  normalizedSearch,
+  effectivePage,
+  period,
+  defaultPeriod,
+  status,
+  paymentStatus,
+  slot,
+  statusLabels,
+}: Readonly<{
+  pathname: string;
+  searchParams: OrderRecordSearchParams;
+  normalizedSearch: string;
+  effectivePage: number;
+  period: OrderOperationalPeriod;
+  defaultPeriod: OrderOperationalPeriod;
+  status: string;
+  paymentStatus: string;
+  slot: string;
+  statusLabels?: Record<string, string>;
+}>) {
+  const currentSearch = searchParams.get("search") ?? "";
+  const rawPageParam = searchParams.get("page");
+  const currentUrlPage = normalizeOrderSearchPage(searchParams.get("page"));
+  const rawPeriodParam = searchParams.get("period");
+  const rawStatusParam = searchParams.get("status");
+  const rawPaymentStatusParam = searchParams.get("payment_status");
+  const rawSlotParam = searchParams.get("slot");
+  const currentUrlPeriod = normalizeOrderOperationalPeriod(
+    rawPeriodParam,
+    defaultPeriod,
+  );
+  const currentUrlStatus = normalizeOrderOperationalStatus(
+    searchParams.get("status"),
+    statusLabels,
+  );
+  const currentUrlPaymentStatus = normalizeOrderOperationalPaymentStatus(
+    searchParams.get("payment_status"),
+  );
+  const currentUrlSlot = normalizeOrderOperationalSlot(searchParams.get("slot"));
+  const pageParamIsCanonical =
+    effectivePage === 1
+      ? rawPageParam == null
+      : rawPageParam === String(effectivePage);
+  const periodParamIsCanonical =
+    period === defaultPeriod ? rawPeriodParam == null : rawPeriodParam === period;
+  const statusParamIsCanonical =
+    status === "" ? rawStatusParam == null : rawStatusParam === status;
+  const paymentStatusParamIsCanonical =
+    paymentStatus === ""
+      ? rawPaymentStatusParam == null
+      : rawPaymentStatusParam === paymentStatus;
+  const slotParamIsCanonical =
+    slot === "" ? rawSlotParam == null : rawSlotParam === slot;
+
+  if (
+    normalizedSearch === currentSearch &&
+    currentUrlPage === effectivePage &&
+    currentUrlPeriod === period &&
+    currentUrlStatus === status &&
+    currentUrlPaymentStatus === paymentStatus &&
+    currentUrlSlot === slot &&
+    pageParamIsCanonical &&
+    periodParamIsCanonical &&
+    statusParamIsCanonical &&
+    paymentStatusParamIsCanonical &&
+    slotParamIsCanonical
+  ) {
+    return null;
+  }
+
+  const params = new URLSearchParams(searchParams.toString());
+
+  if (normalizedSearch) {
+    params.set("search", normalizedSearch);
+  } else {
+    params.delete("search");
+  }
+
+  if (
+    normalizedSearch !== currentSearch ||
+    period !== currentUrlPeriod ||
+    status !== currentUrlStatus ||
+    paymentStatus !== currentUrlPaymentStatus ||
+    slot !== currentUrlSlot
+  ) {
+    params.delete("page");
+  } else if (effectivePage > 1) {
+    params.set("page", String(effectivePage));
+  } else {
+    params.delete("page");
+  }
+
+  if (period === defaultPeriod) {
+    params.delete("period");
+  } else {
+    params.set("period", period);
+  }
+
+  if (status) {
+    params.set("status", status);
+  } else {
+    params.delete("status");
+  }
+
+  if (paymentStatus) {
+    params.set("payment_status", paymentStatus);
+  } else {
+    params.delete("payment_status");
+  }
+
+  if (slot) {
+    params.set("slot", slot);
+  } else {
+    params.delete("slot");
+  }
+
+  return params.toString() ? `${pathname}?${params.toString()}` : pathname;
+}
+
 export async function performOrderStatusTransition({
   currentOrder,
   isPending,
@@ -220,6 +363,7 @@ export function OrdersOperationalRecordEmptyState({
   paymentStatusLabel,
   slotLabel,
   onClear,
+  mode = "operational",
 }: Readonly<{
   searchTerm: string;
   periodLabel: string;
@@ -227,8 +371,9 @@ export function OrdersOperationalRecordEmptyState({
   paymentStatusLabel?: string;
   slotLabel?: string;
   onClear?: () => void;
+  mode?: OrderRecordMode;
 }>) {
-  const hasSearch = searchTerm.trim().length > 0;
+  const modeConfig = getOrderRecordModeConfig(mode);
   const filterParts = [
     periodLabel,
     statusLabel ? `estado ${statusLabel}` : "",
@@ -240,18 +385,10 @@ export function OrdersOperationalRecordEmptyState({
 
   return (
     <EmptyState
-      title={
-        hasSearch
-          ? "Nenhuma encomenda encontrada"
-          : "Não existem encomendas para os filtros ativos."
-      }
-      description={
-        hasSearch
-          ? `Não encontrámos resultados para "${searchTerm}". Ajuste o número, nome do cliente ou contacto e tente novamente.`
-          : `Não encontrámos encomendas para os critérios: ${filterSummary}. Ajuste os filtros operacionais para continuar a triagem.`
-      }
+      title={modeConfig.emptyStateTitle({ filterSummary, searchTerm })}
+      description={modeConfig.emptyStateDescription({ filterSummary, searchTerm })}
       action={
-        hasSearch && onClear ? (
+        searchTerm.trim().length > 0 && onClear ? (
           <Button type="button" variant="outline" onClick={onClear}>
             Limpar pesquisa
           </Button>
@@ -273,6 +410,11 @@ export function OrderDetailSheet({
   printErrorMessage,
   statusLabels,
   timeZone,
+  mode = "operational",
+  historyLoading = false,
+  historyError = false,
+  isRefetching = false,
+  onRefetch,
 }: Readonly<{
   order: Order | null;
   open: boolean;
@@ -285,7 +427,13 @@ export function OrderDetailSheet({
   printErrorMessage?: string | null;
   statusLabels?: Record<string, string>;
   timeZone?: string;
+  mode?: OrderRecordMode;
+  historyLoading?: boolean;
+  historyError?: boolean;
+  isRefetching?: boolean;
+  onRefetch?: () => Promise<void>;
 }>) {
+  const modeConfig = getOrderRecordModeConfig(mode);
   const availableTransitions = order
     ? getAllowedOrderStatusTransitions(order.status)
     : [];
@@ -297,18 +445,42 @@ export function OrderDetailSheet({
           <SheetHeader>
             <div className="flex items-center gap-3">
               <SheetTitle className="text-xl">
-                {order ? `Encomenda #${order.id}` : "Detalhe da encomenda"}
+                {modeConfig.detailTitle(order?.id ?? null)}
               </SheetTitle>
               {order && (
-                <div className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-                  {buildOperationalStatusLabel(order, statusLabels)}
+                <div className="flex items-center gap-2">
+                  <div className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                    {buildOperationalStatusLabel(order, statusLabels)}
+                  </div>
+                  {onRefetch && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                      onClick={() => onRefetch().catch(() => {})}
+                      disabled={isRefetching}
+                      title="Revalidar estado"
+                    >
+                      <RefreshCcw
+                        className={cn(
+                          "h-3.5 w-3.5",
+                          isRefetching && "animate-spin",
+                        )}
+                        aria-hidden
+                      />
+                      <span className="sr-only">Revalidar estado</span>
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
             <SheetDescription>
-              Consulte o registo atual antes de avançar para revisão ou correção.
+              {modeConfig.detailDescription}
             </SheetDescription>
-            {order && availableTransitions.length > 0 ? (
+            {order &&
+            modeConfig.showStatusActions &&
+            availableTransitions.length > 0 ? (
               <div className="mt-3 space-y-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   Atualizar estado
@@ -338,10 +510,10 @@ export function OrderDetailSheet({
           <SheetClose />
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
+        <div className={cn("flex-1 overflow-y-auto px-5 py-5 space-y-6", isRefetching && "opacity-50 pointer-events-none transition-opacity")}>
           {order ? (
             <>
-              {order.canEdit === false && (
+              {modeConfig.showEditBlockedNotice && order.canEdit === false && (
                 <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
                   <p className="font-medium">Esta encomenda já não permite correções</p>
                   <p className="mt-1 opacity-90">
@@ -437,44 +609,67 @@ export function OrderDetailSheet({
                 </section>
               </div>
 
-              <section className="rounded-xl border border-border/70 bg-card/60 p-4">
-                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                      Reimpressão operacional
-                    </p>
-                    <p className="text-sm text-foreground">
-                      {buildPrintStateMessage(printState, printErrorMessage)}
-                    </p>
+              {mode === "investigation" ? (
+                <OrderAuditContext
+                  order={order}
+                  statusLabels={statusLabels}
+                  timeZone={timeZone}
+                  loading={historyLoading}
+                  error={historyError}
+                />
+              ) : null}
+
+              {modeConfig.showPrintAction ? (
+                <section className="rounded-xl border border-border/70 bg-card/60 p-4">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        Reimpressão operacional
+                      </p>
+                      <p className="text-sm text-foreground">
+                        {buildPrintStateMessage(printState, printErrorMessage)}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant={printState === "error" ? "destructive" : "outline"}
+                      onClick={() => onPrintOrder?.(order)}
+                    >
+                      <Printer />
+                      {printState === "error" ? "Tentar novamente" : "Reimprimir 80mm"}
+                    </Button>
                   </div>
-                  <Button
-                    type="button"
-                    variant={printState === "error" ? "destructive" : "outline"}
-                    onClick={() => onPrintOrder?.(order)}
-                  >
-                    <Printer />
-                    {printState === "error" ? "Tentar novamente" : "Reimprimir 80mm"}
-                  </Button>
-                </div>
-              </section>
+                </section>
+              ) : null}
+
+              <OrderHistoryList
+                history={order.history}
+                order={order}
+                timeZone={timeZone}
+                statusLabels={statusLabels}
+                loading={historyLoading}
+                error={historyError}
+              />
             </>
           ) : null}
         </div>
 
-        {order && (
+        {order ? (
           <div className="border-t border-border/70 bg-card/30 px-5 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <p className="text-xs text-muted-foreground">
               Criada em {formatOperationalDateTime(order.createdAt, timeZone)}
             </p>
-            <Button
-              type="button"
-              disabled={order.canEdit === false}
-              onClick={() => onEditOrder?.(order)}
-            >
-              Corrigir encomenda
-            </Button>
+            {modeConfig.showEditAction ? (
+              <Button
+                type="button"
+                disabled={order.canEdit === false}
+                onClick={() => onEditOrder?.(order)}
+              >
+                Corrigir encomenda
+              </Button>
+            ) : null}
           </div>
-        )}
+        ) : null}
       </SheetContent>
     </Sheet>
   );
@@ -489,6 +684,7 @@ export function OrdersOperationalRecordContent({
   statusLabels,
   isRefreshing,
   timeZone,
+  mode = "operational",
 }: Readonly<{
   orders: Order[];
   meta?: { current_page?: number; last_page?: number; total?: number };
@@ -498,7 +694,9 @@ export function OrdersOperationalRecordContent({
   statusLabels?: Record<string, string>;
   isRefreshing?: boolean;
   timeZone?: string;
+  mode?: OrderRecordMode;
 }>) {
+  const modeConfig = getOrderRecordModeConfig(mode);
   const currentPage = meta?.current_page ?? 1;
   const lastPage = meta?.last_page ?? 1;
   const total = meta?.total ?? orders.length;
@@ -507,11 +705,10 @@ export function OrdersOperationalRecordContent({
     <section className="space-y-4">
       <div className="space-y-2">
         <h2 className="text-xl font-semibold tracking-tight">
-          Registo operacional
+          {modeConfig.heading}
         </h2>
         <p className="text-sm leading-6 text-muted-foreground">
-          Localize encomendas existentes por critérios operacionais e abra o
-          registo certo para revisão antes de qualquer correção.
+          {modeConfig.description}
         </p>
       </div>
 
@@ -616,14 +813,22 @@ export function OrdersOperationalRecordContent({
   );
 }
 
-export function OrdersOperationalRecord() {
+export function OrdersOperationalRecord({
+  mode = "operational",
+}: Readonly<{
+  mode?: OrderRecordMode;
+}>) {
+  const modeConfig = getOrderRecordModeConfig(mode);
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const urlSearchTerm = searchParams.get("search") ?? "";
   const currentPage = normalizeOrderSearchPage(searchParams.get("page"));
-  const currentPeriod = normalizeOrderOperationalPeriod(searchParams.get("period"));
+  const currentPeriod = normalizeOrderOperationalPeriod(
+    searchParams.get("period"),
+    modeConfig.defaultPeriod,
+  );
   const rawUrlStatus = searchParams.get("status");
   const rawUrlPaymentStatus = searchParams.get("payment_status");
   const rawUrlSlot = searchParams.get("slot");
@@ -700,73 +905,23 @@ export function OrdersOperationalRecord() {
       return;
     }
 
-    const normalizedSearch = normalizedSearchTerm;
-    const currentUrlPage = normalizeOrderSearchPage(searchParams.get("page"));
-    const currentUrlPeriod = normalizeOrderOperationalPeriod(searchParams.get("period"));
-    const currentUrlStatus = normalizeOrderOperationalStatus(
-      searchParams.get("status"),
+    const nextUrl = buildOrdersRecordUrl({
+      pathname,
+      searchParams,
+      normalizedSearch: normalizedSearchTerm,
+      effectivePage,
+      period,
+      defaultPeriod: modeConfig.defaultPeriod,
+      status,
+      paymentStatus,
+      slot,
       statusLabels,
-    );
-    const currentUrlPaymentStatus = normalizeOrderOperationalPaymentStatus(searchParams.get("payment_status"));
-    const currentUrlSlot = normalizeOrderOperationalSlot(searchParams.get("slot"));
+    });
 
-    if (
-      normalizedSearch === currentSearch &&
-      currentUrlPage === effectivePage &&
-      currentUrlPeriod === period &&
-      currentUrlStatus === status &&
-      currentUrlPaymentStatus === paymentStatus &&
-      currentUrlSlot === slot
-    ) {
-      return;
+    if (nextUrl) {
+      router.replace(nextUrl, { scroll: false });
     }
-
-    const params = new URLSearchParams(searchParams.toString());
-
-    if (normalizedSearch) {
-      params.set("search", normalizedSearch);
-    } else {
-      params.delete("search");
-    }
-
-    // Reset page to 1 when filters change
-    if (
-      normalizedSearch !== currentSearch ||
-      period !== currentUrlPeriod ||
-      status !== currentUrlStatus ||
-      paymentStatus !== currentUrlPaymentStatus ||
-      slot !== currentUrlSlot
-    ) {
-      params.delete("page");
-    }
-
-    if (period === "today") {
-      params.delete("period");
-    } else {
-      params.set("period", period);
-    }
-
-    if (status) {
-      params.set("status", status);
-    } else {
-      params.delete("status");
-    }
-
-    if (paymentStatus) {
-      params.set("payment_status", paymentStatus);
-    } else {
-      params.delete("payment_status");
-    }
-
-    if (slot) {
-      params.set("slot", slot);
-    } else {
-      params.delete("slot");
-    }
-
-    const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
-    router.replace(nextUrl, { scroll: false });
-  }, [currentSearch, effectivePage, normalizedSearchTerm, pathname, period, router, searchParams, settings, statusLabels, status, paymentStatus, slot, rawUrlStatus]);
+  }, [currentSearch, effectivePage, modeConfig.defaultPeriod, normalizedSearchTerm, pathname, period, router, searchParams, settings, statusLabels, status, paymentStatus, slot, rawUrlStatus]);
 
   const clearSearch = React.useCallback(() => {
     setSearchTerm("");
@@ -825,6 +980,10 @@ export function OrdersOperationalRecord() {
   }, [retry]);
 
   React.useEffect(() => {
+    if (!modeConfig.showPrintAction) {
+      return;
+    }
+
     const handleMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || !isOrderPrintFlowEvent(event.data)) {
         return;
@@ -863,7 +1022,7 @@ export function OrdersOperationalRecord() {
     return () => {
       window.removeEventListener("message", handleMessage);
     };
-  }, [toast]);
+  }, [modeConfig.showPrintAction, toast]);
 
   const handleStatusChange = React.useCallback(
     async (nextStatus: string) => {
@@ -879,6 +1038,64 @@ export function OrdersOperationalRecord() {
     },
     [detailQuery, selectedOrder, toast, updateOrderStatusMutation],
   );
+
+  const handleRefetch = React.useCallback(async () => {
+    if (!selectedOrder || detailQuery.isFetching) return;
+
+    const snapshot = detailQuery.data || selectedOrder;
+
+    try {
+      const result = await detailQuery.refetch();
+
+      if (result.isError) {
+        const error = result.error as any;
+        if (error?.response?.status === 404) {
+          if (window.confirm(REVALIDATE_MESSAGES.errorNotFound)) {
+            setSelectedOrder(null);
+          }
+        } else {
+          toast(
+            `${REVALIDATE_MESSAGES.errorPrefix} ${error?.message || REVALIDATE_MESSAGES.errorUnknown}`,
+            "error",
+          );
+        }
+        return;
+      }
+
+      const updatedOrder = result.data;
+      if (!updatedOrder) return;
+
+      const changes: string[] = [];
+
+      if (snapshot.status !== updatedOrder.status) {
+        const from =
+          settings?.statusLabels?.[snapshot.status] || snapshot.status;
+        const to =
+          settings?.statusLabels?.[updatedOrder.status] || updatedOrder.status;
+        changes.push(`${REVALIDATE_MESSAGES.fieldState}: ${from} -> ${to}`);
+      }
+
+      if (snapshot.paymentStatus !== updatedOrder.paymentStatus) {
+        const from =
+          ORDER_PAYMENT_STATUS_LABELS[snapshot.paymentStatus] || snapshot.paymentStatus;
+        const to =
+          ORDER_PAYMENT_STATUS_LABELS[updatedOrder.paymentStatus] || updatedOrder.paymentStatus;
+        changes.push(`${REVALIDATE_MESSAGES.fieldPayment}: ${from} -> ${to}`);
+      }
+
+      if (snapshot.scheduledAt !== updatedOrder.scheduledAt) {
+        changes.push(REVALIDATE_MESSAGES.fieldSchedule);
+      }
+
+      if (changes.length > 0) {
+        toast(`${REVALIDATE_MESSAGES.successPrefix} ${changes.join(", ")}`, "success");
+      } else {
+        toast(REVALIDATE_MESSAGES.infoNoChanges, "info");
+      }
+    } catch (error) {
+      toast(REVALIDATE_MESSAGES.errorGeneric, "error");
+    }
+  }, [selectedOrder, detailQuery, toast, setSelectedOrder, settings?.statusLabels]);
 
   const handlePrintOrder = React.useCallback(
     (order: Order) => {
@@ -947,6 +1164,10 @@ export function OrdersOperationalRecord() {
         onChange={setSearchTerm}
         onClear={clearSearch}
         loading={isFetching}
+        label={modeConfig.searchLabel}
+        placeholder={modeConfig.searchPlaceholder}
+        helpTextIdle={modeConfig.searchHelpIdle}
+        helpTextLoading={modeConfig.searchHelpLoading}
       />
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-2">
@@ -1025,7 +1246,7 @@ export function OrdersOperationalRecord() {
   if (isLoading) {
     return (
       <section className="rounded-2xl border border-border/70 bg-card/80 p-5 text-sm text-muted-foreground">
-        A carregar registo operacional de encomendas...
+        {modeConfig.loadingMessage}
       </section>
     );
   }
@@ -1035,10 +1256,7 @@ export function OrdersOperationalRecord() {
       <section className="space-y-4">
         {filters}
         <section className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">
-          <p>
-            Não foi possível carregar o registo operacional. Verifique a sessão e a
-            disponibilidade do backend.
-          </p>
+          <p>{modeConfig.loadErrorMessage}</p>
           <Button
             type="button"
             variant="outline"
@@ -1066,6 +1284,7 @@ export function OrdersOperationalRecord() {
           paymentStatusLabel={selectedPaymentStatusLabel}
           slotLabel={selectedSlotLabel}
           onClear={clearSearch}
+          mode={mode}
         />
       </section>
     ) : (
@@ -1078,6 +1297,7 @@ export function OrdersOperationalRecord() {
         statusLabels={settings?.statusLabels}
         isRefreshing={isFetching}
         timeZone={settings?.timezone}
+        mode={mode}
       />
     );
 
@@ -1100,6 +1320,14 @@ export function OrdersOperationalRecord() {
         }
         statusLabels={settings?.statusLabels}
         timeZone={settings?.timezone}
+        mode={mode}
+        historyLoading={
+          Boolean(selectedOrder) &&
+          (detailQuery.isLoading || (detailQuery.isFetching && !detailQuery.data))
+        }
+        historyError={Boolean(detailQuery.error) && !detailQuery.data}
+        isRefetching={detailQuery.isFetching}
+        onRefetch={handleRefetch}
         onEditOrder={(order) => {
           setSelectedOrder(null);
           setEditingOrder(order);
