@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Printer, RefreshCcw, X } from "lucide-react";
+import { Printer, RefreshCcw } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -1048,7 +1048,7 @@ export function OrdersOperationalRecord({
       const result = await detailQuery.refetch();
 
       if (result.isError) {
-        const error = result.error as any;
+        const error = result.error as Error & { response?: { status: number } };
         if (error?.response?.status === 404) {
           if (window.confirm(REVALIDATE_MESSAGES.errorNotFound)) {
             setSelectedOrder(null);
@@ -1076,10 +1076,12 @@ export function OrdersOperationalRecord({
       }
 
       if (snapshot.paymentStatus !== updatedOrder.paymentStatus) {
-        const from =
-          ORDER_PAYMENT_STATUS_LABELS[snapshot.paymentStatus] || snapshot.paymentStatus;
-        const to =
-          ORDER_PAYMENT_STATUS_LABELS[updatedOrder.paymentStatus] || updatedOrder.paymentStatus;
+        const from = snapshot.paymentStatus
+          ? ORDER_PAYMENT_STATUS_LABELS[snapshot.paymentStatus] || snapshot.paymentStatus
+          : "N/A";
+        const to = updatedOrder.paymentStatus
+          ? ORDER_PAYMENT_STATUS_LABELS[updatedOrder.paymentStatus] || updatedOrder.paymentStatus
+          : "N/A";
         changes.push(`${REVALIDATE_MESSAGES.fieldPayment}: ${from} -> ${to}`);
       }
 
@@ -1092,7 +1094,7 @@ export function OrdersOperationalRecord({
       } else {
         toast(REVALIDATE_MESSAGES.infoNoChanges, "info");
       }
-    } catch (error) {
+    } catch {
       toast(REVALIDATE_MESSAGES.errorGeneric, "error");
     }
   }, [selectedOrder, detailQuery, toast, setSelectedOrder, settings?.statusLabels]);

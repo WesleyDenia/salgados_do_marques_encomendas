@@ -30,6 +30,7 @@ export function OperationalSettingsForm() {
   const [testedWhatsAppNumber, setTestedWhatsAppNumber] = React.useState<string | null>(null);
 
   const form = useForm<OperationalSettingsFormValues>({
+    // @ts-expect-error - Zod version mismatch between zod v4 and @hookform/resolvers
     resolver: zodResolver(operationalSettingsSchema),
     defaultValues: {
       ORDER_START_TIME: "12:00",
@@ -71,12 +72,13 @@ export function OperationalSettingsForm() {
         version: query.data.SETTINGS_VERSION,
       });
       toast("Configurações operacionais atualizadas com sucesso.", "success");
-    } catch (error: any) {
-      if (error.response?.status === 409) {
+    } catch (error: unknown) {
+      const err = error as Error & { response?: { status: number } };
+      if (err.response?.status === 409) {
         toast("Erro de concorrência: as definições foram alteradas por outro utilizador. Recarregando...", "error");
         query.refetch();
       } else {
-        toast(error.message || "Erro ao atualizar configurações.", "error");
+        toast(err.message || "Erro ao atualizar configurações.", "error");
       }
     }
   }
@@ -88,8 +90,9 @@ export function OperationalSettingsForm() {
     try {
       await resetMutation.mutateAsync(query.data.SETTINGS_VERSION);
       toast("Configurações restauradas com sucesso.", "success");
-    } catch (error: any) {
-      if (error.response?.status === 409) {
+    } catch (error: unknown) {
+      const err = error as Error & { response?: { status: number } };
+      if (err.response?.status === 409) {
         toast("Erro de concorrência: as definições foram alteradas por outro utilizador. Recarregando...", "error");
         query.refetch();
       } else {
@@ -113,7 +116,7 @@ export function OperationalSettingsForm() {
       } else {
         toast(result.message, "error");
       }
-    } catch (error: any) {
+    } catch {
       toast("Erro ao testar conexão WhatsApp.", "error");
     }
   }
