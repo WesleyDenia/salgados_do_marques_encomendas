@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Settings2, Phone, RotateCcw, Save, AlertTriangle } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Button } from "@/components/ui/button";
@@ -28,10 +28,12 @@ export function OperationalSettingsForm() {
   const resetMutation = useResetOperationalSettings();
   const testWhatsAppMutation = useTestWhatsAppConnection();
   const [testedWhatsAppNumber, setTestedWhatsAppNumber] = React.useState<string | null>(null);
+  const resolver = zodResolver(
+    operationalSettingsSchema as never,
+  ) as Resolver<OperationalSettingsFormValues>;
 
   const form = useForm<OperationalSettingsFormValues>({
-    // @ts-expect-error - Zod version mismatch between zod v4 and @hookform/resolvers
-    resolver: zodResolver(operationalSettingsSchema),
+    resolver,
     defaultValues: {
       ORDER_START_TIME: "12:00",
       ORDER_END_TIME: "20:00",
