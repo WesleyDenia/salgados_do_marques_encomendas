@@ -267,6 +267,152 @@ export function ProtectedAreaPage({
     );
   }
 
+  if (routeKey === "orders") {
+    const capabilities = getPanelCapabilities(sessionUser.role);
+    const canCreateOrders = capabilities.includes("orders:create");
+    const canManageOrders = capabilities.includes("orders:manage");
+
+    return (
+      <section className="space-y-8">
+        <header className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-sm font-medium uppercase tracking-[0.24em] text-muted-foreground">
+              Encomendas
+            </p>
+            <h1 className="text-3xl font-semibold tracking-tight">
+              Fila operacional e detalhe acionável de encomendas
+            </h1>
+            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+              Use esta área para localizar rapidamente a encomenda certa,
+              validar o estado atual antes de agir e abrir o detalhe completo
+              com o mesmo contexto operacional usado no resto do painel.
+            </p>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            <article className="rounded-2xl border border-border/70 bg-card/80 p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Perfil em operação
+              </p>
+              <p className="mt-3 text-lg font-semibold text-card-foreground">
+                {getPanelRoleLabel(sessionUser.role)}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Runtime {roleRuntime ?? "desconhecido"} · {sessionUser.name}
+              </p>
+            </article>
+
+            <article className="rounded-2xl border border-border/70 bg-card/80 p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Criação de encomendas
+              </p>
+              <p className="mt-3 text-lg font-semibold text-card-foreground">
+                {canCreateOrders ? "Disponível" : "Indisponível"}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {canCreateOrders
+                  ? "O perfil atual pode abrir fluxos de registo."
+                  : "O perfil atual não expõe criação direta nesta área."}
+              </p>
+            </article>
+
+            <article className="rounded-2xl border border-border/70 bg-card/80 p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Correção e gestão
+              </p>
+              <p className="mt-3 text-lg font-semibold text-card-foreground">
+                {canManageOrders ? "Permitida" : "Consulta apenas"}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {canManageOrders
+                  ? "Pode atualizar estado e corrigir dados quando a encomenda o permitir."
+                  : "Pode consultar a fila, mas sem ações operacionais avançadas."}
+              </p>
+            </article>
+          </div>
+        </header>
+
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(22rem,1fr)]">
+          <div className="space-y-4">
+            <section className="rounded-2xl border border-border/70 bg-card/90 p-5">
+              <p className="text-sm font-medium text-card-foreground">
+                Sequência de trabalho nesta área
+              </p>
+              <div className="mt-4 grid gap-4 md:grid-cols-3">
+                <article className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    1. Localizar
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-foreground">
+                    Pesquise por número, cliente, contacto, estado, pagamento e
+                    slot para chegar à fila certa.
+                  </p>
+                </article>
+                <article className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    2. Validar
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-foreground">
+                    Confirme o registo atual, o histórico relevante e o
+                    enquadramento operacional antes de qualquer alteração.
+                  </p>
+                </article>
+                <article className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    3. Agir
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-foreground">
+                    Aplique apenas as ações que o perfil suporta e que a
+                    encomenda ainda permite no backend.
+                  </p>
+                </article>
+              </div>
+            </section>
+          </div>
+
+          <aside className="space-y-4">
+            <section className="rounded-2xl border border-border/70 bg-card/90 p-5">
+              <p className="text-sm font-medium text-card-foreground">
+                Capacidades ativas para encomendas
+              </p>
+              <div className="mt-4 space-y-3 text-sm leading-6 text-muted-foreground">
+                <p>
+                  Entrada na fila: <code>orders:view</code>
+                </p>
+                <p>
+                  Registo de novas encomendas:{" "}
+                  <code>{canCreateOrders ? "orders:create" : "não disponível"}</code>
+                </p>
+                <p>
+                  Gestão operacional:{" "}
+                  <code>{canManageOrders ? "orders:manage" : "não disponível"}</code>
+                </p>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-border/70 bg-card/90 p-5">
+              <p className="text-sm font-medium text-card-foreground">
+                Contexto desta página
+              </p>
+              <div className="mt-4 space-y-3 text-sm leading-6 text-muted-foreground">
+                <p>
+                  O detalhe apresentado abaixo já é a área principal de trabalho
+                  para triagem, correção e reimpressão operacional.
+                </p>
+                <p>
+                  O cabeçalho desta página foi reduzido ao contexto útil, sem
+                  blocos de placeholder nem promessas de funcionalidades futuras.
+                </p>
+              </div>
+            </section>
+          </aside>
+        </div>
+
+        {children}
+      </section>
+    );
+  }
+
   return (
     <section className="space-y-8">
       <header className="space-y-3">

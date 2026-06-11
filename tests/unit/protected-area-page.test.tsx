@@ -29,3 +29,25 @@ test("ProtectedAreaPage renders a real dashboard overview instead of generic pla
   assert.doesNotMatch(markup, /Estrutura reservada para próximas stories/i);
 });
 
+test("ProtectedAreaPage renders an orders-specific operational frame instead of generic placeholder copy", () => {
+  const markup = renderToStaticMarkup(
+    <ProtectedAreaPage
+      routeKey="orders"
+      sessionUser={{
+        id: 2,
+        name: "Bruna Atendimento",
+        email: "bruna@example.test",
+        role: "atendimento",
+        active: true,
+      }}
+    />,
+  );
+
+  assert.match(markup, /Fila operacional e detalhe acionável de encomendas/);
+  assert.match(markup, /Sequência de trabalho nesta área/);
+  assert.match(markup, /1\. Localizar/);
+  assert.match(markup, /2\. Validar/);
+  assert.match(markup, /3\. Agir/);
+  assert.match(markup, /Capacidades ativas para encomendas/);
+  assert.doesNotMatch(markup, /Estrutura reservada para próximas stories/i);
+});
