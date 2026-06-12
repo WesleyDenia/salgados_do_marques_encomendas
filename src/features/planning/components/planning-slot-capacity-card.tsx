@@ -38,10 +38,10 @@ export function PlanningSlotCapacityForm({
   onSubmit,
 }: SlotCapacityFormProps) {
   return (
-    <form className="space-y-4 rounded-2xl border border-border bg-card p-5" onSubmit={onSubmit}>
+    <form className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm" onSubmit={onSubmit}>
       <div className="space-y-1">
-        <h2 className="text-base font-semibold text-foreground">Capacidade base por slot</h2>
-        <p className="text-sm text-muted-foreground">
+        <h2 className="text-base font-semibold text-slate-950">Capacidade base por slot</h2>
+        <p className="text-sm text-slate-600">
           Configuração global do MVP. Apenas os slots canónicos entram na governança oficial.
         </p>
       </div>
@@ -49,7 +49,7 @@ export function PlanningSlotCapacityForm({
       <div className="grid gap-4 md:grid-cols-3">
         {entries.map((entry) => (
           <label key={entry.slot} className="space-y-2">
-            <span className="block text-sm font-medium text-foreground">{entry.label}</span>
+            <span className="block text-sm font-medium text-slate-950">{entry.label}</span>
             <Input
               type="number"
               min={0}
@@ -64,7 +64,7 @@ export function PlanningSlotCapacityForm({
         ))}
       </div>
 
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-slate-500">
         `sem_slot` fica fora desta configuração e nunca representa uma janela oficial de capacidade.
       </p>
 
@@ -85,7 +85,7 @@ export function PlanningSlotCapacityForm({
         <Button type="submit" disabled={disabled}>
           {disabled ? "A gravar..." : "Guardar capacidade base"}
         </Button>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-slate-500">
           O backend continua a ser a única fonte de verdade para disponibilidade e aceite.
         </span>
       </div>
@@ -98,9 +98,9 @@ export function PlanningSlotCapacityCard({ role }: PlanningSlotCapacityCardProps
 
   if (!isAdmin) {
     return (
-      <section className="rounded-2xl border border-dashed border-border bg-card/60 p-5">
-        <h2 className="text-base font-semibold text-foreground">Capacidade base por slot</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
+      <section className="rounded-3xl border border-dashed border-slate-300 bg-white p-5 shadow-sm">
+        <h2 className="text-base font-semibold text-slate-950">Capacidade base por slot</h2>
+        <p className="mt-2 text-sm text-slate-600">
           A configuração administrativa de capacidade fica visível apenas para administradores.
           O perfil operacional continua a consultar o planeamento normal através das respostas oficiais do backend.
         </p>
@@ -193,15 +193,15 @@ function PlanningSlotCapacityAdminCard() {
 
   if (query.isLoading && !query.data) {
     return (
-      <section className="rounded-2xl border border-border bg-card p-5">
-        <p className="text-sm text-muted-foreground">A carregar capacidade base oficial...</p>
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p className="text-sm text-slate-600">A carregar capacidade base oficial...</p>
       </section>
     );
   }
 
   if (query.error && !query.data) {
     return (
-      <section className="rounded-2xl border border-border bg-card p-5">
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <p className="text-sm text-destructive">
           Não foi possível carregar a capacidade base oficial.
         </p>

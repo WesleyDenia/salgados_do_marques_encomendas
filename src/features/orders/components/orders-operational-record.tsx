@@ -703,26 +703,73 @@ export function OrdersOperationalRecordContent({
 
   return (
     <section className="space-y-4">
-      <div className="space-y-2">
-        <h2 className="text-xl font-semibold tracking-tight">
-          {modeConfig.heading}
-        </h2>
-        <p className="text-sm leading-6 text-muted-foreground">
-          {modeConfig.description}
-        </p>
+      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+            Centro de trabalho
+          </p>
+          <h2 className="text-xl font-semibold tracking-tight text-slate-950">
+            {modeConfig.heading}
+          </h2>
+          <p className="text-sm leading-6 text-slate-600">
+            {modeConfig.description}
+          </p>
+        </div>
       </div>
 
       {searchSlot}
 
-      <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-background/80 px-4 py-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-        <p>
-          {total === 1 ? "1 encomenda encontrada." : `${total} encomendas encontradas.`}
-        </p>
-        {isRefreshing ? (
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-            A atualizar fila...
+      <div className="grid gap-4 md:grid-cols-3">
+        <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+            Registos no filtro
           </p>
-        ) : null}
+          <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+            {total}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            {total === 1
+              ? "1 encomenda encontrada no conjunto atual."
+              : `${total} encomendas encontradas no conjunto atual.`}
+          </p>
+        </article>
+
+        <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+            Paginação
+          </p>
+          <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+            {currentPage}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            {lastPage > 1
+              ? `Página ${currentPage} de ${lastPage} na fila filtrada.`
+              : "Todos os registos cabem numa única página."}
+          </p>
+        </article>
+
+        <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+            Sincronização
+          </p>
+          <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+            {isRefreshing ? "Live" : "OK"}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            {isRefreshing
+              ? "A fila está a ser atualizada com o backend neste momento."
+              : "A fila está estável e pronta para atendimento."}
+          </p>
+        </article>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600 shadow-sm md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="font-medium text-slate-950">Leitura operacional da fila</p>
+          <p className="mt-1 text-sm text-slate-600">
+            Revise cliente, loja, agendamento, pagamento e estado antes de abrir o detalhe.
+          </p>
+        </div>
         {lastPage > 1 ? (
           <div className="flex items-center gap-2">
             <Button
@@ -750,10 +797,15 @@ export function OrdersOperationalRecordContent({
         ) : null}
       </div>
 
-      <div className="rounded-2xl border border-border/70 bg-card/90">
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 px-5 py-4">
+          <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+            Fila detalhada
+          </h3>
+        </div>
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="bg-slate-50/80">
               <TableHead>ID</TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead>Loja</TableHead>
@@ -768,7 +820,7 @@ export function OrdersOperationalRecordContent({
           </TableHeader>
           <TableBody>
             {orders.map((order) => (
-              <TableRow key={order.id}>
+              <TableRow key={order.id} className="hover:bg-slate-50/80">
                 <TableCell className="font-medium">#{order.id}</TableCell>
                 <TableCell>{buildCustomerLabel(order)}</TableCell>
                 <TableCell>{order.store?.name ?? "Loja não carregada"}</TableCell>
@@ -794,20 +846,31 @@ export function OrdersOperationalRecordContent({
         </Table>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+            Notas operacionais
+          </h3>
+          <p className="mt-1 text-sm text-slate-600">
+            Apoio rápido para leitura de instruções e observações persistidas por encomenda.
+          </p>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
         {orders.map((order) => (
           <article
             key={`notes-${order.id}`}
-            className="rounded-2xl border border-border/70 bg-background p-4"
+            className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm"
           >
-            <p className="text-sm font-medium text-foreground">
+            <p className="text-sm font-medium text-slate-950">
               Encomenda #{order.id} · {buildCustomerLabel(order)}
             </p>
-            <p className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground">
+            <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600">
               {order.notes?.trim() || "Sem notas operacionais persistidas."}
             </p>
           </article>
         ))}
+        </div>
       </div>
     </section>
   );
@@ -1160,7 +1223,22 @@ export function OrdersOperationalRecord({
   );
 
   const filters = (
-    <div className="space-y-4 rounded-2xl border border-border/70 bg-card/70 p-4">
+    <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+            Filtros operacionais
+          </p>
+          <p className="mt-1 text-sm leading-6 text-slate-600">
+            Refine a fila por período, estado, pagamento ou slot para abrir a encomenda certa mais depressa.
+          </p>
+        </div>
+        {isFetching ? (
+          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+            A atualizar
+          </span>
+        ) : null}
+      </div>
       <OrderSearch
         value={searchTerm}
         onChange={setSearchTerm}
@@ -1247,7 +1325,7 @@ export function OrdersOperationalRecord({
 
   if (isLoading) {
     return (
-      <section className="rounded-2xl border border-border/70 bg-card/80 p-5 text-sm text-muted-foreground">
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 text-sm text-slate-600 shadow-sm">
         {modeConfig.loadingMessage}
       </section>
     );
@@ -1257,7 +1335,7 @@ export function OrdersOperationalRecord({
     return (
       <section className="space-y-4">
         {filters}
-        <section className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">
+        <section className="rounded-3xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">
           <p>{modeConfig.loadErrorMessage}</p>
           <Button
             type="button"

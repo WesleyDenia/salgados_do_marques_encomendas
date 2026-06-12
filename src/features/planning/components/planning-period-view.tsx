@@ -198,40 +198,53 @@ export function PlanningPeriodView({ role }: PlanningPeriodViewProps) {
 
   return (
     <section className="space-y-6">
-      {view !== "rules" && <PlanningSlotCapacityCard role={role} />}
+      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Modos de leitura
+            </p>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              Alterne entre leitura diária, semanal ou período personalizado para perceber a carga operacional.
+            </p>
+          </div>
 
-      <div className="flex flex-wrap gap-3">
-        <Button
-          type="button"
-          variant={view === "day" ? "default" : "outline"}
-          onClick={() => handleViewChange("day")}
-        >
-          Vista diária
-        </Button>
-        <Button
-          type="button"
-          variant={view === "week" ? "default" : "outline"}
-          onClick={() => handleViewChange("week")}
-        >
-          Vista semanal
-        </Button>
-        <Button
-          type="button"
-          variant={view === "period" ? "default" : "outline"}
-          onClick={() => handleViewChange("period")}
-        >
-          Período personalizado
-        </Button>
-        {role === "admin" && (
-          <Button
-            type="button"
-            variant={view === "rules" ? "default" : "outline"}
-            onClick={() => handleViewChange("rules")}
-          >
-            Regras operacionais
-          </Button>
-        )}
+          <div className="flex flex-wrap gap-3">
+            <Button
+              type="button"
+              variant={view === "day" ? "default" : "outline"}
+              onClick={() => handleViewChange("day")}
+            >
+              Vista diária
+            </Button>
+            <Button
+              type="button"
+              variant={view === "week" ? "default" : "outline"}
+              onClick={() => handleViewChange("week")}
+            >
+              Vista semanal
+            </Button>
+            <Button
+              type="button"
+              variant={view === "period" ? "default" : "outline"}
+              onClick={() => handleViewChange("period")}
+            >
+              Período personalizado
+            </Button>
+            {role === "admin" && (
+              <Button
+                type="button"
+                variant={view === "rules" ? "default" : "outline"}
+                onClick={() => handleViewChange("rules")}
+              >
+                Regras operacionais
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
+
+      {view !== "rules" && <PlanningSlotCapacityCard role={role} />}
 
       {view === "rules" ? (
         <PlanningSlotRulesForm />
