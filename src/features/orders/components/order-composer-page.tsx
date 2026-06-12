@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
-import { useFieldArray, useForm } from "react-hook-form";
+import { type Resolver, useFieldArray, useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +49,7 @@ import {
 import { validateSlotSelection } from "@/features/slots/slot-validation";
 import type { ApiError } from "@/types/api";
 
+type OrderFormInput = NormalizedOrderCreateInput;
 type OrderFormValues = NormalizedOrderCreateInput;
 
 type ItemConfigState = {
@@ -70,6 +71,11 @@ const defaultValues: OrderFormValues = {
   slot: "manha",
   paymentStatus: "pending",
 };
+
+const resolveOrderForm =
+  zodResolver as unknown as (
+    schema: typeof OrderCreateSchema,
+  ) => Resolver<OrderFormInput, unknown, OrderFormValues>;
 
 function FieldMessage({ message }: Readonly<{ message?: string }>) {
   if (!message) {
@@ -396,10 +402,10 @@ export function OrderComposerPage() {
     setError,
     setValue,
     watch,
-  } = useForm<OrderFormValues>({
+  } = useForm<OrderFormInput, unknown, OrderFormValues>({
     defaultValues,
     mode: "onChange",
-    resolver: zodResolver(OrderCreateSchema),
+    resolver: resolveOrderForm(OrderCreateSchema),
   });
 
   const { append, fields, remove, update } = useFieldArray({
