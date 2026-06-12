@@ -6,10 +6,12 @@ import {
   type NormalizedOrderCreateInput,
 } from "@/features/orders/schemas/order-schemas";
 import type {
+  OrderFlavorOption,
   Order,
   OrderHistoryEntry,
   OrderPaymentStatus,
   OrderProductOption,
+  OrderProductVariantOption,
   OrderSlot,
   OrderStoreOption,
 } from "@/features/orders/types";
@@ -86,6 +88,19 @@ type BackendProduct = {
   description?: string | null;
   price?: number | null;
   active: boolean;
+  allowed_flavors?: Array<{
+    id: number;
+    name: string;
+  }>;
+  variants?: Array<{
+    id: number;
+    name: string;
+    unit_count: number;
+    max_flavors: number;
+    price: number;
+    active: boolean;
+    display_order: number;
+  }>;
 };
 
 type BackendStore = {
@@ -170,12 +185,32 @@ export function normalizeOrderResource(resource: BackendOrder): Order {
 }
 
 function normalizeProductResource(resource: BackendProduct): OrderProductOption {
+  const allowedFlavors: OrderFlavorOption[] = Array.isArray(resource.allowed_flavors)
+    ? resource.allowed_flavors.map((flavor) => ({
+        id: flavor.id,
+        name: flavor.name,
+      }))
+    : [];
+  const variants: OrderProductVariantOption[] = Array.isArray(resource.variants)
+    ? resource.variants.map((variant) => ({
+        id: variant.id,
+        name: variant.name,
+        unitCount: variant.unit_count,
+        maxFlavors: variant.max_flavors,
+        price: variant.price,
+        active: variant.active,
+        displayOrder: variant.display_order,
+      }))
+    : [];
+
   return {
     id: resource.id,
     name: resource.name,
     description: resource.description ?? null,
     price: resource.price ?? null,
     active: resource.active,
+    allowedFlavors,
+    variants,
   };
 }
 
@@ -281,6 +316,14 @@ export async function getOrderProducts() {
     data: response.data.data.map(normalizeProductResource),
     meta: response.data.meta,
   };
+}
+
+export async function getOrderProduct(productId: number | string) {
+  const response = await apiClient.get<ResourceResponse<BackendProduct>>(
+    `/products/${encodeURIComponent(productId)}`,
+  );
+
+  return normalizeProductResource(response.data.data);
 }
 
 export async function getOrderStores() {

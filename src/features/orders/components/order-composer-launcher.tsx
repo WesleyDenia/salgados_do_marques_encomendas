@@ -1,10 +1,9 @@
 "use client";
 
-import * as React from "react";
+import Link from "next/link";
 import { Plus } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { OrderComposerDrawer } from "@/features/orders/components/order-composer-drawer";
+import { buttonVariants } from "@/components/ui/button";
 import { canPerform } from "@/lib/auth/authorization";
 
 export function OrderComposerLauncher({
@@ -12,19 +11,21 @@ export function OrderComposerLauncher({
 }: Readonly<{
   role: string;
 }>) {
-  const [open, setOpen] = React.useState(false);
-
   if (!canPerform(role, "orders:create")) {
     return null;
   }
 
   return (
-    <>
-      <Button type="button" onClick={() => setOpen(true)}>
-        <Plus className="size-4" />
-        Nova encomenda
-      </Button>
-      <OrderComposerDrawer open={open} onOpenChange={setOpen} />
-    </>
+    <Link
+      href="/orders/new"
+      className={buttonVariants({
+        className: "gap-2",
+        size: "default",
+        variant: "default",
+      })}
+    >
+      <Plus className="size-4" />
+      Nova encomenda
+    </Link>
   );
 }

@@ -6,6 +6,21 @@ export type OrderPaymentStatus = (typeof ORDER_PAYMENT_STATUSES)[number];
 
 export type OrderSlot = (typeof ORDER_SLOT_OPTIONS)[number];
 
+export type OrderFlavorOption = {
+  id: number;
+  name: string;
+};
+
+export type OrderProductVariantOption = {
+  id: number;
+  name: string;
+  unitCount: number;
+  maxFlavors: number;
+  price: number;
+  active: boolean;
+  displayOrder: number;
+};
+
 export const ORDER_PAYMENT_STATUS_LABELS: Record<OrderPaymentStatus, string> = {
   pending: "Pendente",
   partial: "Parcial",
@@ -24,6 +39,8 @@ export type OrderProductOption = {
   description?: string | null;
   price?: number | null;
   active: boolean;
+  allowedFlavors?: OrderFlavorOption[];
+  variants?: OrderProductVariantOption[];
 };
 
 export type OrderStoreOption = {
