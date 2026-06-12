@@ -66,10 +66,10 @@ export function AppShellLayout({
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  Shell autenticado
+                  Painel de encomendas
                 </p>
                 <p className="text-lg font-semibold tracking-tight">
-                  Base operacional segura
+                  Operação do dia
                 </p>
               </div>
               <div className="flex items-center gap-4">
@@ -81,9 +81,7 @@ export function AppShellLayout({
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                     {roleLabel}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    Runtime: {roleRuntime ?? "desconhecido"}
-                  </p>
+                  {roleRuntime ? <p className="text-xs text-muted-foreground">{roleRuntime}</p> : null}
                 </div>
                 <SignOutButton />
               </div>

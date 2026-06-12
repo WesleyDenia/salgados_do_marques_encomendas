@@ -117,7 +117,7 @@ export function LoginForm({ disabled = false }: LoginFormProps) {
         type="submit"
         disabled={disabled || isSubmitting}
       >
-        {isSubmitting ? "A autenticar..." : "Entrar no painel"}
+        {isSubmitting ? "A autenticar..." : "Acessar Painel"}
       </Button>
     </form>
   );

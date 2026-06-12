@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { ProtectedAreaPage } from "@/components/layout/protected-area-page";
 
-test("ProtectedAreaPage renders a real dashboard overview instead of generic placeholder copy", () => {
+test("ProtectedAreaPage renders an operational dashboard frame instead of technical access copy", () => {
   const markup = renderToStaticMarkup(
     <ProtectedAreaPage
       routeKey="dashboard"
@@ -17,15 +17,17 @@ test("ProtectedAreaPage renders a real dashboard overview instead of generic pla
         role: "operacional",
         active: true,
       }}
-    />,
+    >
+      <div>Resumo operacional do dia</div>
+    </ProtectedAreaPage>,
   );
 
-  assert.match(markup, /Visão geral da operação e acessos disponíveis/);
-  assert.match(markup, /Destinos principais/);
-  assert.match(markup, /Encomendas/);
-  assert.match(markup, /Slots e planeamento/);
-  assert.match(markup, /Áreas fora do âmbito deste perfil/);
-  assert.match(markup, /Definições e acessos/);
+  assert.match(markup, /Dashboard de encomendas/);
+  assert.match(markup, /Resumo operacional do dia/);
+  assert.match(markup, /criação, atendimento e planeamento/i);
+  assert.doesNotMatch(markup, /Capacidades carregadas/);
+  assert.doesNotMatch(markup, /Áreas fora do âmbito deste perfil/);
+  assert.doesNotMatch(markup, /Destinos principais/);
   assert.doesNotMatch(markup, /Estrutura reservada para próximas stories/i);
 });
 
@@ -44,10 +46,11 @@ test("ProtectedAreaPage renders an orders-specific operational frame instead of 
   );
 
   assert.match(markup, /Fila operacional e detalhe acionável de encomendas/);
-  assert.match(markup, /Sequência de trabalho nesta área/);
-  assert.match(markup, /1\. Localizar/);
-  assert.match(markup, /2\. Validar/);
-  assert.match(markup, /3\. Agir/);
-  assert.match(markup, /Capacidades ativas para encomendas/);
+  assert.doesNotMatch(markup, /Perfil em operação/);
+  assert.doesNotMatch(markup, /Criação de encomendas/);
+  assert.doesNotMatch(markup, /Correção e gestão/);
+  assert.doesNotMatch(markup, /Sequência de trabalho nesta área/);
+  assert.doesNotMatch(markup, /Capacidades ativas para encomendas/);
+  assert.doesNotMatch(markup, /Contexto desta página/);
   assert.doesNotMatch(markup, /Estrutura reservada para próximas stories/i);
 });
