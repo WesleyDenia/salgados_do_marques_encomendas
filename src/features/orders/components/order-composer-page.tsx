@@ -873,7 +873,7 @@ export function OrderComposerPage() {
                   disabled={
                     createOrderMutation.isPending ||
                     products.length === 0 ||
-                    stores.length === 0
+                    storeId <= 0
                   }
                 >
                   {createOrderMutation.isPending ? "A guardar..." : "Guardar encomenda"}

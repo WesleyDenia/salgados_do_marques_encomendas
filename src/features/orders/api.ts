@@ -26,6 +26,40 @@ type ResourceCollectionResponse<T> = {
   meta?: ApiMeta;
 };
 
+function readCollectionPayload<T>(payload: unknown): { data: T[]; meta?: ApiMeta } {
+  if (Array.isArray(payload)) {
+    return { data: payload };
+  }
+
+  if (payload && typeof payload === "object") {
+    const collection = Reflect.get(payload, "data");
+    const meta = Reflect.get(payload, "meta");
+
+    if (Array.isArray(collection)) {
+      return {
+        data: collection as T[],
+        meta: (meta as ApiMeta | undefined) ?? undefined,
+      };
+    }
+  }
+
+  return { data: [] };
+}
+
+function readResourcePayload<T>(payload: unknown): T | null {
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const resource = Reflect.get(payload, "data");
+
+    if (resource && typeof resource === "object" && !Array.isArray(resource)) {
+      return resource as T;
+    }
+
+    return payload as T;
+  }
+
+  return null;
+}
+
 type BackendOrderItem = {
   id: number;
   product_id: number;
@@ -137,6 +171,15 @@ export type OrderSettings = {
   schedulingWindowDays: number;
   statusLabels: Record<string, string>;
 };
+
+function normalizeOrderStoresResponse(payload: unknown) {
+  const collection = readCollectionPayload<BackendStore>(payload);
+
+  return {
+    data: collection.data.map(normalizeStoreResource),
+    meta: collection.meta,
+  };
+}
 
 function normalizeOrderHistoryEntry(
   resource: BackendOrderHistory,
@@ -268,10 +311,11 @@ export async function getOrders(
     "/admin/orders",
     { params },
   );
+  const payload = readCollectionPayload<BackendOrder>(response.data);
 
   return {
-    data: response.data.data.map(normalizeOrderResource),
-    meta: response.data.meta,
+    data: payload.data.map(normalizeOrderResource),
+    meta: payload.meta,
   };
 }
 
@@ -279,8 +323,13 @@ export async function getOrder(orderId: number | string): Promise<Order> {
   const response = await apiClient.get<ResourceResponse<BackendOrder>>(
     `/admin/orders/${encodeURIComponent(orderId)}`,
   );
+  const payload = readResourcePayload<BackendOrder>(response.data);
 
-  return normalizeOrderResource(response.data.data);
+  if (!payload) {
+    throw new Error("Resposta inválida ao carregar a encomenda.");
+  }
+
+  return normalizeOrderResource(payload);
 }
 
 export async function getOrderSettings(): Promise<OrderSettings> {
@@ -295,15 +344,28 @@ export async function getOrderSettings(): Promise<OrderSettings> {
       status_labels?: Record<string, string>;
     }>
   >("/orders/settings");
+  const payload = readResourcePayload<{
+    start_time: string;
+    end_time: string;
+    minimum_minutes: number;
+    cancel_minutes: number;
+    timezone: string;
+    scheduling_window_days: number;
+    status_labels?: Record<string, string>;
+  }>(response.data);
+
+  if (!payload) {
+    throw new Error("Resposta inválida ao carregar as definições operacionais.");
+  }
 
   return {
-    startTime: response.data.data.start_time,
-    endTime: response.data.data.end_time,
-    minimumMinutes: response.data.data.minimum_minutes,
-    cancelMinutes: response.data.data.cancel_minutes,
-    timezone: response.data.data.timezone,
-    schedulingWindowDays: response.data.data.scheduling_window_days,
-    statusLabels: response.data.data.status_labels ?? {},
+    startTime: payload.start_time,
+    endTime: payload.end_time,
+    minimumMinutes: payload.minimum_minutes,
+    cancelMinutes: payload.cancel_minutes,
+    timezone: payload.timezone,
+    schedulingWindowDays: payload.scheduling_window_days,
+    statusLabels: payload.status_labels ?? {},
   };
 }
 
@@ -311,10 +373,11 @@ export async function getOrderProducts() {
   const response = await apiClient.get<ResourceCollectionResponse<BackendProduct>>(
     "/products",
   );
+  const payload = readCollectionPayload<BackendProduct>(response.data);
 
   return {
-    data: response.data.data.map(normalizeProductResource),
-    meta: response.data.meta,
+    data: payload.data.map(normalizeProductResource),
+    meta: payload.meta,
   };
 }
 
@@ -322,23 +385,38 @@ export async function getOrderProduct(productId: number | string) {
   const response = await apiClient.get<ResourceResponse<BackendProduct>>(
     `/products/${encodeURIComponent(productId)}`,
   );
+  const payload = readResourcePayload<BackendProduct>(response.data);
 
-  return normalizeProductResource(response.data.data);
+  if (!payload) {
+    throw new Error("Resposta inválida ao carregar o artigo.");
+  }
+
+  return normalizeProductResource(payload);
 }
 
 export async function getOrderStores() {
-  const response = await apiClient.get<ResourceCollectionResponse<BackendStore>>(
+  const filteredResponse = await apiClient.get<ResourceCollectionResponse<BackendStore>>(
     "/stores",
     {
       params: {
-        accepts_orders: true,
+        accepts_orders: 1,
       },
     },
   );
+  const filteredStores = normalizeOrderStoresResponse(filteredResponse.data);
+
+  if (filteredStores.data.length > 0) {
+    return filteredStores;
+  }
+
+  const fallbackResponse = await apiClient.get<ResourceCollectionResponse<BackendStore>>(
+    "/stores",
+  );
+  const payload = readCollectionPayload<BackendStore>(fallbackResponse.data);
 
   return {
-    data: response.data.data.map(normalizeStoreResource),
-    meta: response.data.meta,
+    data: payload.data.map(normalizeStoreResource),
+    meta: payload.meta,
   };
 }
 
@@ -348,8 +426,13 @@ export async function createOrder(input: OrderCreateInput, timeZone?: string) {
     "/orders",
     buildOrderWritePayload(payload, timeZone),
   );
+  const resource = readResourcePayload<BackendOrder>(response.data);
 
-  return normalizeOrderResource(response.data.data);
+  if (!resource) {
+    throw new Error("Resposta inválida ao criar a encomenda.");
+  }
+
+  return normalizeOrderResource(resource);
 }
 
 export async function updateOrder(
@@ -362,8 +445,13 @@ export async function updateOrder(
     `/admin/orders/${encodeURIComponent(orderId)}`,
     buildOrderWritePayload(payload, timeZone),
   );
+  const resource = readResourcePayload<BackendOrder>(response.data);
 
-  return normalizeOrderResource(response.data.data);
+  if (!resource) {
+    throw new Error("Resposta inválida ao atualizar a encomenda.");
+  }
+
+  return normalizeOrderResource(resource);
 }
 
 export async function updateOrderStatus(
@@ -374,8 +462,13 @@ export async function updateOrderStatus(
     `/admin/orders/${encodeURIComponent(orderId)}/status`,
     { status },
   );
+  const resource = readResourcePayload<BackendOrder>(response.data);
 
-  return normalizeOrderResource(response.data.data);
+  if (!resource) {
+    throw new Error("Resposta inválida ao atualizar o estado da encomenda.");
+  }
+
+  return normalizeOrderResource(resource);
 }
 
 
