@@ -122,6 +122,11 @@ type BackendProduct = {
   description?: string | null;
   price?: number | null;
   active: boolean;
+  category?: {
+    id?: number | null;
+    name?: string | null;
+    order?: number | null;
+  } | null;
   allowed_flavors?: Array<{
     id: number;
     name: string;
@@ -252,6 +257,13 @@ function normalizeProductResource(resource: BackendProduct): OrderProductOption 
     description: resource.description ?? null,
     price: resource.price ?? null,
     active: resource.active,
+    category: resource.category
+      ? {
+          id: resource.category.id ?? null,
+          name: resource.category.name ?? null,
+          order: resource.category.order ?? null,
+        }
+      : null,
     allowedFlavors,
     variants,
   };

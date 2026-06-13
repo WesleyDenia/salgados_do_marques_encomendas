@@ -39,6 +39,11 @@ export type OrderProductOption = {
   description?: string | null;
   price?: number | null;
   active: boolean;
+  category?: {
+    id?: number | null;
+    name?: string | null;
+    order?: number | null;
+  } | null;
   allowedFlavors?: OrderFlavorOption[];
   variants?: OrderProductVariantOption[];
 };

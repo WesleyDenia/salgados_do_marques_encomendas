@@ -383,10 +383,11 @@ function ItemConfigModal({
 export function OrderComposerPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [catalogOpen, setCatalogOpen] = React.useState(false);
+  const [currentStep, setCurrentStep] = React.useState<1 | 2>(1);
   const [itemConfigState, setItemConfigState] = React.useState<ItemConfigState | null>(
     null,
   );
+  const [selectedCategoryId, setSelectedCategoryId] = React.useState<string | null>(null);
 
   const createOrderMutation = useCreateOrder();
   const productsQuery = useOrderProducts();
@@ -420,7 +421,57 @@ export function OrderComposerPage() {
         .sort((left, right) => left.name.localeCompare(right.name, "pt-PT")),
     [productsQuery.data?.data],
   );
+  const productCategories = React.useMemo(() => {
+    const categories = new Map<
+      string,
+      {
+        id: string;
+        label: string;
+        order: number;
+        count: number;
+      }
+    >();
+
+    products.forEach((product) => {
+      const id = product.category?.id != null ? String(product.category.id) : "uncategorized";
+      const label = product.category?.name?.trim() || "Sem categoria";
+      const order = product.category?.order ?? Number.MAX_SAFE_INTEGER;
+      const current = categories.get(id);
+
+      if (current) {
+        current.count += 1;
+        return;
+      }
+
+      categories.set(id, {
+        id,
+        label,
+        order,
+        count: 1,
+      });
+    });
+
+    return [...categories.values()].sort((left, right) => {
+      if (left.order !== right.order) {
+        return left.order - right.order;
+      }
+
+      return left.label.localeCompare(right.label, "pt-PT");
+    });
+  }, [products]);
   const stores = React.useMemo(() => storesQuery.data?.data ?? [], [storesQuery.data?.data]);
+  const filteredProducts = React.useMemo(() => {
+    if (!selectedCategoryId) {
+      return [];
+    }
+
+    return products.filter((product) => {
+      const productCategoryId =
+        product.category?.id != null ? String(product.category.id) : "uncategorized";
+
+      return productCategoryId === selectedCategoryId;
+    });
+  }, [products, selectedCategoryId]);
   const items = watch("items");
   const storeId = watch("storeId");
   const slot = watch("slot");
@@ -443,6 +494,14 @@ export function OrderComposerPage() {
       });
     }
   }, [setValue, storeId, stores]);
+
+  React.useEffect(() => {
+    if (selectedCategoryId || productCategories.length === 0) {
+      return;
+    }
+
+    setSelectedCategoryId(productCategories[0]?.id ?? null);
+  }, [productCategories, selectedCategoryId]);
 
   function openCreateItem(product: OrderProductOption) {
     const defaultVariant = getActiveVariants(product)[0] ?? null;
@@ -496,6 +555,18 @@ export function OrderComposerPage() {
     setItemConfigState(null);
   }
 
+  function goToStepTwo() {
+    if (items.length === 0) {
+      setError("items", {
+        message: "Adicione pelo menos um item a encomenda.",
+        type: "manual",
+      });
+      return;
+    }
+
+    setCurrentStep(2);
+  }
+
   const submitOrder = handleSubmit((values) => {
     const slotValidationError = validateSlotSelection(values.slot, slotCapacities);
 
@@ -534,87 +605,113 @@ export function OrderComposerPage() {
   return (
     <>
       <form onSubmit={submitOrder} className="space-y-6">
+        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Nova encomenda
+              </p>
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
+                Fluxo em duas etapas
+              </h1>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <button
+                type="button"
+                className={`rounded-2xl border px-4 py-3 text-left transition ${
+                  currentStep === 1
+                    ? "border-slate-950 bg-slate-950 text-white"
+                    : "border-slate-200 bg-white text-slate-950"
+                }`}
+                onClick={() => setCurrentStep(1)}
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.18em]">
+                  Step 1
+                </p>
+                <p className="mt-1 font-semibold">Escolha dos artigos</p>
+                <p className={currentStep === 1 ? "text-sm text-slate-200" : "text-sm text-slate-600"}>
+                  Categorias, catálogo e configuração dos itens.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                className={`rounded-2xl border px-4 py-3 text-left transition ${
+                  currentStep === 2
+                    ? "border-slate-950 bg-slate-950 text-white"
+                    : "border-slate-200 bg-white text-slate-950"
+                }`}
+                onClick={() => items.length > 0 && setCurrentStep(2)}
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.18em]">
+                  Step 2
+                </p>
+                <p className="mt-1 font-semibold">Loja, cliente e agendamento</p>
+                <p className={currentStep === 2 ? "text-sm text-slate-200" : "text-sm text-slate-600"}>
+                  Finalização e gravação da encomenda.
+                </p>
+              </button>
+            </div>
+          </div>
+        </section>
+
         <section className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,1fr)]">
           <div className="space-y-6">
-            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Dados do cliente
-                </p>
-                <p className="text-sm text-slate-600">
-                  Preencha os dados essenciais antes de avançar para o agendamento.
-                </p>
-              </div>
-
-              <div className="mt-5 grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-950">Loja</label>
-                  <Select
-                    value={storeId > 0 ? String(storeId) : undefined}
-                    onValueChange={(value) =>
-                      setValue("storeId", Number(value), {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      })
-                    }
-                  >
-                    <SelectTrigger aria-invalid={Boolean(errors.storeId)}>
-                      <SelectValue placeholder="Selecionar loja" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {stores.map((store) => (
-                        <SelectItem key={store.id} value={String(store.id)}>
-                          {store.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FieldMessage message={errors.storeId?.message} />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-950" htmlFor="customerName">
-                    Cliente
-                  </label>
-                  <Input id="customerName" autoComplete="name" {...register("customerName")} />
-                  <FieldMessage message={errors.customerName?.message} />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-950" htmlFor="customerContact">
-                    Contacto
-                  </label>
-                  <Input id="customerContact" autoComplete="tel" {...register("customerContact")} />
-                  <FieldMessage message={errors.customerContact?.message} />
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            {currentStep === 1 ? (
+              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="space-y-1">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    Itens da encomenda
+                    Step 1
                   </p>
                   <p className="text-sm text-slate-600">
-                    Primeiro escolha os artigos. Depois configure quantidade, pack e sabores antes de adicionar.
+                    Primeiro escolha a categoria, depois os artigos dessa categoria e configure cada item.
                   </p>
                 </div>
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setCatalogOpen((current) => !current)}
-                >
-                  <Plus className="size-4" />
-                  Adicionar itens
-                </Button>
-              </div>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {productCategories.map((category) => {
+                    const active = selectedCategoryId === category.id;
 
-              {catalogOpen ? (
-                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    {products.map((product) => {
+                    return (
+                      <button
+                        key={category.id}
+                        type="button"
+                        className={`rounded-2xl border px-4 py-4 text-left transition ${
+                          active
+                            ? "border-slate-950 bg-slate-950 text-white"
+                            : "border-slate-200 bg-slate-50/70 text-slate-950 hover:border-slate-400"
+                        }`}
+                        onClick={() => setSelectedCategoryId(category.id)}
+                      >
+                        <p className="font-semibold">{category.label}</p>
+                        <p className={active ? "mt-1 text-sm text-slate-200" : "mt-1 text-sm text-slate-600"}>
+                          {category.count} artigo(s) disponíveis
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950">
+                        {productCategories.find((category) => category.id === selectedCategoryId)?.label ??
+                          "Selecione uma categoria"}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Escolha os artigos e abra a configuração para definir quantidades, packs e sabores.
+                      </p>
+                    </div>
+                    <Button type="button" variant="outline" onClick={() => setSelectedCategoryId(productCategories[0]?.id ?? null)}>
+                      <Plus className="size-4" />
+                      Voltar ao início
+                    </Button>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {filteredProducts.map((product) => {
                       const hasVariants = getActiveVariants(product).length > 0;
 
                       return (
@@ -646,169 +743,231 @@ export function OrderComposerPage() {
                       );
                     })}
                   </div>
-                </div>
-              ) : null}
 
-              <div className="mt-5 space-y-3">
-                {fields.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-5 text-sm text-slate-600">
-                    Ainda não há itens na encomenda. Abra o catálogo e adicione o primeiro artigo.
+                  {selectedCategoryId && filteredProducts.length === 0 ? (
+                    <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-600">
+                      Não há artigos disponíveis nesta categoria.
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  {fields.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-5 text-sm text-slate-600">
+                      Ainda não há itens na encomenda. Selecione uma categoria e adicione o primeiro artigo.
+                    </div>
+                  ) : (
+                    fields.map((field, index) => {
+                      const item = items[index];
+                      const product = products.find((entry) => entry.id === item.productId);
+                      const variant =
+                        product?.variants?.find((entry) => entry.id === item.variantId) ?? null;
+                      const flavorSummary = buildFlavorSummary(
+                        item.flavorIds,
+                        product?.allowedFlavors,
+                      );
+
+                      return (
+                        <article
+                          key={field.id}
+                          className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+                        >
+                          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                            <div className="space-y-1">
+                              <p className="font-semibold text-slate-950">
+                                {buildItemTitle(item, product, variant)}
+                              </p>
+                              <p className="text-sm text-slate-600">
+                                Quantidade: {item.quantity}
+                                {variant ? ` • ${variant.unitCount} unidades por pack` : ""}
+                              </p>
+                              {flavorSummary ? (
+                                <p className="text-sm text-slate-600">Sabores: {flavorSummary}</p>
+                              ) : null}
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openEditItem(index)}
+                              >
+                                <Pencil className="size-4" />
+                                Editar
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => remove(index)}
+                              >
+                                <Trash2 className="size-4" />
+                                Remover
+                              </Button>
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })
+                  )}
+                </div>
+
+                <FieldMessage message={errors.items?.message as string | undefined} />
+              </section>
+            ) : (
+              <>
+                <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      Step 2
+                    </p>
+                    <p className="text-sm text-slate-600">
+                      Defina a loja, identifique o cliente e conclua o agendamento.
+                    </p>
                   </div>
-                ) : (
-                  fields.map((field, index) => {
-                    const item = items[index];
-                    const product = products.find((entry) => entry.id === item.productId);
-                    const variant =
-                      product?.variants?.find((entry) => entry.id === item.variantId) ?? null;
-                    const flavorSummary = buildFlavorSummary(
-                      item.flavorIds,
-                      product?.allowedFlavors,
-                    );
 
-                    return (
-                      <article
-                        key={field.id}
-                        className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+                  <div className="mt-5 grid gap-4 md:grid-cols-3">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-950">Loja</label>
+                      <Select
+                        value={storeId > 0 ? String(storeId) : undefined}
+                        onValueChange={(value) =>
+                          setValue("storeId", Number(value), {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          })
+                        }
                       >
-                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                          <div className="space-y-1">
-                            <p className="font-semibold text-slate-950">
-                              {buildItemTitle(item, product, variant)}
-                            </p>
-                            <p className="text-sm text-slate-600">
-                              Quantidade: {item.quantity}
-                              {variant ? ` • ${variant.unitCount} unidades por pack` : ""}
-                            </p>
-                            {flavorSummary ? (
-                              <p className="text-sm text-slate-600">Sabores: {flavorSummary}</p>
-                            ) : null}
-                          </div>
+                        <SelectTrigger aria-invalid={Boolean(errors.storeId)}>
+                          <SelectValue placeholder="Selecionar loja" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {stores.map((store) => (
+                            <SelectItem key={store.id} value={String(store.id)}>
+                              {store.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FieldMessage message={errors.storeId?.message} />
+                    </div>
 
-                          <div className="flex gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openEditItem(index)}
-                            >
-                              <Pencil className="size-4" />
-                              Editar
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => remove(index)}
-                            >
-                              <Trash2 className="size-4" />
-                              Remover
-                            </Button>
-                          </div>
-                        </div>
-                      </article>
-                    );
-                  })
-                )}
-              </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-950" htmlFor="customerName">
+                        Cliente
+                      </label>
+                      <Input id="customerName" autoComplete="name" {...register("customerName")} />
+                      <FieldMessage message={errors.customerName?.message} />
+                    </div>
 
-              <FieldMessage message={errors.items?.message as string | undefined} />
-            </section>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-950" htmlFor="customerContact">
+                        Contacto
+                      </label>
+                      <Input id="customerContact" autoComplete="tel" {...register("customerContact")} />
+                      <FieldMessage message={errors.customerContact?.message} />
+                    </div>
+                  </div>
+                </section>
 
-            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Agendamento
-                </p>
-                <p className="text-sm text-slate-600">
-                  Defina quando a encomenda será retirada e qual o estado inicial do pagamento.
-                </p>
-              </div>
+                <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      Agendamento
+                    </p>
+                    <p className="text-sm text-slate-600">
+                      Defina quando a encomenda será retirada e qual o estado inicial do pagamento.
+                    </p>
+                  </div>
 
-              <div className="mt-5 grid gap-4 md:grid-cols-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-950" htmlFor="date">
-                    Data
-                  </label>
-                  <Input id="date" type="date" {...register("date")} />
-                  <FieldMessage message={errors.date?.message} />
-                </div>
+                  <div className="mt-5 grid gap-4 md:grid-cols-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-950" htmlFor="date">
+                        Data
+                      </label>
+                      <Input id="date" type="date" {...register("date")} />
+                      <FieldMessage message={errors.date?.message} />
+                    </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-950" htmlFor="time">
-                    Hora
-                  </label>
-                  <Input id="time" type="time" {...register("time")} />
-                  <FieldMessage message={errors.time?.message} />
-                </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-950" htmlFor="time">
+                        Hora
+                      </label>
+                      <Input id="time" type="time" {...register("time")} />
+                      <FieldMessage message={errors.time?.message} />
+                    </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-950">Slot</label>
-                  <Select
-                    value={slot}
-                    onValueChange={(value) =>
-                      setValue("slot", value as OrderFormValues["slot"], {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      })
-                    }
-                  >
-                    <SelectTrigger aria-invalid={Boolean(errors.slot)}>
-                      <SelectValue placeholder="Selecionar slot" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ORDER_SLOT_OPTIONS.map((option) => {
-                        const capacity = slotCapacities.find((entry) => entry.slot === option);
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-950">Slot</label>
+                      <Select
+                        value={slot}
+                        onValueChange={(value) =>
+                          setValue("slot", value as OrderFormValues["slot"], {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          })
+                        }
+                      >
+                        <SelectTrigger aria-invalid={Boolean(errors.slot)}>
+                          <SelectValue placeholder="Selecionar slot" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ORDER_SLOT_OPTIONS.map((option) => {
+                            const capacity = slotCapacities.find((entry) => entry.slot === option);
 
-                        return (
-                          <SelectItem
-                            key={option}
-                            value={option}
-                            disabled={capacity?.state === "bloqueado"}
-                          >
-                            {ORDER_SLOT_LABELS[option]}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  <FieldMessage message={errors.slot?.message} />
-                </div>
+                            return (
+                              <SelectItem
+                                key={option}
+                                value={option}
+                                disabled={capacity?.state === "bloqueado"}
+                              >
+                                {ORDER_SLOT_LABELS[option]}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                      <FieldMessage message={errors.slot?.message} />
+                    </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-950">
-                    Estado de pagamento
-                  </label>
-                  <Select
-                    value={paymentStatus}
-                    onValueChange={(value) =>
-                      setValue("paymentStatus", value as OrderFormValues["paymentStatus"], {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      })
-                    }
-                  >
-                    <SelectTrigger aria-invalid={Boolean(errors.paymentStatus)}>
-                      <SelectValue placeholder="Selecionar estado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ORDER_PAYMENT_STATUSES.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {ORDER_PAYMENT_STATUS_LABELS[option]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FieldMessage message={errors.paymentStatus?.message} />
-                </div>
-              </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-950">
+                        Estado de pagamento
+                      </label>
+                      <Select
+                        value={paymentStatus}
+                        onValueChange={(value) =>
+                          setValue("paymentStatus", value as OrderFormValues["paymentStatus"], {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          })
+                        }
+                      >
+                        <SelectTrigger aria-invalid={Boolean(errors.paymentStatus)}>
+                          <SelectValue placeholder="Selecionar estado" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ORDER_PAYMENT_STATUSES.map((option) => (
+                            <SelectItem key={option} value={option}>
+                              {ORDER_PAYMENT_STATUS_LABELS[option]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FieldMessage message={errors.paymentStatus?.message} />
+                    </div>
+                  </div>
 
-              <div className="mt-5 space-y-2">
-                <label className="text-sm font-medium text-slate-950" htmlFor="observations">
-                  Observações
-                </label>
-                <Textarea id="observations" className="min-h-28" {...register("observations")} />
-              </div>
-            </section>
+                  <div className="mt-5 space-y-2">
+                    <label className="text-sm font-medium text-slate-950" htmlFor="observations">
+                      Observações
+                    </label>
+                    <Textarea id="observations" className="min-h-28" {...register("observations")} />
+                  </div>
+                </section>
+              </>
+            )}
           </div>
 
           <aside className="space-y-6">
@@ -868,16 +1027,27 @@ export function OrderComposerPage() {
               ) : null}
 
               <div className="mt-6 flex flex-col gap-3">
-                <Button
-                  type="submit"
-                  disabled={
-                    createOrderMutation.isPending ||
-                    products.length === 0 ||
-                    storeId <= 0
-                  }
-                >
-                  {createOrderMutation.isPending ? "A guardar..." : "Guardar encomenda"}
-                </Button>
+                {currentStep === 1 ? (
+                  <Button type="button" onClick={goToStepTwo} disabled={products.length === 0}>
+                    Continuar para Step 2
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      type="submit"
+                      disabled={
+                        createOrderMutation.isPending ||
+                        products.length === 0 ||
+                        storeId <= 0
+                      }
+                    >
+                      {createOrderMutation.isPending ? "A guardar..." : "Guardar encomenda"}
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => setCurrentStep(1)}>
+                      Voltar ao Step 1
+                    </Button>
+                  </>
+                )}
                 <Button type="button" variant="outline" onClick={() => router.push("/orders")}>
                   Cancelar
                 </Button>
