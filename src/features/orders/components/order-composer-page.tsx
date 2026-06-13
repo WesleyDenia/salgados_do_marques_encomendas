@@ -219,7 +219,7 @@ function ItemConfigModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-      <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+      <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
           <div className="space-y-1">
             <h2 className="text-xl font-semibold tracking-tight text-slate-950">
@@ -235,7 +235,7 @@ function ItemConfigModal({
           </Button>
         </div>
 
-        <div className="space-y-6 overflow-y-auto px-6 py-6">
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-6">
           <section className="space-y-2">
             <label className="text-sm font-medium text-slate-950" htmlFor="item-quantity">
               Quantidade
@@ -355,7 +355,7 @@ function ItemConfigModal({
           ) : null}
         </div>
 
-        <div className="flex flex-col-reverse gap-3 border-t border-slate-200 px-6 py-5 sm:flex-row sm:justify-end">
+        <div className="sticky bottom-0 flex flex-col-reverse gap-3 border-t border-slate-200 bg-white px-6 py-5 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancelar
           </Button>
