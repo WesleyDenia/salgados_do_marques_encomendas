@@ -684,7 +684,7 @@ export function OrdersOperationalRecordContent({
   statusLabels,
   isRefreshing,
   timeZone,
-  mode = "operational",
+  mode: _mode = "operational",
 }: Readonly<{
   orders: Order[];
   meta?: { current_page?: number; last_page?: number; total?: number };
@@ -696,27 +696,13 @@ export function OrdersOperationalRecordContent({
   timeZone?: string;
   mode?: OrderRecordMode;
 }>) {
-  const modeConfig = getOrderRecordModeConfig(mode);
+  void _mode;
   const currentPage = meta?.current_page ?? 1;
   const lastPage = meta?.last_page ?? 1;
   const total = meta?.total ?? orders.length;
 
   return (
     <section className="space-y-4">
-      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-            Centro de trabalho
-          </p>
-          <h2 className="text-xl font-semibold tracking-tight text-slate-950">
-            {modeConfig.heading}
-          </h2>
-          <p className="text-sm leading-6 text-slate-600">
-            {modeConfig.description}
-          </p>
-        </div>
-      </div>
-
       {searchSlot}
 
       <div className="grid gap-4 md:grid-cols-3">

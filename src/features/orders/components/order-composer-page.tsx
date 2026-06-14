@@ -606,53 +606,50 @@ export function OrderComposerPage() {
     <>
       <form onSubmit={submitOrder} className="space-y-6">
         <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Nova encomenda
+          <div className="grid gap-3 md:grid-cols-2">
+            <button
+              type="button"
+              className={`rounded-2xl border px-3 py-2.5 text-left transition sm:px-4 sm:py-3 ${
+                currentStep === 1
+                  ? "border-slate-950 bg-slate-950 text-white"
+                  : "border-slate-200 bg-white text-slate-950"
+              }`}
+              onClick={() => setCurrentStep(1)}
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] sm:text-xs sm:tracking-[0.18em]">
+                Step 1
               </p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
-                Fluxo em duas etapas
-              </h1>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <button
-                type="button"
-                className={`rounded-2xl border px-4 py-3 text-left transition ${
-                  currentStep === 1
-                    ? "border-slate-950 bg-slate-950 text-white"
-                    : "border-slate-200 bg-white text-slate-950"
+              <p className="mt-0.5 text-sm font-semibold sm:mt-1 sm:text-base">Escolha dos artigos</p>
+              <p
+                className={`mt-0.5 hidden text-xs sm:mt-1 sm:block sm:text-sm ${
+                  currentStep === 1 ? "text-slate-200" : "text-slate-600"
                 }`}
-                onClick={() => setCurrentStep(1)}
               >
-                <p className="text-xs font-semibold uppercase tracking-[0.18em]">
-                  Step 1
-                </p>
-                <p className="mt-1 font-semibold">Escolha dos artigos</p>
-                <p className={currentStep === 1 ? "text-sm text-slate-200" : "text-sm text-slate-600"}>
-                  Categorias, catálogo e configuração dos itens.
-                </p>
-              </button>
+                Categorias, catálogo e configuração dos itens.
+              </p>
+            </button>
 
-              <button
-                type="button"
-                className={`rounded-2xl border px-4 py-3 text-left transition ${
-                  currentStep === 2
-                    ? "border-slate-950 bg-slate-950 text-white"
-                    : "border-slate-200 bg-white text-slate-950"
+            <button
+              type="button"
+              className={`rounded-2xl border px-3 py-2.5 text-left transition sm:px-4 sm:py-3 ${
+                currentStep === 2
+                  ? "border-slate-950 bg-slate-950 text-white"
+                  : "border-slate-200 bg-white text-slate-950"
+              }`}
+              onClick={() => items.length > 0 && setCurrentStep(2)}
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] sm:text-xs sm:tracking-[0.18em]">
+                Step 2
+              </p>
+              <p className="mt-0.5 text-sm font-semibold sm:mt-1 sm:text-base">Loja, cliente e agendamento</p>
+              <p
+                className={`mt-0.5 hidden text-xs sm:mt-1 sm:block sm:text-sm ${
+                  currentStep === 2 ? "text-slate-200" : "text-slate-600"
                 }`}
-                onClick={() => items.length > 0 && setCurrentStep(2)}
               >
-                <p className="text-xs font-semibold uppercase tracking-[0.18em]">
-                  Step 2
-                </p>
-                <p className="mt-1 font-semibold">Loja, cliente e agendamento</p>
-                <p className={currentStep === 2 ? "text-sm text-slate-200" : "text-sm text-slate-600"}>
-                  Finalização e gravação da encomenda.
-                </p>
-              </button>
-            </div>
+                Finalização e gravação da encomenda.
+              </p>
+            </button>
           </div>
         </section>
 

@@ -45,12 +45,13 @@ test("ProtectedAreaPage renders an orders-specific operational frame instead of 
     />,
   );
 
-  assert.match(markup, /Fila operacional e detalhe acionável de encomendas/);
+  assert.equal(markup, '<section class="space-y-6"></section>');
   assert.doesNotMatch(markup, /Perfil em operação/);
   assert.doesNotMatch(markup, /Criação de encomendas/);
   assert.doesNotMatch(markup, /Correção e gestão/);
   assert.doesNotMatch(markup, /Sequência de trabalho nesta área/);
   assert.doesNotMatch(markup, /Capacidades ativas para encomendas/);
   assert.doesNotMatch(markup, /Contexto desta página/);
+  assert.doesNotMatch(markup, /Fila operacional e detalhe acionável de encomendas/);
   assert.doesNotMatch(markup, /Estrutura reservada para próximas stories/i);
 });

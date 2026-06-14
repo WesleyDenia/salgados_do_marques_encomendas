@@ -96,27 +96,7 @@ export function ProtectedAreaPage({
   }
 
   if (routeKey === "orders") {
-    return (
-      <section className="space-y-6">
-        <header className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="space-y-2">
-            <p className="text-sm font-medium uppercase tracking-[0.24em] text-slate-500">
-              Encomendas
-            </p>
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
-              Fila operacional e detalhe acionável de encomendas
-            </h1>
-            <p className="max-w-3xl text-sm leading-6 text-slate-600">
-              Use esta área para localizar rapidamente a encomenda certa,
-              validar o estado atual antes de agir e abrir o detalhe completo
-              com o mesmo contexto operacional usado no resto do painel.
-            </p>
-          </div>
-        </header>
-
-        {children}
-      </section>
-    );
+    return <section className="space-y-6">{children}</section>;
   }
 
   if (routeKey === "planning") {

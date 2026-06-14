@@ -47,7 +47,7 @@ test("OrdersOperationalRecordContent renders the persisted operational record", 
     />,
   );
 
-  assert.match(markup, /Registo operacional/);
+  assert.match(markup, /Leitura operacional da fila/);
   assert.match(markup, /Maria Silva/);
   assert.match(markup, /Loja Centro/);
   assert.match(markup, /Realizado/);
@@ -91,9 +91,10 @@ test("OrdersOperationalRecordContent adapts copy for investigation mode", () => 
     />,
   );
 
-  assert.match(markup, /Investigação de encomendas/);
-  assert.match(markup, /universo pesquisável/i);
-  assert.doesNotMatch(markup, /Registo operacional/);
+  assert.match(markup, /Leitura operacional da fila/);
+  assert.match(markup, /Fila detalhada/);
+  assert.doesNotMatch(markup, /Investigação de encomendas/);
+  assert.doesNotMatch(markup, /universo pesquisável/i);
 });
 
 test("OrderDetailSheet enables edit button when canEdit is true", () => {
