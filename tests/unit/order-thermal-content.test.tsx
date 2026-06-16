@@ -54,7 +54,7 @@ test("OrderThermalContent renders the full operational document for 80mm printin
   assert.match(markup, /Encomenda #555 ·/);
   assert.match(markup, /Joana Silva/);
   assert.match(markup, /912 000 111/);
-  assert.match(markup, /Sábado 13\/06\/2026 às 17:00/);
+  assert.match(markup, /Sáb 13\/06\/2026 às 17:00/);
   assert.match(markup, /Pack 100 Unidades/);
   assert.match(markup, /Sabores:/);
   assert.match(markup, /- Pack Mix/);
@@ -63,6 +63,7 @@ test("OrderThermalContent renders the full operational document for 80mm printin
   assert.match(markup, /Separar para balcão/);
   assert.match(markup, /60,00/);
   assert.match(markup, /PAGO/);
+  assert.doesNotMatch(markup, /Data\/Hora/);
   assert.doesNotMatch(markup, /Loja Centro/);
   assert.doesNotMatch(markup, /Criada em/);
 });

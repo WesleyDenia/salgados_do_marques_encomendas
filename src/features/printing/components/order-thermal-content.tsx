@@ -76,7 +76,6 @@ export function OrderThermalContent({
               <span className={classes.value}>{order.contactLabel}</span>
             </div>
             <div className={classes.row}>
-              <span className={classes.label}>Data/Hora</span>
               <span className={classes.value}>{order.scheduledAtLabel}</span>
             </div>
           </section>

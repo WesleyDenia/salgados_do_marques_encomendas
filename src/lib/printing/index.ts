@@ -161,7 +161,18 @@ function formatScheduledAtDetailed(value?: string | null, timeZone = "Europe/Lis
     hourCycle: "h23",
   }).format(parsed);
 
-  return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${date} às ${time}`;
+  const normalizedWeekday =
+    {
+      "segunda-feira": "Seg",
+      "terça-feira": "Ter",
+      "quarta-feira": "Qua",
+      "quinta-feira": "Qui",
+      "sexta-feira": "Sex",
+      sábado: "Sáb",
+      domingo: "Dom",
+    }[weekday.toLowerCase()] ?? weekday.replace(".", "");
+
+  return `${normalizedWeekday} ${date} às ${time}`;
 }
 
 function buildPrintItemTitle(item: Order["items"][number]) {
