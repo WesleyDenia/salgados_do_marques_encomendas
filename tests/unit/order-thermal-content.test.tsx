@@ -66,4 +66,5 @@ test("OrderThermalContent renders the full operational document for 80mm printin
   assert.doesNotMatch(markup, /Data\/Hora/);
   assert.doesNotMatch(markup, /Loja Centro/);
   assert.doesNotMatch(markup, /Criada em/);
+  assert.doesNotMatch(markup, /Documento térmico operacional 80mm/);
 });

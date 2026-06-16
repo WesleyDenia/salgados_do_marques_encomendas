@@ -111,10 +111,6 @@ export function OrderThermalContent({
             <p className={classes.sectionTitle}>Obs</p>
             <div className={classes.notes}>{order.notesLabel}</div>
           </section>
-
-          <footer className={classes.footer}>
-            Documento térmico operacional {PRINT_WIDTH_MM}mm
-          </footer>
         </article>
       </div>
     </main>

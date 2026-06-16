@@ -63,6 +63,29 @@ test("toThermalPrintOrder reuses normalized order data and applies operational f
   assert.deepEqual(printable.items[1].flavorLines, ["#3", "#9"]);
 });
 
+test("toThermalPrintOrder expands repeated single-flavor pack selections for thermal printing", () => {
+  const printable = toThermalPrintOrder({
+    ...baseOrder,
+    items: [
+      {
+        id: 99,
+        productId: 99,
+        productName: "Pack",
+        quantity: 100,
+        variantName: "Pack 100 Unidades",
+        flavorNames: ["Pack Mix"],
+      },
+    ],
+  });
+
+  assert.deepEqual(printable.items[0].flavorLines, [
+    "Pack Mix",
+    "Pack Mix",
+    "Pack Mix",
+    "Pack Mix",
+  ]);
+});
+
 test("buildOrderPrintHref encodes ids for the dedicated print route", () => {
   assert.equal(buildOrderPrintHref(123), "/orders/123/print");
   assert.equal(buildOrderPrintHref("abc/45"), "/orders/abc%2F45/print");

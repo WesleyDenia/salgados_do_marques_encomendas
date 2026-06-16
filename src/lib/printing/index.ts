@@ -187,12 +187,46 @@ function buildPrintItemTitle(item: Order["items"][number]) {
   return item.productName;
 }
 
+function inferPackFlavorSlots(item: Order["items"][number]) {
+  const variantName = item.variantName?.trim();
+
+  if (!variantName) {
+    return null;
+  }
+
+  const unitMatch = variantName.match(/(\d+)/);
+
+  if (!unitMatch) {
+    return null;
+  }
+
+  const units = Number(unitMatch[1]);
+
+  if (!Number.isFinite(units) || units < 25 || units % 25 !== 0) {
+    return null;
+  }
+
+  return units / 25;
+}
+
 function buildFlavorLines(item: Order["items"][number]) {
   if (item.flavorNames && item.flavorNames.length > 0) {
+    const inferredSlots = inferPackFlavorSlots(item);
+
+    if (item.flavorNames.length === 1 && inferredSlots && inferredSlots > 1) {
+      return Array.from({ length: inferredSlots }, () => item.flavorNames![0]);
+    }
+
     return item.flavorNames;
   }
 
   if (item.flavorIds && item.flavorIds.length > 0) {
+    const inferredSlots = inferPackFlavorSlots(item);
+
+    if (item.flavorIds.length === 1 && inferredSlots && inferredSlots > 1) {
+      return Array.from({ length: inferredSlots }, () => `#${item.flavorIds![0]}`);
+    }
+
     return item.flavorIds.map((id) => `#${id}`);
   }
 
