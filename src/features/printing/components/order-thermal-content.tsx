@@ -69,12 +69,14 @@ export function OrderThermalContent({
 
           <section className={classes.section}>
             <div className={classes.row}>
-              <span className={classes.label}>Nome</span>
-              <span className={classes.value}>{order.customerLabel}</span>
+              <span className={classes.scheduledAtValue ?? classes.value}>
+                {order.customerLabel}
+              </span>
             </div>
             <div className={classes.row}>
-              <span className={classes.label}>Tel</span>
-              <span className={classes.value}>{order.contactLabel}</span>
+              <span className={classes.scheduledAtValue ?? classes.value}>
+                {order.contactLabel}
+              </span>
             </div>
             <div className={classes.row}>
               <span className={classes.scheduledAtValue ?? classes.value}>
