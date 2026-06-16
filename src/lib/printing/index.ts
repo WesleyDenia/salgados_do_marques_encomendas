@@ -1,9 +1,7 @@
 import {
   ORDER_PAYMENT_STATUS_LABELS,
-  ORDER_SLOT_LABELS,
   type Order,
 } from "@/features/orders/types";
-import { formatOperationalDateTime } from "@/features/orders/utils/operational-timezone";
 
 export const PRINT_WIDTH_MM = 80;
 
@@ -28,11 +26,8 @@ export type OrderPrintFlowEvent = {
 
 export type ThermalPrintItem = {
   key: string;
-  productName: string;
-  quantity: number;
-  totalLabel: string;
-  variantName: string | null;
-  flavorLabel: string | null;
+  title: string;
+  flavorLines: string[];
 };
 
 export type ThermalPrintOrder = {
@@ -40,13 +35,8 @@ export type ThermalPrintOrder = {
   statusLabel: string;
   customerLabel: string;
   contactLabel: string;
-  storeName: string;
-  storeAddress: string | null;
-  storePhone: string | null;
   scheduledAtLabel: string;
-  slotLabel: string;
   paymentLabel: string;
-  createdAtLabel: string;
   totalLabel: string;
   notesLabel: string;
   items: ThermalPrintItem[];
@@ -129,16 +119,73 @@ export function isOrderPrintFlowEvent(value: unknown): value is OrderPrintFlowEv
   );
 }
 
-function buildFlavorLabel(item: Order["items"][number]) {
+function formatCustomerContact(value?: string | null) {
+  if (!value) {
+    return "Sem contacto registado";
+  }
+
+  const digits = value.replace(/\D/g, "");
+
+  if (digits.length === 9) {
+    return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+  }
+
+  return value;
+}
+
+function formatScheduledAtDetailed(value?: string | null, timeZone = "Europe/Lisbon") {
+  if (!value) {
+    return "Por agendar";
+  }
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  const weekday = new Intl.DateTimeFormat("pt-PT", {
+    timeZone,
+    weekday: "long",
+  }).format(parsed);
+  const date = new Intl.DateTimeFormat("pt-PT", {
+    timeZone,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(parsed);
+  const time = new Intl.DateTimeFormat("pt-PT", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(parsed);
+
+  return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${date} às ${time}`;
+}
+
+function buildPrintItemTitle(item: Order["items"][number]) {
+  if (item.variantName?.trim()) {
+    return item.variantName.trim();
+  }
+
+  if (item.quantity > 1) {
+    return `${item.productName} x${item.quantity}`;
+  }
+
+  return item.productName;
+}
+
+function buildFlavorLines(item: Order["items"][number]) {
   if (item.flavorNames && item.flavorNames.length > 0) {
-    return item.flavorNames.join(", ");
+    return item.flavorNames;
   }
 
   if (item.flavorIds && item.flavorIds.length > 0) {
-    return item.flavorIds.map((id) => `#${id}`).join(", ");
+    return item.flavorIds.map((id) => `#${id}`);
   }
 
-  return null;
+  return [];
 }
 
 export function toThermalPrintOrder(
@@ -151,30 +198,21 @@ export function toThermalPrintOrder(
   const timeZone = options?.timeZone ?? "Europe/Lisbon";
 
   return {
-    idLabel: `Encomenda #${order.id}`,
+    idLabel: `Encomenda #${order.id} ·`,
     statusLabel: options?.statusLabels?.[order.status] ?? order.status,
     customerLabel:
       order.customerName?.trim() || order.user?.name || "Cliente não identificado",
-    contactLabel: order.customerContact?.trim() || "Sem contacto registado",
-    storeName: order.store?.name ?? "Loja não carregada",
-    storeAddress:
-      [order.store?.address, order.store?.city].filter(Boolean).join(", ") || null,
-    storePhone: order.store?.phone?.trim() || null,
-    scheduledAtLabel: formatOperationalDateTime(order.scheduledAt, timeZone),
-    slotLabel: order.slot ? (ORDER_SLOT_LABELS[order.slot] ?? order.slot) : "Não definido",
+    contactLabel: formatCustomerContact(order.customerContact),
+    scheduledAtLabel: formatScheduledAtDetailed(order.scheduledAt, timeZone),
     paymentLabel: order.paymentStatus
-      ? (ORDER_PAYMENT_STATUS_LABELS[order.paymentStatus] ?? order.paymentStatus)
+      ? (ORDER_PAYMENT_STATUS_LABELS[order.paymentStatus] ?? order.paymentStatus).toUpperCase()
       : "Não definido",
-    createdAtLabel: formatOperationalDateTime(order.createdAt, timeZone),
     totalLabel: formatPrintCurrency(order.total),
     notesLabel: order.notes?.trim() || "Sem notas operacionais",
     items: order.items.map((item, index) => ({
       key: String(item.id ?? `${item.productId}-${index}`),
-      productName: item.productName,
-      quantity: item.quantity,
-      totalLabel: formatPrintCurrency(item.total),
-      variantName: item.variantName?.trim() || null,
-      flavorLabel: buildFlavorLabel(item),
+      title: buildPrintItemTitle(item),
+      flavorLines: buildFlavorLines(item),
     })),
   };
 }

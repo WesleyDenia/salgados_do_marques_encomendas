@@ -64,89 +64,52 @@ export function OrderThermalContent({
         >
           <header className={classes.header}>
             <p className={classes.title}>{order.idLabel}</p>
-            <p className={classes.subtitle}>{order.statusLabel}</p>
           </header>
 
           <section className={classes.section}>
-            <p className={classes.sectionTitle}>Cliente</p>
             <div className={classes.row}>
               <span className={classes.label}>Nome</span>
               <span className={classes.value}>{order.customerLabel}</span>
             </div>
             <div className={classes.row}>
-              <span className={classes.label}>Contacto</span>
+              <span className={classes.label}>Tel</span>
               <span className={classes.value}>{order.contactLabel}</span>
             </div>
-          </section>
-
-          <section className={classes.section}>
-            <p className={classes.sectionTitle}>Logística</p>
             <div className={classes.row}>
-              <span className={classes.label}>Loja</span>
-              <span className={classes.value}>{order.storeName}</span>
-            </div>
-            {order.storeAddress ? (
-              <div className={classes.row}>
-                <span className={classes.label}>Morada</span>
-                <span className={classes.value}>{order.storeAddress}</span>
-              </div>
-            ) : null}
-            {order.storePhone ? (
-              <div className={classes.row}>
-                <span className={classes.label}>Telefone</span>
-                <span className={classes.value}>{order.storePhone}</span>
-              </div>
-            ) : null}
-            <div className={classes.row}>
-              <span className={classes.label}>Agendamento</span>
+              <span className={classes.label}>Data/Hora</span>
               <span className={classes.value}>{order.scheduledAtLabel}</span>
             </div>
-            <div className={classes.row}>
-              <span className={classes.label}>Slot</span>
-              <span className={classes.value}>{order.slotLabel}</span>
-            </div>
           </section>
 
           <section className={classes.section}>
-            <p className={classes.sectionTitle}>Itens</p>
             {order.items.map((item) => (
               <div key={item.key} className={classes.item}>
-                <div className={classes.itemRow}>
-                  <span>{item.productName}</span>
-                  <span className={classes.value}>x{item.quantity}</span>
-                </div>
-                {item.variantName ? (
-                  <div className={classes.itemMeta}>Variação: {item.variantName}</div>
+                <div className={classes.itemMeta}>{item.title}</div>
+                {item.flavorLines.length > 0 ? (
+                  <div className={classes.itemMeta}>
+                    <div>Sabores:</div>
+                    {item.flavorLines.map((flavor, index) => (
+                      <div key={`${item.key}-flavor-${index}`}>- {flavor}</div>
+                    ))}
+                  </div>
                 ) : null}
-                {item.flavorLabel ? (
-                  <div className={classes.itemMeta}>Sabores: {item.flavorLabel}</div>
-                ) : null}
-                <div className={classes.row}>
-                  <span className={classes.label}>Subtotal</span>
-                  <span className={classes.value}>{item.totalLabel}</span>
-                </div>
               </div>
             ))}
           </section>
 
           <section className={classes.section}>
-            <p className={classes.sectionTitle}>Operacional</p>
             <div className={classes.row}>
-              <span className={classes.label}>Pagamento</span>
-              <span className={classes.value}>{order.paymentLabel}</span>
-            </div>
-            <div className={classes.row}>
-              <span className={classes.label}>Criada em</span>
-              <span className={classes.value}>{order.createdAtLabel}</span>
-            </div>
-            <div className={classes.totalRow}>
-              <span className={classes.sectionTitle}>Total</span>
+              <span className={classes.label}>Valor</span>
               <span className={classes.value}>{order.totalLabel}</span>
+            </div>
+            <div className={classes.row}>
+              <span className={classes.label}>Status do Pagamento</span>
+              <span className={classes.value}>{order.paymentLabel}</span>
             </div>
           </section>
 
           <section className={classes.section}>
-            <p className={classes.sectionTitle}>Notas operacionais</p>
+            <p className={classes.sectionTitle}>Obs</p>
             <div className={classes.notes}>{order.notesLabel}</div>
           </section>
 

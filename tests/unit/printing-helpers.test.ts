@@ -54,13 +54,13 @@ test("toThermalPrintOrder reuses normalized order data and applies operational f
     timeZone: "Europe/Lisbon",
   });
 
-  assert.equal(printable.idLabel, "Encomenda #321");
+  assert.equal(printable.idLabel, "Encomenda #321 ·");
   assert.equal(printable.statusLabel, "Aceite");
   assert.equal(printable.contactLabel, "Sem contacto registado");
-  assert.equal(printable.storeAddress, "Rua das Flores 12, Porto");
   assert.equal(printable.notesLabel, "Sem notas operacionais");
-  assert.equal(printable.items[0].flavorLabel, "Carne, Frango");
-  assert.equal(printable.items[1].flavorLabel, "#3, #9");
+  assert.equal(printable.paymentLabel, "PARCIAL");
+  assert.deepEqual(printable.items[0].flavorLines, ["Carne", "Frango"]);
+  assert.deepEqual(printable.items[1].flavorLines, ["#3", "#9"]);
 });
 
 test("buildOrderPrintHref encodes ids for the dedicated print route", () => {

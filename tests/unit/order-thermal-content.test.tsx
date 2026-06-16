@@ -13,21 +13,20 @@ test("OrderThermalContent renders the full operational document for 80mm printin
     id: 555,
     status: "ready",
     paymentStatus: "paid",
-    slot: "manha",
     customerName: "Joana Silva",
     customerContact: "912000111",
-    scheduledAt: "2026-05-20T08:30:00Z",
+    scheduledAt: "2026-06-13T16:00:00Z",
     total: 60,
     notes: "Sem cebola\nSeparar para balcão.",
     items: [
       {
         id: 1,
         productId: 3,
-        productName: "Empada",
-        quantity: 12,
+        productName: "Pack",
+        quantity: 100,
         total: 36,
-        variantName: "Grande",
-        flavorNames: ["Frango"],
+        variantName: "Pack 100 Unidades",
+        flavorNames: ["Pack Mix", "Pack Mix", "Coxinha de Frango", "Coxinha de Frango"],
       },
       {
         id: 2,
@@ -37,13 +36,6 @@ test("OrderThermalContent renders the full operational document for 80mm printin
         total: 24,
       },
     ],
-    store: {
-      id: 9,
-      name: "Loja Centro",
-      address: "Rua Central 1",
-      city: "Lisboa",
-      phone: "213000000",
-    },
     createdAt: "2026-05-19T09:00:00Z",
   };
 
@@ -59,19 +51,18 @@ test("OrderThermalContent renders the full operational document for 80mm printin
   );
 
   assert.match(markup, /Documento térmico 80mm/);
-  assert.match(markup, /Encomenda #555/);
-  assert.match(markup, /Pronta/);
+  assert.match(markup, /Encomenda #555 ·/);
   assert.match(markup, /Joana Silva/);
-  assert.match(markup, /912000111/);
-  assert.match(markup, /Loja Centro/);
-  assert.match(markup, /Rua Central 1, Lisboa/);
-  assert.match(markup, /213000000/);
-  assert.match(markup, /Manhã/);
-  assert.match(markup, /Empada/);
-  assert.match(markup, /Variação: Grande/);
-  assert.match(markup, /Sabores: Frango/);
+  assert.match(markup, /912 000 111/);
+  assert.match(markup, /Sábado 13\/06\/2026 às 17:00/);
+  assert.match(markup, /Pack 100 Unidades/);
+  assert.match(markup, /Sabores:/);
+  assert.match(markup, /- Pack Mix/);
+  assert.match(markup, /- Coxinha de Frango/);
   assert.match(markup, /Sem cebola/);
   assert.match(markup, /Separar para balcão/);
   assert.match(markup, /60,00/);
-  assert.match(markup, /Pago/);
+  assert.match(markup, /PAGO/);
+  assert.doesNotMatch(markup, /Loja Centro/);
+  assert.doesNotMatch(markup, /Criada em/);
 });
