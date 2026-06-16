@@ -54,10 +54,10 @@ test("OrdersOperationalRecordContent renders the persisted operational record", 
   assert.match(markup, /Pendente/);
   assert.match(markup, /Manhã/);
   assert.match(markup, /20\/05\/2026, 10:30/);
-  assert.match(markup, /Sem picante/);
   assert.match(markup, /Página 1 de 3/);
   assert.match(markup, /Abrir/);
   assert.doesNotMatch(markup, /Leitura operacional da fila/);
+  assert.doesNotMatch(markup, /Sem picante/);
 });
 
 test("OrdersOperationalRecordContent adapts copy for investigation mode", () => {
@@ -94,6 +94,62 @@ test("OrdersOperationalRecordContent adapts copy for investigation mode", () => 
   assert.doesNotMatch(markup, /Leitura operacional da fila/);
   assert.doesNotMatch(markup, /Investigação de encomendas/);
   assert.doesNotMatch(markup, /universo pesquisável/i);
+});
+
+test("OrdersOperationalRecordContent renders full operational cards in blocks mode", () => {
+  const markup = renderToStaticMarkup(
+    <OrdersOperationalRecordContent
+      viewMode="cards"
+      orders={[
+        {
+          id: 36,
+          status: "placed",
+          paymentStatus: "pending",
+          slot: "tarde",
+          customerName: "WESLEY SILVA",
+          customerContact: "911928481",
+          scheduledAt: "2026-06-13T16:00:00+00:00",
+          total: 30,
+          notes: "",
+          store: {
+            id: 3,
+            name: "Loja Centro",
+          },
+          user: null,
+          items: [
+            {
+              id: 1,
+              productId: 12,
+              productName: "Mini salgados",
+              quantity: 1,
+              total: 30,
+              variantName: "Pack 100 Unidades",
+              flavorNames: [
+                "Pack Mix",
+                "Pack Mix",
+                "Coxinha de Frango",
+                "Coxinha de Frango",
+              ],
+            },
+          ],
+          createdAt: "2026-05-12T09:30:00+00:00",
+        },
+      ]}
+      meta={{ current_page: 1, last_page: 1, total: 1 }}
+      statusLabels={{ placed: "Realizado" }}
+      timeZone="Europe/Lisbon"
+    />,
+  );
+
+  assert.match(markup, /Encomenda #36/);
+  assert.match(markup, /Nome:<\/span> WESLEY SILVA/);
+  assert.match(markup, /Tel:<\/span> 911 928 481/);
+  assert.match(markup, /13\/06\/2026 às 17:00/);
+  assert.match(markup, /Pack 100 Unidades/);
+  assert.match(markup, /\* Pack Mix/);
+  assert.match(markup, /\* Coxinha de Frango/);
+  assert.match(markup, /Valor:<\/span> 30,00/);
+  assert.match(markup, /Sem notas operacionais persistidas/);
 });
 
 test("OrderDetailSheet enables edit button when canEdit is true", () => {

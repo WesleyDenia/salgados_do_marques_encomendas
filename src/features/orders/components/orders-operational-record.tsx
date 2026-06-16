@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Printer, RefreshCcw } from "lucide-react";
+import { LayoutGrid, List, Printer, RefreshCcw } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -84,6 +84,8 @@ const REVALIDATE_MESSAGES = {
   fieldSchedule: "Agendamento atualizado",
 };
 
+const ORDER_RECORD_VIEW_MODE_STORAGE_KEY = "orders-record-view-mode";
+
 type OrderRecordSearchParams = Pick<URLSearchParams, "get" | "toString">;
 
 export const ORDER_STATUS_TRANSITIONS: Record<string, string[]> = {
@@ -160,6 +162,63 @@ function buildFlavorSummary(item: Order["items"][number]) {
   }
 
   return null;
+}
+
+function formatCustomerContact(value?: string | null) {
+  if (!value) {
+    return "Por definir";
+  }
+
+  const digits = value.replace(/\D/g, "");
+
+  if (digits.length === 9) {
+    return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+  }
+
+  return value;
+}
+
+function formatScheduledAtDetailed(value?: string | null, timeZone = "Europe/Lisbon") {
+  if (!value) {
+    return "Por agendar";
+  }
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  const weekday = new Intl.DateTimeFormat("pt-PT", {
+    timeZone,
+    weekday: "long",
+  }).format(parsed);
+  const date = new Intl.DateTimeFormat("pt-PT", {
+    timeZone,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(parsed);
+  const time = new Intl.DateTimeFormat("pt-PT", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(parsed);
+
+  return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${date} às ${time}`;
+}
+
+function buildOrderCardItemTitle(item: Order["items"][number]) {
+  if (item.variantName?.trim()) {
+    return item.variantName.trim();
+  }
+
+  if (item.quantity > 1) {
+    return `${item.productName} x${item.quantity}`;
+  }
+
+  return item.productName;
 }
 
 function buildPrintStateMessage(
@@ -684,6 +743,7 @@ export function OrdersOperationalRecordContent({
   statusLabels,
   timeZone,
   mode: _mode = "operational",
+  viewMode = "list",
 }: Readonly<{
   orders: Order[];
   meta?: { current_page?: number; last_page?: number; total?: number };
@@ -693,6 +753,7 @@ export function OrdersOperationalRecordContent({
   statusLabels?: Record<string, string>;
   timeZone?: string;
   mode?: OrderRecordMode;
+  viewMode?: "list" | "cards";
 }>) {
   void _mode;
   const currentPage = meta?.current_page ?? 1;
@@ -730,81 +791,135 @@ export function OrdersOperationalRecordContent({
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-4">
-          <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-            Fila detalhada
-          </h3>
-        </div>
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-slate-50/80">
-              <TableHead>ID</TableHead>
-              <TableHead>Cliente</TableHead>
-              <TableHead>Loja</TableHead>
-              <TableHead>Data/Hora de agendamento</TableHead>
-              <TableHead>Slot</TableHead>
-              <TableHead>Estado do pagamento</TableHead>
-              <TableHead>Estado operacional</TableHead>
-              <TableHead>Quantidade total de itens</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {orders.map((order) => (
-              <TableRow key={order.id} className="hover:bg-slate-50/80">
-                <TableCell className="font-medium">#{order.id}</TableCell>
-                <TableCell>{buildCustomerLabel(order)}</TableCell>
-                <TableCell>{order.store?.name ?? "Loja não carregada"}</TableCell>
-                <TableCell>{formatOperationalDateTime(order.scheduledAt, timeZone)}</TableCell>
-                <TableCell>{buildSlotLabel(order)}</TableCell>
-                <TableCell>{buildPaymentLabel(order)}</TableCell>
-                <TableCell>{buildOperationalStatusLabel(order, statusLabels)}</TableCell>
-                <TableCell>{buildItemsQuantity(order)}</TableCell>
-                <TableCell>{formatTotal(order.total)}</TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onOpenOrder?.(order)}
-                  >
-                    Abrir
-                  </Button>
-                </TableCell>
+      {viewMode === "list" ? (
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 px-5 py-4">
+            <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Fila detalhada
+            </h3>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50/80">
+                <TableHead>ID</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Loja</TableHead>
+                <TableHead>Data/Hora de agendamento</TableHead>
+                <TableHead>Slot</TableHead>
+                <TableHead>Estado do pagamento</TableHead>
+                <TableHead>Estado operacional</TableHead>
+                <TableHead>Quantidade total de itens</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      <div className="space-y-3">
-        <div>
-          <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-            Notas operacionais
-          </h3>
-          <p className="mt-1 text-sm text-slate-600">
-            Apoio rápido para leitura de instruções e observações persistidas por encomenda.
-          </p>
+            </TableHeader>
+            <TableBody>
+              {orders.map((order) => (
+                <TableRow key={order.id} className="hover:bg-slate-50/80">
+                  <TableCell className="font-medium">#{order.id}</TableCell>
+                  <TableCell>{buildCustomerLabel(order)}</TableCell>
+                  <TableCell>{order.store?.name ?? "Loja não carregada"}</TableCell>
+                  <TableCell>{formatOperationalDateTime(order.scheduledAt, timeZone)}</TableCell>
+                  <TableCell>{buildSlotLabel(order)}</TableCell>
+                  <TableCell>{buildPaymentLabel(order)}</TableCell>
+                  <TableCell>{buildOperationalStatusLabel(order, statusLabels)}</TableCell>
+                  <TableCell>{buildItemsQuantity(order)}</TableCell>
+                  <TableCell>{formatTotal(order.total)}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onOpenOrder?.(order)}
+                    >
+                      Abrir
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
-
+      ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-        {orders.map((order) => (
-          <article
-            key={`notes-${order.id}`}
-            className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm"
-          >
-            <p className="text-sm font-medium text-slate-950">
-              Encomenda #{order.id} · {buildCustomerLabel(order)}
-            </p>
-            <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600">
-              {order.notes?.trim() || "Sem notas operacionais persistidas."}
-            </p>
-          </article>
-        ))}
+          {orders.map((order) => (
+            <article
+              key={`card-${order.id}`}
+              className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-slate-950">
+                    Encomenda #{order.id} ·
+                  </p>
+                  <div className="space-y-1 text-sm text-slate-700">
+                    <p>
+                      <span className="font-medium text-slate-950">Nome:</span>{" "}
+                      {buildCustomerLabel(order)}
+                    </p>
+                    <p>
+                      <span className="font-medium text-slate-950">Tel:</span>{" "}
+                      {formatCustomerContact(order.customerContact)}
+                    </p>
+                    <p>
+                      <span className="font-medium text-slate-950">Data/Hora:</span>{" "}
+                      {formatScheduledAtDetailed(order.scheduledAt, timeZone)}
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onOpenOrder?.(order)}
+                >
+                  Abrir
+                </Button>
+              </div>
+
+              <div className="mt-4 space-y-4">
+                {order.items.map((item, index) => {
+                  const flavorSummary = buildFlavorSummary(item);
+
+                  return (
+                    <div
+                      key={buildOrderItemKey(item, index)}
+                      className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+                    >
+                      <p className="font-medium text-slate-950">
+                        {buildOrderCardItemTitle(item)}
+                      </p>
+
+                      {flavorSummary ? (
+                        <div className="mt-2 space-y-1 text-sm text-slate-700">
+                          {flavorSummary.split(", ").map((flavor) => (
+                            <p key={flavor}>* {flavor}</p>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-sm text-slate-600">
+                          Quantidade: {item.quantity}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-4 space-y-2 border-t border-slate-200 pt-4 text-sm text-slate-700">
+                <p>
+                  <span className="font-medium text-slate-950">Valor:</span>{" "}
+                  {formatTotal(order.total)}
+                </p>
+                <p className="whitespace-pre-line text-slate-600">
+                  {order.notes?.trim() || "Sem notas operacionais persistidas."}
+                </p>
+              </div>
+            </article>
+          ))}
         </div>
-      </div>
+      )}
     </section>
   );
 }
@@ -845,6 +960,7 @@ export function OrdersOperationalRecord({
   const [printErrorByOrderId, setPrintErrorByOrderId] = React.useState<
     Record<string, string | null>
   >({});
+  const [viewMode, setViewMode] = React.useState<"list" | "cards">("list");
   const printAttemptByOrderIdRef = React.useRef<Record<string, string | null>>({});
   const detailQuery = useOrderDetail(selectedOrder?.id ?? null);
   const updateOrderStatusMutation = useUpdateOrderStatus();
@@ -892,6 +1008,26 @@ export function OrdersOperationalRecord({
     setPaymentStatus(currentPaymentStatus);
     setSlot(currentSlot);
   }, [currentPeriod, currentStatus, currentPaymentStatus, currentSlot, urlSearchTerm]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const stored = window.localStorage.getItem(ORDER_RECORD_VIEW_MODE_STORAGE_KEY);
+
+    if (stored === "list" || stored === "cards") {
+      setViewMode(stored);
+    }
+  }, []);
+
+  const updateViewMode = React.useCallback((nextMode: "list" | "cards") => {
+    setViewMode(nextMode);
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(ORDER_RECORD_VIEW_MODE_STORAGE_KEY, nextMode);
+    }
+  }, []);
 
   // Sync Local State to URL (Debounced/Controlled)
   React.useEffect(() => {
@@ -1157,20 +1293,36 @@ export function OrdersOperationalRecord({
 
   const filters = (
     <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-            Filtros operacionais
-          </p>
-          <p className="mt-1 text-sm leading-6 text-slate-600">
-            Refine a fila por período, estado, pagamento ou slot para abrir a encomenda certa mais depressa.
-          </p>
+      <div className="flex justify-end">
+        <div className="flex items-center gap-2">
+          {isFetching ? (
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              A atualizar
+            </span>
+          ) : null}
+          <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
+            <Button
+              type="button"
+              variant={viewMode === "list" ? "default" : "ghost"}
+              size="icon-sm"
+              className="size-8"
+              aria-label="Exibir em lista"
+              onClick={() => updateViewMode("list")}
+            >
+              <List className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              variant={viewMode === "cards" ? "default" : "ghost"}
+              size="icon-sm"
+              className="size-8"
+              aria-label="Exibir em blocos"
+              onClick={() => updateViewMode("cards")}
+            >
+              <LayoutGrid className="size-4" />
+            </Button>
+          </div>
         </div>
-        {isFetching ? (
-          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-            A atualizar
-          </span>
-        ) : null}
       </div>
       <OrderSearch
         value={searchTerm}
@@ -1310,6 +1462,7 @@ export function OrdersOperationalRecord({
         statusLabels={settings?.statusLabels}
         timeZone={settings?.timezone}
         mode={mode}
+        viewMode={viewMode}
       />
     );
 
