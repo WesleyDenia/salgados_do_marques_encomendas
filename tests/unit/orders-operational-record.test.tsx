@@ -47,7 +47,6 @@ test("OrdersOperationalRecordContent renders the persisted operational record", 
     />,
   );
 
-  assert.match(markup, /Leitura operacional da fila/);
   assert.match(markup, /Maria Silva/);
   assert.match(markup, /Loja Centro/);
   assert.match(markup, /Realizado/);
@@ -56,9 +55,9 @@ test("OrdersOperationalRecordContent renders the persisted operational record", 
   assert.match(markup, /Manhã/);
   assert.match(markup, /20\/05\/2026, 10:30/);
   assert.match(markup, /Sem picante/);
-  assert.match(markup, /41 encomendas encontradas/);
   assert.match(markup, /Página 1 de 3/);
   assert.match(markup, /Abrir/);
+  assert.doesNotMatch(markup, /Leitura operacional da fila/);
 });
 
 test("OrdersOperationalRecordContent adapts copy for investigation mode", () => {
@@ -91,8 +90,8 @@ test("OrdersOperationalRecordContent adapts copy for investigation mode", () => 
     />,
   );
 
-  assert.match(markup, /Leitura operacional da fila/);
   assert.match(markup, /Fila detalhada/);
+  assert.doesNotMatch(markup, /Leitura operacional da fila/);
   assert.doesNotMatch(markup, /Investigação de encomendas/);
   assert.doesNotMatch(markup, /universo pesquisável/i);
 });

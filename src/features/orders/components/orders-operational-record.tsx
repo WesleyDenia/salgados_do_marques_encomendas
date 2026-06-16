@@ -682,7 +682,6 @@ export function OrdersOperationalRecordContent({
   onOpenOrder,
   onPageChange,
   statusLabels,
-  isRefreshing,
   timeZone,
   mode: _mode = "operational",
 }: Readonly<{
@@ -692,71 +691,19 @@ export function OrdersOperationalRecordContent({
   onOpenOrder?: (order: Order) => void;
   onPageChange?: (page: number) => void;
   statusLabels?: Record<string, string>;
-  isRefreshing?: boolean;
   timeZone?: string;
   mode?: OrderRecordMode;
 }>) {
   void _mode;
   const currentPage = meta?.current_page ?? 1;
   const lastPage = meta?.last_page ?? 1;
-  const total = meta?.total ?? orders.length;
 
   return (
     <section className="space-y-4">
       {searchSlot}
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-            Registos no filtro
-          </p>
-          <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-            {total}
-          </p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            {total === 1
-              ? "1 encomenda encontrada no conjunto atual."
-              : `${total} encomendas encontradas no conjunto atual.`}
-          </p>
-        </article>
-
-        <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-            Paginação
-          </p>
-          <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-            {currentPage}
-          </p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            {lastPage > 1
-              ? `Página ${currentPage} de ${lastPage} na fila filtrada.`
-              : "Todos os registos cabem numa única página."}
-          </p>
-        </article>
-
-        <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-            Sincronização
-          </p>
-          <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-            {isRefreshing ? "Live" : "OK"}
-          </p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            {isRefreshing
-              ? "A fila está a ser atualizada com o backend neste momento."
-              : "A fila está estável e pronta para atendimento."}
-          </p>
-        </article>
-      </div>
-
-      <div className="flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600 shadow-sm md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="font-medium text-slate-950">Leitura operacional da fila</p>
-          <p className="mt-1 text-sm text-slate-600">
-            Revise cliente, loja, agendamento, pagamento e estado antes de abrir o detalhe.
-          </p>
-        </div>
-        {lastPage > 1 ? (
+      {lastPage > 1 ? (
+        <div className="flex justify-end rounded-3xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600 shadow-sm">
           <div className="flex items-center gap-2">
             <Button
               type="button"
@@ -780,8 +727,8 @@ export function OrdersOperationalRecordContent({
               Seguinte
             </Button>
           </div>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-5 py-4">
