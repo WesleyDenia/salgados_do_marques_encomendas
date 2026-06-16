@@ -1308,7 +1308,6 @@ export function OrdersOperationalRecord({
         onOpenOrder={setSelectedOrder}
         onPageChange={updatePage}
         statusLabels={settings?.statusLabels}
-        isRefreshing={isFetching}
         timeZone={settings?.timezone}
         mode={mode}
       />
