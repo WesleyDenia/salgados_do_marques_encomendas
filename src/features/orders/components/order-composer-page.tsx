@@ -341,7 +341,7 @@ function ItemConfigModal({
                 {allowedFlavors.map((flavor) => (
                   <div
                     key={flavor.id}
-                    className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3"
+                    className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50/70 px-4 py-3"
                   >
                     <p className="font-medium text-slate-950">{flavor.name}</p>
                     <div className="flex items-center gap-2">
@@ -868,7 +868,7 @@ export function OrderComposerPage({
                             className={`shrink-0 border-r border-white/10 px-5 py-4 text-left transition ${
                               active
                                 ? "bg-white text-slate-950"
-                                : "bg-cyan-500/90 text-white hover:bg-cyan-400"
+                                : "bg-gray-500/90 text-white hover:bg-gray-400"
                             }`}
                             onClick={() => setSelectedCategoryId(category.id)}
                           >
