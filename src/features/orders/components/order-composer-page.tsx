@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2, X } from "lucide-react";
 import { type Resolver, useFieldArray, useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -429,6 +429,9 @@ export function OrderComposerPage({
     null,
   );
   const [selectedCategoryId, setSelectedCategoryId] = React.useState<string | null>(null);
+  const [canScrollCategoriesLeft, setCanScrollCategoriesLeft] = React.useState(false);
+  const [canScrollCategoriesRight, setCanScrollCategoriesRight] = React.useState(false);
+  const categoryTabsRef = React.useRef<HTMLDivElement | null>(null);
 
   const createOrderMutation = useCreateOrder();
   const updateOrderMutation = useUpdateOrder();
@@ -567,6 +570,77 @@ export function OrderComposerPage({
 
     setSelectedCategoryId(productCategories[0]?.id ?? null);
   }, [productCategories, selectedCategoryId]);
+
+  const updateCategoryScrollState = React.useCallback(() => {
+    const container = categoryTabsRef.current;
+
+    if (!container) {
+      setCanScrollCategoriesLeft(false);
+      setCanScrollCategoriesRight(false);
+      return;
+    }
+
+    setCanScrollCategoriesLeft(container.scrollLeft > 4);
+    setCanScrollCategoriesRight(
+      container.scrollLeft + container.clientWidth < container.scrollWidth - 4,
+    );
+  }, []);
+
+  React.useEffect(() => {
+    updateCategoryScrollState();
+  }, [productCategories, selectedCategoryId, updateCategoryScrollState]);
+
+  React.useEffect(() => {
+    const container = categoryTabsRef.current;
+
+    if (!container) {
+      return;
+    }
+
+    const handleScroll = () => updateCategoryScrollState();
+
+    handleScroll();
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll);
+
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    };
+  }, [updateCategoryScrollState]);
+
+  React.useEffect(() => {
+    const container = categoryTabsRef.current;
+
+    if (!container || !selectedCategoryId) {
+      return;
+    }
+
+    const activeTab = container.querySelector<HTMLButtonElement>(
+      `[data-category-tab="${selectedCategoryId}"]`,
+    );
+
+    activeTab?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center",
+    });
+  }, [selectedCategoryId]);
+
+  function scrollCategoryTabs(direction: "left" | "right") {
+    const container = categoryTabsRef.current;
+
+    if (!container) {
+      return;
+    }
+
+    const amount = Math.max(container.clientWidth * 0.7, 160);
+
+    container.scrollBy({
+      left: direction === "left" ? -amount : amount,
+      behavior: "smooth",
+    });
+  }
 
   function openCreateItem(product: OrderProductOption) {
     const defaultVariant = getActiveVariants(product)[0] ?? null;
@@ -777,28 +851,55 @@ export function OrderComposerPage({
                   </p>
                 </div>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {productCategories.map((category) => {
-                    const active = selectedCategoryId === category.id;
+                <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-slate-950/95">
+                  <div className="flex items-stretch">
+                    <div
+                      ref={categoryTabsRef}
+                      className="flex min-w-0 flex-1 overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                    >
+                      {productCategories.map((category) => {
+                        const active = selectedCategoryId === category.id;
 
-                    return (
-                      <button
-                        key={category.id}
+                        return (
+                          <button
+                            key={category.id}
+                            data-category-tab={category.id}
+                            type="button"
+                            className={`shrink-0 border-r border-white/10 px-5 py-4 text-left transition ${
+                              active
+                                ? "bg-white text-slate-950"
+                                : "bg-cyan-500/90 text-white hover:bg-cyan-400"
+                            }`}
+                            onClick={() => setSelectedCategoryId(category.id)}
+                          >
+                            <p className="whitespace-nowrap text-base font-medium">
+                              {category.label}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex shrink-0 border-l border-white/10 bg-slate-800/90">
+                      <Button
                         type="button"
-                        className={`rounded-2xl border px-4 py-4 text-left transition ${
-                          active
-                            ? "border-slate-950 bg-slate-950 text-white"
-                            : "border-slate-200 bg-slate-50/70 text-slate-950 hover:border-slate-400"
-                        }`}
-                        onClick={() => setSelectedCategoryId(category.id)}
+                        variant="ghost"
+                        className="h-auto rounded-none px-3 text-white hover:bg-white/10 hover:text-white disabled:opacity-35"
+                        disabled={!canScrollCategoriesLeft}
+                        onClick={() => scrollCategoryTabs("left")}
                       >
-                        <p className="font-semibold">{category.label}</p>
-                        <p className={active ? "mt-1 text-sm text-slate-200" : "mt-1 text-sm text-slate-600"}>
-                          {category.count} artigo(s) disponíveis
-                        </p>
-                      </button>
-                    );
-                  })}
+                        <ChevronLeft className="size-5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-auto rounded-none border-l border-white/10 px-3 text-white hover:bg-white/10 hover:text-white disabled:opacity-35"
+                        disabled={!canScrollCategoriesRight}
+                        onClick={() => scrollCategoryTabs("right")}
+                      >
+                        <ChevronRight className="size-5" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
