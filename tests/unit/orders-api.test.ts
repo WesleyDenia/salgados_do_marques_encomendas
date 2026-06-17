@@ -59,3 +59,25 @@ test("normalizeOrderResource preserves order history for future investigation fl
     },
   ]);
 });
+
+test("normalizeOrderResource reinterprets operational API timestamps to preserve Lisbon wall-clock time", () => {
+  const order = normalizeOrderResource({
+    id: 77,
+    status: "placed",
+    payment_status: "pending",
+    slot: "tarde",
+    customer_name: "Ana",
+    customer_contact: "919999999",
+    scheduled_at: "2026-06-17T14:00:00+01:00",
+    total: 18,
+    notes: null,
+    created_at: "2026-06-17T13:00:00+01:00",
+    items: [],
+    store: null,
+    user: null,
+    history: [],
+  });
+
+  assert.equal(order.scheduledAt, "2026-06-17T14:00:00.000Z");
+  assert.equal(order.createdAt, "2026-06-17T13:00:00.000Z");
+});

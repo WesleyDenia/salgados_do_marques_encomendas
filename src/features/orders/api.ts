@@ -60,6 +60,22 @@ function readResourcePayload<T>(payload: unknown): T | null {
   return null;
 }
 
+function normalizeOperationalApiDateTime(value?: string | null) {
+  if (!value) {
+    return value ?? null;
+  }
+
+  const match = value.match(
+    /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?$/,
+  );
+
+  if (!match) {
+    return value;
+  }
+
+  return `${match[1]}T${match[2]}.000Z`;
+}
+
 type BackendOrderItem = {
   id: number;
   product_id: number;
@@ -195,7 +211,7 @@ function normalizeOrderHistoryEntry(
     user: resource.user ?? null,
     action: resource.action,
     changes: resource.changes ?? null,
-    createdAt: resource.created_at ?? null,
+    createdAt: normalizeOperationalApiDateTime(resource.created_at ?? null),
   };
 }
 
@@ -220,15 +236,15 @@ export function normalizeOrderResource(resource: BackendOrder): Order {
       flavorNames: item.options?.flavor_names ?? [],
     })),
     notes: resource.notes ?? null,
-    scheduledAt: resource.scheduled_at ?? null,
-    cancelledAt: resource.cancelled_at ?? null,
+    scheduledAt: normalizeOperationalApiDateTime(resource.scheduled_at ?? null),
+    cancelledAt: normalizeOperationalApiDateTime(resource.cancelled_at ?? null),
     total: resource.total,
     store: resource.store ?? null,
     user: resource.user ?? null,
     history: Array.isArray(resource.history)
       ? resource.history.map(normalizeOrderHistoryEntry)
       : [],
-    createdAt: resource.created_at ?? null,
+    createdAt: normalizeOperationalApiDateTime(resource.created_at ?? null),
   };
 }
 
