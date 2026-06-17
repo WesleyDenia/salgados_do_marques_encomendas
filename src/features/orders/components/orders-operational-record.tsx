@@ -31,7 +31,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { OrderComposerDrawer } from "@/features/orders/components/order-composer-drawer";
 import { OrderAuditContext } from "@/features/orders/components/order-audit-context";
 import { OrderHistoryList } from "@/features/orders/components/order-history-list";
 import { useUpdateOrderStatus } from "@/features/orders/hooks/use-order-mutations";
@@ -739,6 +738,7 @@ export function OrdersOperationalRecordContent({
   meta,
   searchSlot,
   onOpenOrder,
+  onPrintOrder,
   onPageChange,
   statusLabels,
   timeZone,
@@ -749,6 +749,7 @@ export function OrdersOperationalRecordContent({
   meta?: { current_page?: number; last_page?: number; total?: number };
   searchSlot?: React.ReactNode;
   onOpenOrder?: (order: Order) => void;
+  onPrintOrder?: (order: Order) => void;
   onPageChange?: (page: number) => void;
   statusLabels?: Record<string, string>;
   timeZone?: string;
@@ -826,14 +827,25 @@ export function OrdersOperationalRecordContent({
                   <TableCell>{buildItemsQuantity(order)}</TableCell>
                   <TableCell>{formatTotal(order.total)}</TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onOpenOrder?.(order)}
-                    >
-                      Abrir
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onPrintOrder?.(order)}
+                      >
+                        <Printer className="size-4" />
+                        Imprimir
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onOpenOrder?.(order)}
+                      >
+                        Abrir
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -868,14 +880,25 @@ export function OrdersOperationalRecordContent({
                   </div>
                 </div>
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onOpenOrder?.(order)}
-                >
-                  Abrir
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onPrintOrder?.(order)}
+                  >
+                    <Printer className="size-4" />
+                    Imprimir
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onOpenOrder?.(order)}
+                  >
+                    Abrir
+                  </Button>
+                </div>
               </div>
 
               <div className="mt-4 space-y-4">
@@ -953,7 +976,6 @@ export function OrdersOperationalRecord({
   const [paymentStatus, setPaymentStatus] = React.useState(rawUrlPaymentStatus?.trim() ?? "");
   const [slot, setSlot] = React.useState(rawUrlSlot?.trim() ?? "");
   const [selectedOrder, setSelectedOrder] = React.useState<Order | null>(null);
-  const [editingOrder, setEditingOrder] = React.useState<Order | null>(null);
   const [printStateByOrderId, setPrintStateByOrderId] = React.useState<
     Record<string, PrintFlowState>
   >({});
@@ -1458,6 +1480,7 @@ export function OrdersOperationalRecord({
         meta={data?.meta}
         searchSlot={filters}
         onOpenOrder={setSelectedOrder}
+        onPrintOrder={handlePrintOrder}
         onPageChange={updatePage}
         statusLabels={settings?.statusLabels}
         timeZone={settings?.timezone}
@@ -1495,25 +1518,12 @@ export function OrdersOperationalRecord({
         onRefetch={handleRefetch}
         onEditOrder={(order) => {
           setSelectedOrder(null);
-          setEditingOrder(order);
+          router.push(`/orders/${encodeURIComponent(String(order.id))}/edit`);
         }}
         onOpenChange={(open) => {
           if (!open) {
             setSelectedOrder(null);
           }
-        }}
-      />
-      <OrderComposerDrawer
-        open={editingOrder !== null}
-        mode="edit"
-        initialOrder={editingOrder}
-        onOpenChange={(open) => {
-          if (!open) {
-            setEditingOrder(null);
-          }
-        }}
-        onSuccess={() => {
-          setEditingOrder(null);
         }}
       />
     </>

@@ -23,8 +23,10 @@ import {
 } from "@/features/orders/components/order-composer-drawer";
 import {
   useCreateOrder,
+  useUpdateOrder,
 } from "@/features/orders/hooks/use-order-mutations";
 import {
+  useOrderDetail,
   useOrderProducts,
   useOrderProductDetail,
   useOrderSettings,
@@ -39,6 +41,7 @@ import {
   ORDER_PAYMENT_STATUSES,
   ORDER_SLOT_LABELS,
   ORDER_SLOT_OPTIONS,
+  type Order,
   type OrderFlavorOption,
   type OrderProductOption,
   type OrderProductVariantOption,
@@ -47,6 +50,10 @@ import {
   useSlotCapacities,
 } from "@/features/slots/hooks/use-slot-capacity";
 import { validateSlotSelection } from "@/features/slots/slot-validation";
+import {
+  getDateInputValueInTimeZone,
+  getTimeInputValueInTimeZone,
+} from "@/features/orders/utils/operational-timezone";
 import type { ApiError } from "@/types/api";
 
 type OrderFormInput = NormalizedOrderCreateInput;
@@ -71,6 +78,32 @@ const defaultValues: OrderFormValues = {
   slot: "manha",
   paymentStatus: "pending",
 };
+
+function buildDefaultValues(
+  order?: Order | null,
+  timeZone = "Europe/Lisbon",
+): OrderFormValues {
+  if (!order) {
+    return defaultValues;
+  }
+
+  return {
+    storeId: order.store?.id ?? 0,
+    customerName: order.customerName ?? order.user?.name ?? "",
+    customerContact: order.customerContact ?? "",
+    items: order.items.map((item) => ({
+      productId: item.productId,
+      quantity: item.quantity,
+      variantId: item.variantId ?? null,
+      flavorIds: item.flavorIds ?? [],
+    })),
+    observations: order.notes ?? "",
+    date: getDateInputValueInTimeZone(order.scheduledAt, timeZone) || defaultValues.date,
+    time: getTimeInputValueInTimeZone(order.scheduledAt, timeZone),
+    slot: order.slot ?? "manha",
+    paymentStatus: order.paymentStatus ?? "pending",
+  };
+}
 
 const resolveOrderForm =
   zodResolver as unknown as (
@@ -380,7 +413,15 @@ function ItemConfigModal({
   );
 }
 
-export function OrderComposerPage() {
+export function OrderComposerPage({
+  mode = "create",
+  orderId,
+  initialOrder = null,
+}: Readonly<{
+  mode?: "create" | "edit";
+  orderId?: number | string | null;
+  initialOrder?: Order | null;
+}>) {
   const router = useRouter();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = React.useState<1 | 2>(1);
@@ -390,21 +431,27 @@ export function OrderComposerPage() {
   const [selectedCategoryId, setSelectedCategoryId] = React.useState<string | null>(null);
 
   const createOrderMutation = useCreateOrder();
+  const updateOrderMutation = useUpdateOrder();
   const productsQuery = useOrderProducts();
   const settingsQuery = useOrderSettings();
   const storesQuery = useOrderStores();
   const operationalTimeZone = settingsQuery.data?.timezone ?? "Europe/Lisbon";
+  const initialOrderQuery = useOrderDetail(
+    mode === "edit" ? (orderId ?? initialOrder?.id ?? null) : null,
+  );
+  const resolvedInitialOrder = initialOrderQuery.data ?? initialOrder ?? null;
 
   const {
     control,
     formState: { errors },
     handleSubmit,
     register,
+    reset,
     setError,
     setValue,
     watch,
   } = useForm<OrderFormInput, unknown, OrderFormValues>({
-    defaultValues,
+    defaultValues: buildDefaultValues(resolvedInitialOrder, operationalTimeZone),
     mode: "onChange",
     resolver: resolveOrderForm(OrderCreateSchema),
   });
@@ -479,6 +526,24 @@ export function OrderComposerPage() {
   const date = watch("date");
   const slotCapacitiesQuery = useSlotCapacities({ date, storeId });
   const slotCapacities = slotCapacitiesQuery.data?.data.slots ?? [];
+
+  React.useEffect(() => {
+    if (mode !== "edit") {
+      return;
+    }
+
+    if (initialOrderQuery.isLoading && !resolvedInitialOrder) {
+      return;
+    }
+
+    reset(buildDefaultValues(resolvedInitialOrder, operationalTimeZone));
+  }, [
+    initialOrderQuery.isLoading,
+    mode,
+    operationalTimeZone,
+    reset,
+    resolvedInitialOrder,
+  ]);
 
   React.useEffect(() => {
     if (storeId > 0 || stores.length === 0) {
@@ -578,29 +643,75 @@ export function OrderComposerPage() {
       return;
     }
 
+    const onError = (error: ApiError) => {
+      mapBackendErrorsToForm(error, setError);
+      toast(
+        getFirstValidationMessage(error) ??
+          error.message ??
+          (mode === "edit"
+            ? "Não foi possível atualizar a encomenda."
+            : "Não foi possível criar a encomenda."),
+        "error",
+      );
+    };
+
+    const onSuccess = () => {
+      toast(
+        mode === "edit"
+          ? "Encomenda atualizada no registo operacional."
+          : "Encomenda criada e enviada para o registo operacional.",
+        "success",
+      );
+      router.push("/orders");
+      router.refresh();
+    };
+
+    if (mode === "edit" && resolvedInitialOrder) {
+      updateOrderMutation.mutate(
+        {
+          orderId: resolvedInitialOrder.id,
+          input: values,
+          timeZone: operationalTimeZone,
+        },
+        {
+          onError,
+          onSuccess,
+        },
+      );
+
+      return;
+    }
+
     createOrderMutation.mutate(
       {
         input: values,
         timeZone: operationalTimeZone,
       },
       {
-        onError: (error: ApiError) => {
-          mapBackendErrorsToForm(error, setError);
-          toast(
-            getFirstValidationMessage(error) ??
-              error.message ??
-              "Não foi possível criar a encomenda.",
-            "error",
-          );
-        },
-        onSuccess: () => {
-          toast("Encomenda criada e enviada para o registo operacional.", "success");
-          router.push("/orders");
-          router.refresh();
-        },
+        onError,
+        onSuccess,
       },
     );
   });
+
+  const isSubmitting =
+    createOrderMutation.isPending || updateOrderMutation.isPending;
+
+  if (mode === "edit" && initialOrderQuery.isLoading && !resolvedInitialOrder) {
+    return (
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 text-sm text-slate-600 shadow-sm">
+        A carregar a encomenda para correção...
+      </section>
+    );
+  }
+
+  if (mode === "edit" && initialOrderQuery.error && !resolvedInitialOrder) {
+    return (
+      <section className="rounded-3xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive shadow-sm">
+        Não foi possível carregar a encomenda para edição.
+      </section>
+    );
+  }
 
   return (
     <>
@@ -1033,12 +1144,16 @@ export function OrderComposerPage() {
                     <Button
                       type="submit"
                       disabled={
-                        createOrderMutation.isPending ||
+                        isSubmitting ||
                         products.length === 0 ||
                         storeId <= 0
                       }
                     >
-                      {createOrderMutation.isPending ? "A guardar..." : "Guardar encomenda"}
+                      {isSubmitting
+                        ? "A guardar..."
+                        : mode === "edit"
+                          ? "Guardar correção"
+                          : "Guardar encomenda"}
                     </Button>
                     <Button type="button" variant="outline" onClick={() => setCurrentStep(1)}>
                       Voltar ao Step 1
