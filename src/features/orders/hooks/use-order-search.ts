@@ -24,6 +24,7 @@ export const ORDER_OPERATIONAL_PERIODS = [
   "today",
   "tomorrow",
   "next-7-days",
+  "custom",
   "all",
 ] as const;
 
@@ -35,6 +36,8 @@ export type OrderSearchState = {
   status?: string;
   paymentStatus?: string;
   slot?: string;
+  customStartDate?: string;
+  customEndDate?: string;
   page: number;
 };
 
@@ -109,10 +112,57 @@ export async function retryOrderSearchQueries({
 export function buildOperationalPeriodDateRange(
   period: OrderOperationalPeriod,
   timeZone: string,
+  customStartDate?: string,
+  customEndDate?: string,
   now = new Date(),
 ) {
   if (period === "all") {
     return {};
+  }
+
+  if (period === "custom") {
+    if (!customStartDate || !customEndDate) {
+      return {};
+    }
+
+    const [startYear, startMonth, startDay] = customStartDate.split("-").map(Number);
+    const [endYear, endMonth, endDay] = customEndDate.split("-").map(Number);
+
+    if (
+      !Number.isFinite(startYear) ||
+      !Number.isFinite(startMonth) ||
+      !Number.isFinite(startDay) ||
+      !Number.isFinite(endYear) ||
+      !Number.isFinite(endMonth) ||
+      !Number.isFinite(endDay)
+    ) {
+      return {};
+    }
+
+    return {
+      scheduledFrom: zonedDateTimeToUtcDate(
+        {
+          year: startYear,
+          month: startMonth,
+          day: startDay,
+          hour: 0,
+          minute: 0,
+          second: 0,
+        },
+        timeZone,
+      ).toISOString(),
+      scheduledTo: zonedDateTimeToUtcDate(
+        {
+          year: endYear,
+          month: endMonth,
+          day: endDay,
+          hour: 23,
+          minute: 59,
+          second: 59,
+        },
+        timeZone,
+      ).toISOString(),
+    };
   }
 
   const zonedNow = getZonedParts(now, timeZone);
@@ -169,7 +219,13 @@ export function buildOrderSearchFilters(
   timeZone: string,
   now = new Date(),
 ): OrderSearchFilters {
-  const dateRange = buildOperationalPeriodDateRange(state.period, timeZone, now);
+  const dateRange = buildOperationalPeriodDateRange(
+    state.period,
+    timeZone,
+    state.customStartDate,
+    state.customEndDate,
+    now,
+  );
 
   return {
     search: state.search,
@@ -207,6 +263,8 @@ export function useOrderSearch(state: OrderSearchState) {
       status: normalizedStatus ?? "",
       paymentStatus: normalizedPaymentStatus ?? "",
       slot: normalizedSlot ?? "",
+      customStartDate: state.customStartDate ?? "",
+      customEndDate: state.customEndDate ?? "",
       page: state.page,
       timeZone,
     }),

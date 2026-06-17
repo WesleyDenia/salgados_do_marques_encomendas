@@ -2,11 +2,12 @@
 
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { LayoutGrid, List, Printer, RefreshCcw } from "lucide-react";
+import { Filter, LayoutGrid, List, Printer, RefreshCcw } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import {
   Select,
@@ -33,7 +34,10 @@ import {
 } from "@/components/ui/table";
 import { OrderAuditContext } from "@/features/orders/components/order-audit-context";
 import { OrderHistoryList } from "@/features/orders/components/order-history-list";
-import { useUpdateOrderStatus } from "@/features/orders/hooks/use-order-mutations";
+import {
+  useUpdateOrder,
+  useUpdateOrderStatus,
+} from "@/features/orders/hooks/use-order-mutations";
 import { useOrderDetail } from "@/features/orders/hooks/use-order-queries";
 import { OrderSearch } from "@/features/orders/components/order-search";
 import { useDebouncedValue } from "@/features/orders/hooks/use-debounced-value";
@@ -68,6 +72,7 @@ const ORDER_OPERATIONAL_PERIOD_LABELS: Record<OrderOperationalPeriod, string> = 
   today: "Hoje",
   tomorrow: "Amanhã",
   "next-7-days": "Próximos 7 dias",
+  custom: "Data personalizada",
   all: "Todos",
 };
 
@@ -84,6 +89,7 @@ const REVALIDATE_MESSAGES = {
 };
 
 const ORDER_RECORD_VIEW_MODE_STORAGE_KEY = "orders-record-view-mode";
+const ORDER_RECORD_FILTERS_OPEN_STORAGE_KEY = "orders-record-filters-open";
 
 type OrderRecordSearchParams = Pick<URLSearchParams, "get" | "toString">;
 
@@ -220,6 +226,46 @@ function buildOrderCardItemTitle(item: Order["items"][number]) {
   return item.productName;
 }
 
+function getDateInputValue(value?: string | null, timeZone = "Europe/Lisbon") {
+  if (!value) {
+    return "";
+  }
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  return formatter.format(parsed);
+}
+
+function getTimeInputValue(value?: string | null, timeZone = "Europe/Lisbon") {
+  if (!value) {
+    return "";
+  }
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("pt-PT", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(parsed);
+}
+
 function buildPrintStateMessage(
   state: PrintFlowState,
   errorMessage?: string | null,
@@ -250,6 +296,8 @@ export function buildOrdersRecordUrl({
   normalizedSearch,
   effectivePage,
   period,
+  customStartDate,
+  customEndDate,
   defaultPeriod,
   status,
   paymentStatus,
@@ -261,6 +309,8 @@ export function buildOrdersRecordUrl({
   normalizedSearch: string;
   effectivePage: number;
   period: OrderOperationalPeriod;
+  customStartDate: string;
+  customEndDate: string;
   defaultPeriod: OrderOperationalPeriod;
   status: string;
   paymentStatus: string;
@@ -274,6 +324,8 @@ export function buildOrdersRecordUrl({
   const rawStatusParam = searchParams.get("status");
   const rawPaymentStatusParam = searchParams.get("payment_status");
   const rawSlotParam = searchParams.get("slot");
+  const rawStartDateParam = searchParams.get("start_date");
+  const rawEndDateParam = searchParams.get("end_date");
   const currentUrlPeriod = normalizeOrderOperationalPeriod(
     rawPeriodParam,
     defaultPeriod,
@@ -300,6 +352,12 @@ export function buildOrdersRecordUrl({
       : rawPaymentStatusParam === paymentStatus;
   const slotParamIsCanonical =
     slot === "" ? rawSlotParam == null : rawSlotParam === slot;
+  const startDateParamIsCanonical =
+    period === "custom"
+      ? rawStartDateParam === customStartDate
+      : rawStartDateParam == null;
+  const endDateParamIsCanonical =
+    period === "custom" ? rawEndDateParam === customEndDate : rawEndDateParam == null;
 
   if (
     normalizedSearch === currentSearch &&
@@ -312,7 +370,9 @@ export function buildOrdersRecordUrl({
     periodParamIsCanonical &&
     statusParamIsCanonical &&
     paymentStatusParamIsCanonical &&
-    slotParamIsCanonical
+    slotParamIsCanonical &&
+    startDateParamIsCanonical &&
+    endDateParamIsCanonical
   ) {
     return null;
   }
@@ -330,7 +390,10 @@ export function buildOrdersRecordUrl({
     period !== currentUrlPeriod ||
     status !== currentUrlStatus ||
     paymentStatus !== currentUrlPaymentStatus ||
-    slot !== currentUrlSlot
+    slot !== currentUrlSlot ||
+    (period === "custom" &&
+      (customStartDate !== (rawStartDateParam ?? "") ||
+        customEndDate !== (rawEndDateParam ?? "")))
   ) {
     params.delete("page");
   } else if (effectivePage > 1) {
@@ -361,6 +424,14 @@ export function buildOrdersRecordUrl({
     params.set("slot", slot);
   } else {
     params.delete("slot");
+  }
+
+  if (period === "custom" && customStartDate && customEndDate) {
+    params.set("start_date", customStartDate);
+    params.set("end_date", customEndDate);
+  } else {
+    params.delete("start_date");
+    params.delete("end_date");
   }
 
   return params.toString() ? `${pathname}?${params.toString()}` : pathname;
@@ -462,8 +533,10 @@ export function OrderDetailSheet({
   onOpenChange,
   onEditOrder,
   onStatusChange,
+  onPaymentStatusChange,
   onPrintOrder,
   isUpdatingStatus,
+  isUpdatingPaymentStatus,
   printState = "ready",
   printErrorMessage,
   statusLabels,
@@ -479,8 +552,10 @@ export function OrderDetailSheet({
   onOpenChange: (open: boolean) => void;
   onEditOrder?: (order: Order) => void;
   onStatusChange?: (nextStatus: string) => void;
+  onPaymentStatusChange?: (nextStatus: keyof typeof ORDER_PAYMENT_STATUS_LABELS) => void;
   onPrintOrder?: (order: Order) => void;
   isUpdatingStatus?: boolean;
+  isUpdatingPaymentStatus?: boolean;
   printState?: PrintFlowState;
   printErrorMessage?: string | null;
   statusLabels?: Record<string, string>;
@@ -536,32 +611,67 @@ export function OrderDetailSheet({
             <SheetDescription>
               {modeConfig.detailDescription}
             </SheetDescription>
-            {order &&
-            modeConfig.showStatusActions &&
-            availableTransitions.length > 0 ? (
-              <div className="mt-3 space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Atualizar estado
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {availableTransitions.map((nextStatus) => (
-                    <Button
-                      key={nextStatus}
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={Boolean(isUpdatingStatus)}
-                      onClick={() => onStatusChange?.(nextStatus)}
-                    >
-                      {statusLabels?.[nextStatus] ?? nextStatus}
-                    </Button>
-                  ))}
-                </div>
-                {isUpdatingStatus ? (
-                  <p className="text-xs text-muted-foreground">
-                    A atualizar estado operacional...
-                  </p>
+            {order && modeConfig.showStatusActions ? (
+              <div className="mt-3 space-y-3">
+                {availableTransitions.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      Atualizar estado
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {availableTransitions.map((nextStatus) => (
+                        <Button
+                          key={nextStatus}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={Boolean(isUpdatingStatus || isUpdatingPaymentStatus)}
+                          onClick={() => onStatusChange?.(nextStatus)}
+                        >
+                          {statusLabels?.[nextStatus] ?? nextStatus}
+                        </Button>
+                      ))}
+                    </div>
+                    {isUpdatingStatus ? (
+                      <p className="text-xs text-muted-foreground">
+                        A atualizar estado operacional...
+                      </p>
+                    ) : null}
+                  </div>
                 ) : null}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    Atualizar pagamento
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(ORDER_PAYMENT_STATUS_LABELS).map(([nextStatus, label]) => (
+                      <Button
+                        key={nextStatus}
+                        type="button"
+                        variant={
+                          order.paymentStatus === nextStatus ? "default" : "outline"
+                        }
+                        size="sm"
+                        disabled={
+                          order.paymentStatus === nextStatus ||
+                          Boolean(isUpdatingStatus || isUpdatingPaymentStatus)
+                        }
+                        onClick={() =>
+                          onPaymentStatusChange?.(
+                            nextStatus as keyof typeof ORDER_PAYMENT_STATUS_LABELS,
+                          )
+                        }
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                  </div>
+                  {isUpdatingPaymentStatus ? (
+                    <p className="text-xs text-muted-foreground">
+                      A atualizar estado do pagamento...
+                    </p>
+                  ) : null}
+                </div>
               </div>
             ) : null}
           </SheetHeader>
@@ -966,6 +1076,8 @@ export function OrdersOperationalRecord({
   const rawUrlStatus = searchParams.get("status");
   const rawUrlPaymentStatus = searchParams.get("payment_status");
   const rawUrlSlot = searchParams.get("slot");
+  const rawUrlStartDate = searchParams.get("start_date") ?? "";
+  const rawUrlEndDate = searchParams.get("end_date") ?? "";
   const currentSearch = searchParams.get("search") ?? "";
   const rawCurrentStatus = rawUrlStatus?.trim() ?? "";
   const rawCurrentPaymentStatus = rawUrlPaymentStatus?.trim() ?? "";
@@ -975,6 +1087,9 @@ export function OrdersOperationalRecord({
   const [status, setStatus] = React.useState(rawUrlStatus?.trim() ?? "");
   const [paymentStatus, setPaymentStatus] = React.useState(rawUrlPaymentStatus?.trim() ?? "");
   const [slot, setSlot] = React.useState(rawUrlSlot?.trim() ?? "");
+  const [customStartDate, setCustomStartDate] = React.useState(rawUrlStartDate);
+  const [customEndDate, setCustomEndDate] = React.useState(rawUrlEndDate);
+  const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [selectedOrder, setSelectedOrder] = React.useState<Order | null>(null);
   const [printStateByOrderId, setPrintStateByOrderId] = React.useState<
     Record<string, PrintFlowState>
@@ -986,6 +1101,7 @@ export function OrdersOperationalRecord({
   const printAttemptByOrderIdRef = React.useRef<Record<string, string | null>>({});
   const detailQuery = useOrderDetail(selectedOrder?.id ?? null);
   const updateOrderStatusMutation = useUpdateOrderStatus();
+  const updateOrderMutation = useUpdateOrder();
   const debouncedSearchTerm = useDebouncedValue(searchTerm, 350);
   const normalizedSearchTerm = debouncedSearchTerm.trim();
   const optimisticFiltersChanged =
@@ -993,7 +1109,9 @@ export function OrdersOperationalRecord({
     period !== currentPeriod ||
     status !== rawCurrentStatus ||
     paymentStatus !== rawCurrentPaymentStatus ||
-    slot !== rawCurrentSlot;
+    slot !== rawCurrentSlot ||
+    (period === "custom" &&
+      (customStartDate !== rawUrlStartDate || customEndDate !== rawUrlEndDate));
   const effectivePage = optimisticFiltersChanged ? 1 : currentPage;
   const { data, isLoading, error, isFetching, retry, settings, settingsError, statusOptions } =
     useOrderSearch({
@@ -1002,6 +1120,8 @@ export function OrdersOperationalRecord({
       status: status || undefined,
       paymentStatus: paymentStatus || undefined,
       slot: slot || undefined,
+      customStartDate: period === "custom" ? customStartDate : undefined,
+      customEndDate: period === "custom" ? customEndDate : undefined,
       page: effectivePage,
     });
   const currentStatus = normalizeOrderOperationalStatus(
@@ -1029,7 +1149,17 @@ export function OrdersOperationalRecord({
     setStatus(currentStatus);
     setPaymentStatus(currentPaymentStatus);
     setSlot(currentSlot);
-  }, [currentPeriod, currentStatus, currentPaymentStatus, currentSlot, urlSearchTerm]);
+    setCustomStartDate(rawUrlStartDate);
+    setCustomEndDate(rawUrlEndDate);
+  }, [
+    currentPeriod,
+    currentStatus,
+    currentPaymentStatus,
+    currentSlot,
+    rawUrlEndDate,
+    rawUrlStartDate,
+    urlSearchTerm,
+  ]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") {
@@ -1037,9 +1167,16 @@ export function OrdersOperationalRecord({
     }
 
     const stored = window.localStorage.getItem(ORDER_RECORD_VIEW_MODE_STORAGE_KEY);
+    const storedFiltersOpen = window.localStorage.getItem(
+      ORDER_RECORD_FILTERS_OPEN_STORAGE_KEY,
+    );
 
     if (stored === "list" || stored === "cards") {
       setViewMode(stored);
+    }
+
+    if (storedFiltersOpen === "true") {
+      setFiltersOpen(true);
     }
   }, []);
 
@@ -1049,6 +1186,21 @@ export function OrdersOperationalRecord({
     if (typeof window !== "undefined") {
       window.localStorage.setItem(ORDER_RECORD_VIEW_MODE_STORAGE_KEY, nextMode);
     }
+  }, []);
+
+  const toggleFiltersOpen = React.useCallback(() => {
+    setFiltersOpen((current) => {
+      const nextValue = !current;
+
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(
+          ORDER_RECORD_FILTERS_OPEN_STORAGE_KEY,
+          String(nextValue),
+        );
+      }
+
+      return nextValue;
+    });
   }, []);
 
   // Sync Local State to URL (Debounced/Controlled)
@@ -1065,6 +1217,8 @@ export function OrdersOperationalRecord({
       normalizedSearch: normalizedSearchTerm,
       effectivePage,
       period,
+      customStartDate,
+      customEndDate,
       defaultPeriod: modeConfig.defaultPeriod,
       status,
       paymentStatus,
@@ -1075,7 +1229,24 @@ export function OrdersOperationalRecord({
     if (nextUrl) {
       router.replace(nextUrl, { scroll: false });
     }
-  }, [currentSearch, effectivePage, modeConfig.defaultPeriod, normalizedSearchTerm, pathname, period, router, searchParams, settings, statusLabels, status, paymentStatus, slot, rawUrlStatus]);
+  }, [
+    currentSearch,
+    customEndDate,
+    customStartDate,
+    effectivePage,
+    modeConfig.defaultPeriod,
+    normalizedSearchTerm,
+    pathname,
+    period,
+    router,
+    searchParams,
+    settings,
+    statusLabels,
+    status,
+    paymentStatus,
+    slot,
+    rawUrlStatus,
+  ]);
 
   const clearSearch = React.useCallback(() => {
     setSearchTerm("");
@@ -1100,8 +1271,20 @@ export function OrdersOperationalRecord({
   const updatePeriod = React.useCallback(
     (nextPeriod: OrderOperationalPeriod) => {
       setPeriod(nextPeriod);
+
+      if (nextPeriod === "custom") {
+        const today = new Intl.DateTimeFormat("en-CA", {
+          timeZone: settings?.timezone ?? "Europe/Lisbon",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date());
+
+        setCustomStartDate((current) => current || today);
+        setCustomEndDate((current) => current || today);
+      }
     },
-    [],
+    [settings?.timezone],
   );
 
   const updateStatus = React.useCallback(
@@ -1128,6 +1311,16 @@ export function OrdersOperationalRecord({
     },
     [],
   );
+
+  const updateCustomStartDate = React.useCallback((nextValue: string) => {
+    setCustomStartDate(nextValue);
+    setPeriod("custom");
+  }, []);
+
+  const updateCustomEndDate = React.useCallback((nextValue: string) => {
+    setCustomEndDate(nextValue);
+    setPeriod("custom");
+  }, []);
 
   const retryLoading = React.useCallback(() => {
     void retry();
@@ -1191,6 +1384,71 @@ export function OrdersOperationalRecord({
       });
     },
     [detailQuery, selectedOrder, toast, updateOrderStatusMutation],
+  );
+
+  const handlePaymentStatusChange = React.useCallback(
+    (nextPaymentStatus: keyof typeof ORDER_PAYMENT_STATUS_LABELS) => {
+      const currentOrder = detailQuery.data ?? selectedOrder;
+
+      if (!currentOrder) {
+        return;
+      }
+
+      const date = getDateInputValue(currentOrder.scheduledAt, settings?.timezone);
+      const time = getTimeInputValue(currentOrder.scheduledAt, settings?.timezone);
+      const customerContact = currentOrder.customerContact?.trim() ?? "";
+
+      if (
+        !currentOrder.store?.id ||
+        !currentOrder.customerName?.trim() ||
+        !customerContact ||
+        !date ||
+        !time ||
+        !currentOrder.slot
+      ) {
+        toast(
+          "Esta encomenda não tem dados completos para atualizar apenas o pagamento por este atalho.",
+          "error",
+        );
+        return;
+      }
+
+      updateOrderMutation.mutate(
+        {
+          orderId: currentOrder.id,
+          timeZone: settings?.timezone,
+          input: {
+            storeId: currentOrder.store.id,
+            customerName: currentOrder.customerName.trim(),
+            customerContact,
+            items: currentOrder.items.map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              variantId: item.variantId ?? null,
+              flavorIds: item.flavorIds ?? [],
+            })),
+            observations: currentOrder.notes ?? "",
+            date,
+            time,
+            slot: currentOrder.slot,
+            paymentStatus: nextPaymentStatus,
+          },
+        },
+        {
+          onError: (error: Error) => {
+            toast(
+              error.message || "Não foi possível atualizar o estado do pagamento.",
+              "error",
+            );
+          },
+          onSuccess: (updatedOrder) => {
+            setSelectedOrder(updatedOrder);
+            toast("Estado do pagamento atualizado.", "success");
+          },
+        },
+      );
+    },
+    [detailQuery.data, selectedOrder, settings?.timezone, toast, updateOrderMutation],
   );
 
   const handleRefetch = React.useCallback(async () => {
@@ -1325,6 +1583,16 @@ export function OrdersOperationalRecord({
           <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
             <Button
               type="button"
+              variant={filtersOpen ? "default" : "ghost"}
+              size="icon-sm"
+              className="size-8"
+              aria-label="Mostrar filtros"
+              onClick={toggleFiltersOpen}
+            >
+              <Filter className="size-4" />
+            </Button>
+            <Button
+              type="button"
               variant={viewMode === "list" ? "default" : "ghost"}
               size="icon-sm"
               className="size-8"
@@ -1346,87 +1614,118 @@ export function OrdersOperationalRecord({
           </div>
         </div>
       </div>
-      <OrderSearch
-        value={searchTerm}
-        onChange={setSearchTerm}
-        onClear={clearSearch}
-        loading={isFetching}
-        label={modeConfig.searchLabel}
-        placeholder={modeConfig.searchPlaceholder}
-        helpTextIdle={modeConfig.searchHelpIdle}
-        helpTextLoading={modeConfig.searchHelpLoading}
-      />
-      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">Período</label>
-          <Select value={period} onValueChange={(value) => updatePeriod(value as OrderOperationalPeriod)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecionar período" />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(ORDER_OPERATIONAL_PERIOD_LABELS).map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">
-            Estado operacional
-          </label>
-          <Select value={status || "all"} onValueChange={updateStatus}>
-            <SelectTrigger>
-              <SelectValue placeholder="Todos os estados" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os estados</SelectItem>
-              {statusOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">
-            Estado do pagamento
-          </label>
-          <Select value={paymentStatus || "all"} onValueChange={updatePaymentStatus}>
-            <SelectTrigger>
-              <SelectValue placeholder="Todos os pagamentos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os pagamentos</SelectItem>
-              {Object.entries(ORDER_PAYMENT_STATUS_LABELS).map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">
-            Slot operacional
-          </label>
-          <Select value={slot || "all"} onValueChange={updateSlot}>
-            <SelectTrigger>
-              <SelectValue placeholder="Todos os slots" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os slots</SelectItem>
-              {Object.entries(ORDER_SLOT_LABELS).map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      {filtersOpen ? (
+        <>
+          <OrderSearch
+            value={searchTerm}
+            onChange={setSearchTerm}
+            onClear={clearSearch}
+            loading={isFetching}
+            label={modeConfig.searchLabel}
+            placeholder={modeConfig.searchPlaceholder}
+            helpTextIdle={modeConfig.searchHelpIdle}
+            helpTextLoading={modeConfig.searchHelpLoading}
+          />
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Período</label>
+              <Select value={period} onValueChange={(value) => updatePeriod(value as OrderOperationalPeriod)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecionar período" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(ORDER_OPERATIONAL_PERIOD_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Estado operacional
+              </label>
+              <Select value={status || "all"} onValueChange={updateStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os estados" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os estados</SelectItem>
+                  {statusOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Estado do pagamento
+              </label>
+              <Select value={paymentStatus || "all"} onValueChange={updatePaymentStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os pagamentos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os pagamentos</SelectItem>
+                  {Object.entries(ORDER_PAYMENT_STATUS_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Slot operacional
+              </label>
+              <Select value={slot || "all"} onValueChange={updateSlot}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os slots" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os slots</SelectItem>
+                  {Object.entries(ORDER_SLOT_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {period === "custom" ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground" htmlFor="custom-start-date">
+                  Data inicial
+                </label>
+                <Input
+                  id="custom-start-date"
+                  type="date"
+                  value={customStartDate}
+                  onChange={(event) => updateCustomStartDate(event.currentTarget.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground" htmlFor="custom-end-date">
+                  Data final
+                </label>
+                <Input
+                  id="custom-end-date"
+                  type="date"
+                  min={customStartDate || undefined}
+                  value={customEndDate}
+                  onChange={(event) => updateCustomEndDate(event.currentTarget.value)}
+                />
+              </div>
+            </div>
+          ) : null}
+        </>
+      ) : null}
     </div>
   );
 
@@ -1496,7 +1795,9 @@ export function OrdersOperationalRecord({
         order={selectedOrderDetail}
         open={selectedOrder !== null}
         isUpdatingStatus={updateOrderStatusMutation.isPending}
+        isUpdatingPaymentStatus={updateOrderMutation.isPending}
         onStatusChange={handleStatusChange}
+        onPaymentStatusChange={handlePaymentStatusChange}
         onPrintOrder={handlePrintOrder}
         printState={
           selectedOrder

@@ -16,6 +16,8 @@ type OrderSearchQueryKeyParams = {
   status?: string;
   paymentStatus?: string;
   slot?: string;
+  customStartDate?: string;
+  customEndDate?: string;
   timeZone?: string;
 };
 
