@@ -37,6 +37,8 @@ const navigationIcons = {
   "/audit/investigation": ScanSearch,
 } as const;
 
+const APP_SHELL_SIDEBAR_COLLAPSED_STORAGE_KEY = "app-shell-sidebar-collapsed";
+
 function getNavigationIcon(href: string) {
   return (
     navigationIcons[href as keyof typeof navigationIcons] ?? LayoutDashboard
@@ -274,6 +276,35 @@ export function AppShellLayout({
   const [collapsed, setCollapsed] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
+  React.useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const stored = window.localStorage.getItem(
+      APP_SHELL_SIDEBAR_COLLAPSED_STORAGE_KEY,
+    );
+
+    if (stored === "true") {
+      setCollapsed(true);
+    }
+  }, []);
+
+  const handleToggleDesktop = React.useCallback(() => {
+    setCollapsed((current) => {
+      const nextValue = !current;
+
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(
+          APP_SHELL_SIDEBAR_COLLAPSED_STORAGE_KEY,
+          String(nextValue),
+        );
+      }
+
+      return nextValue;
+    });
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-100">
       <div className="flex min-h-screen">
@@ -298,7 +329,7 @@ export function AppShellLayout({
           <AppShellHeader
             sessionUser={sessionUser}
             onOpenMobile={() => setMobileOpen(true)}
-            onToggleDesktop={() => setCollapsed((current) => !current)}
+            onToggleDesktop={handleToggleDesktop}
           />
 
           <main className="flex-1 p-4 md:p-6">

@@ -790,65 +790,30 @@ export function OrderComposerPage({
   return (
     <>
       <form onSubmit={submitOrder} className="space-y-6">
-        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-          <div className="grid gap-3 md:grid-cols-2">
-            <button
-              type="button"
-              className={`rounded-2xl border px-3 py-2.5 text-left transition sm:px-4 sm:py-3 ${
-                currentStep === 1
-                  ? "border-slate-950 bg-slate-950 text-white"
-                  : "border-slate-200 bg-white text-slate-950"
-              }`}
-              onClick={() => setCurrentStep(1)}
-            >
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] sm:text-xs sm:tracking-[0.18em]">
-                Step 1
-              </p>
-              <p className="mt-0.5 text-sm font-semibold sm:mt-1 sm:text-base">Escolha dos artigos</p>
-              <p
-                className={`mt-0.5 hidden text-xs sm:mt-1 sm:block sm:text-sm ${
-                  currentStep === 1 ? "text-slate-200" : "text-slate-600"
-                }`}
-              >
-                Categorias, catálogo e configuração dos itens.
-              </p>
-            </button>
-
-            <button
-              type="button"
-              className={`rounded-2xl border px-3 py-2.5 text-left transition sm:px-4 sm:py-3 ${
-                currentStep === 2
-                  ? "border-slate-950 bg-slate-950 text-white"
-                  : "border-slate-200 bg-white text-slate-950"
-              }`}
-              onClick={() => items.length > 0 && setCurrentStep(2)}
-            >
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] sm:text-xs sm:tracking-[0.18em]">
-                Step 2
-              </p>
-              <p className="mt-0.5 text-sm font-semibold sm:mt-1 sm:text-base">Loja, cliente e agendamento</p>
-              <p
-                className={`mt-0.5 hidden text-xs sm:mt-1 sm:block sm:text-sm ${
-                  currentStep === 2 ? "text-slate-200" : "text-slate-600"
-                }`}
-              >
-                Finalização e gravação da encomenda.
-              </p>
-            </button>
-          </div>
-        </section>
-
         <section className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,1fr)]">
           <div className="space-y-6">
             {currentStep === 1 ? (
               <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    Step 1
-                  </p>
-                  <p className="text-sm text-slate-600">
-                    Primeiro escolha a categoria, depois os artigos dessa categoria e configure cada item.
-                  </p>
+                <div className="flex justify-end">
+                  <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      className="min-h-10 rounded-xl px-4"
+                    >
+                      Step 1
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 rounded-xl px-4"
+                      onClick={goToStepTwo}
+                    >
+                      Step 2
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-slate-950/95">
@@ -868,7 +833,7 @@ export function OrderComposerPage({
                             className={`shrink-0 border-r border-white/10 px-5 py-4 text-left transition ${
                               active
                                 ? "bg-white text-slate-950"
-                                : "bg-gray-500/90 text-white hover:bg-gray-400"
+                                : "bg-gray-500/90 text-white hover:bg-graytemos:-400"
                             }`}
                             onClick={() => setSelectedCategoryId(category.id)}
                           >
@@ -1027,13 +992,26 @@ export function OrderComposerPage({
             ) : (
               <>
                 <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                      Step 2
-                    </p>
-                    <p className="text-sm text-slate-600">
-                      Defina a loja, identifique o cliente e conclua o agendamento.
-                    </p>
+                  <div className="flex justify-end">
+                    <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="min-h-10 rounded-xl px-4"
+                        onClick={() => setCurrentStep(1)}
+                      >
+                        Step 1
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="default"
+                        size="sm"
+                        className="min-h-10 rounded-xl px-4"
+                      >
+                        Step 2
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="mt-5 grid gap-4 md:grid-cols-3">
@@ -1236,31 +1214,22 @@ export function OrderComposerPage({
               ) : null}
 
               <div className="mt-6 flex flex-col gap-3">
-                {currentStep === 1 ? (
-                  <Button type="button" onClick={goToStepTwo} disabled={products.length === 0}>
-                    Continuar para Step 2
+                {currentStep === 2 ? (
+                  <Button
+                    type="submit"
+                    disabled={
+                      isSubmitting ||
+                      products.length === 0 ||
+                      storeId <= 0
+                    }
+                  >
+                    {isSubmitting
+                      ? "A guardar..."
+                      : mode === "edit"
+                        ? "Guardar correção"
+                        : "Guardar encomenda"}
                   </Button>
-                ) : (
-                  <>
-                    <Button
-                      type="submit"
-                      disabled={
-                        isSubmitting ||
-                        products.length === 0 ||
-                        storeId <= 0
-                      }
-                    >
-                      {isSubmitting
-                        ? "A guardar..."
-                        : mode === "edit"
-                          ? "Guardar correção"
-                          : "Guardar encomenda"}
-                    </Button>
-                    <Button type="button" variant="outline" onClick={() => setCurrentStep(1)}>
-                      Voltar ao Step 1
-                    </Button>
-                  </>
-                )}
+                ) : null}
                 <Button type="button" variant="outline" onClick={() => router.push("/orders")}>
                   Cancelar
                 </Button>
