@@ -273,15 +273,35 @@ function ItemConfigModal({
             <label className="text-sm font-medium text-slate-950" htmlFor="item-quantity">
               Quantidade
             </label>
-            <Input
-              id="item-quantity"
-              type="number"
-              min={1}
-              value={quantity}
-              onChange={(event) =>
-                setQuantity(Math.max(1, Number(event.currentTarget.value || "1")))
-              }
-            />
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-12 min-w-12 rounded-2xl px-0"
+                onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+              >
+                -
+              </Button>
+              <Input
+                id="item-quantity"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={quantity}
+                className="h-12 text-center text-base font-semibold"
+                onChange={(event) => {
+                  const digits = event.currentTarget.value.replace(/\D/g, "");
+                  setQuantity(Math.max(1, Number(digits || "1")));
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-12 min-w-12 rounded-2xl px-0"
+                onClick={() => setQuantity((current) => current + 1)}
+              >
+                +
+              </Button>
+            </div>
           </section>
 
           {variants.length > 0 ? (
