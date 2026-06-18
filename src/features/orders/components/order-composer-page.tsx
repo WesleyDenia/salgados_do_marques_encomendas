@@ -902,7 +902,7 @@ export function OrderComposerPage({
                   </div>
                 </div>
 
-                <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                <div className="mt-6 rounded-3xl border border-slate-300 bg-slate-200/70 p-4 shadow-inner shadow-slate-300/40">
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <p className="text-sm font-semibold text-slate-950">
@@ -926,7 +926,7 @@ export function OrderComposerPage({
                       return (
                         <article
                           key={product.id}
-                          className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4"
+                          className="flex flex-col justify-between rounded-2xl border border-slate-300 bg-white p-4 shadow-[0_16px_35px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-[0_22px_45px_rgba(15,23,42,0.12)]"
                         >
                           <div>
                             <p className="font-semibold text-slate-950">{product.name}</p>
@@ -954,7 +954,7 @@ export function OrderComposerPage({
                   </div>
 
                   {selectedCategoryId && filteredProducts.length === 0 ? (
-                    <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-600">
+                    <div className="mt-5 rounded-2xl border border-dashed border-slate-400 bg-white/95 p-5 text-sm text-slate-600">
                       Não há artigos disponíveis nesta categoria.
                     </div>
                   ) : null}
