@@ -51,6 +51,7 @@ import {
   ORDER_SLOT_LABELS,
   ORDER_SLOT_OPTIONS,
   type Order,
+  type OrderTag,
 } from "@/features/orders/types";
 import {
   getDateInputValueInTimeZone,
@@ -71,6 +72,7 @@ const defaultValues: OrderFormInput = {
   storeId: 0,
   customerName: "",
   customerContact: "",
+  tagIds: [],
   items: [
     {
       productId: 0,
@@ -96,6 +98,7 @@ function buildDefaultValues(
     storeId: order.store?.id ?? 0,
     customerName: order.customerName ?? order.user?.name ?? "",
     customerContact: order.customerContact ?? "",
+    tagIds: order.tags.map((tag) => tag.id),
     items:
       order.items.length > 0
         ? order.items.map((item) => ({
@@ -132,6 +135,21 @@ function getFirstValidationMessage(error: ApiError) {
   );
 
   return entry?.[0] ?? null;
+}
+
+function buildTagTextColor(color: string) {
+  const normalized = color.replace("#", "");
+
+  if (normalized.length !== 6) {
+    return "#111827";
+  }
+
+  const red = Number.parseInt(normalized.slice(0, 2), 16);
+  const green = Number.parseInt(normalized.slice(2, 4), 16);
+  const blue = Number.parseInt(normalized.slice(4, 6), 16);
+  const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
+
+  return luminance > 0.65 ? "#111827" : "#FFFFFF";
 }
 
 export function mapBackendErrorsToForm(
@@ -259,7 +277,9 @@ export function OrderComposerDrawer({
 
   const products = productsQuery.data?.data ?? EMPTY_PRODUCTS;
   const stores = storesQuery.data?.data;
+  const availableTags = settingsQuery.data?.availableTags ?? [];
   const storeId = watch("storeId");
+  const tagIds = watch("tagIds");
   const slot = watch("slot");
   const paymentStatus = watch("paymentStatus");
   const date = watch("date");
@@ -267,6 +287,29 @@ export function OrderComposerDrawer({
   const slotCapacitiesQuery = useSlotCapacities({ storeId, date });
   const slotCapacities = slotCapacitiesQuery.data?.data.slots ?? [];
   const submitMutation = mode === "edit" ? updateOrderMutation : createOrderMutation;
+
+  const toggleTagSelection = React.useCallback(
+    (tag: OrderTag) => {
+      const isSelected = tagIds.includes(tag.id);
+      const isSelectable = tag.active || isSelected;
+
+      if (!isSelectable) {
+        return;
+      }
+
+      setValue(
+        "tagIds",
+        isSelected
+          ? tagIds.filter((tagId) => tagId !== tag.id)
+          : [...tagIds, tag.id],
+        {
+          shouldDirty: true,
+          shouldValidate: true,
+        },
+      );
+    },
+    [setValue, tagIds],
+  );
 
   React.useEffect(() => {
     if (!open) {
@@ -422,6 +465,57 @@ export function OrderComposerDrawer({
                 />
                 <FieldMessage error={errors.customerContact} />
               </div>
+            </section>
+
+            <section className="space-y-3 rounded-lg border border-border/70 bg-card/60 p-4">
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Tags operacionais
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Classifique a encomenda já no registo rápido para facilitar triagem e filtros.
+                </p>
+              </div>
+
+              {availableTags.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {availableTags.map((tag) => {
+                    const isSelected = tagIds.includes(tag.id);
+                    const isSelectable = tag.active || isSelected;
+
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => toggleTagSelection(tag)}
+                        disabled={!isSelectable}
+                        className="inline-flex min-h-10 items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
+                        style={{
+                          backgroundColor: isSelected ? tag.color : "#FFFFFF",
+                          borderColor: tag.color,
+                          color: isSelected ? buildTagTextColor(tag.color) : "#0F172A",
+                        }}
+                      >
+                        <span
+                          className="inline-flex h-2.5 w-2.5 rounded-full"
+                          style={{
+                            backgroundColor: isSelected
+                              ? buildTagTextColor(tag.color)
+                              : tag.color,
+                          }}
+                          aria-hidden
+                        />
+                        {tag.name}
+                        {!tag.active ? " · inativa" : ""}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Ainda não existem tags configuradas em Governação operacional.
+                </p>
+              )}
             </section>
 
             <section className="space-y-3">

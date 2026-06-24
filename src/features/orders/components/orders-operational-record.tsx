@@ -46,6 +46,7 @@ import {
   normalizeOrderOperationalPeriod,
   normalizeOrderOperationalSlot,
   normalizeOrderOperationalStatus,
+  normalizeOrderOperationalTagIds,
   normalizeOrderSearchPage,
   type OrderOperationalPeriod,
   useOrderSearch,
@@ -58,7 +59,7 @@ import {
   ORDER_PAYMENT_STATUS_LABELS,
   ORDER_SLOT_LABELS,
 } from "@/features/orders/types";
-import type { Order } from "@/features/orders/types";
+import type { Order, OrderTag } from "@/features/orders/types";
 import { formatOperationalDateTime } from "@/features/orders/utils/operational-timezone";
 import {
   buildOrderPrintAttemptId,
@@ -167,6 +168,36 @@ function buildFlavorSummary(item: Order["items"][number]) {
   }
 
   return null;
+}
+
+function buildTagTextColor(color: string) {
+  const normalized = color.replace("#", "");
+  if (normalized.length !== 6) {
+    return "#111827";
+  }
+
+  const red = Number.parseInt(normalized.slice(0, 2), 16);
+  const green = Number.parseInt(normalized.slice(2, 4), 16);
+  const blue = Number.parseInt(normalized.slice(4, 6), 16);
+  const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
+
+  return luminance > 0.65 ? "#111827" : "#FFFFFF";
+}
+
+function renderOrderTagBadge(tag: OrderTag) {
+  return (
+    <span
+      key={tag.id}
+      className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold"
+      style={{
+        borderColor: tag.color,
+        backgroundColor: tag.color,
+        color: buildTagTextColor(tag.color),
+      }}
+    >
+      {tag.name}
+    </span>
+  );
 }
 
 function formatCustomerContact(value?: string | null) {
@@ -302,6 +333,7 @@ export function buildOrdersRecordUrl({
   status,
   paymentStatus,
   slot,
+  tagIds,
   statusLabels,
 }: Readonly<{
   pathname: string;
@@ -315,6 +347,7 @@ export function buildOrdersRecordUrl({
   status: string;
   paymentStatus: string;
   slot: string;
+  tagIds: number[];
   statusLabels?: Record<string, string>;
 }>) {
   const currentSearch = searchParams.get("search") ?? "";
@@ -324,6 +357,7 @@ export function buildOrdersRecordUrl({
   const rawStatusParam = searchParams.get("status");
   const rawPaymentStatusParam = searchParams.get("payment_status");
   const rawSlotParam = searchParams.get("slot");
+  const rawTagIdsParam = searchParams.get("tag_ids");
   const rawStartDateParam = searchParams.get("start_date");
   const rawEndDateParam = searchParams.get("end_date");
   const currentUrlPeriod = normalizeOrderOperationalPeriod(
@@ -338,6 +372,7 @@ export function buildOrdersRecordUrl({
     searchParams.get("payment_status"),
   );
   const currentUrlSlot = normalizeOrderOperationalSlot(searchParams.get("slot"));
+  const currentUrlTagIds = normalizeOrderOperationalTagIds(rawTagIdsParam);
   const pageParamIsCanonical =
     effectivePage === 1
       ? rawPageParam == null
@@ -352,6 +387,10 @@ export function buildOrdersRecordUrl({
       : rawPaymentStatusParam === paymentStatus;
   const slotParamIsCanonical =
     slot === "" ? rawSlotParam == null : rawSlotParam === slot;
+  const normalizedTagIdsParam = currentUrlTagIds.join(",");
+  const localTagIdsParam = tagIds.join(",");
+  const tagIdsParamIsCanonical =
+    localTagIdsParam === "" ? rawTagIdsParam == null : rawTagIdsParam === localTagIdsParam;
   const startDateParamIsCanonical =
     period === "custom"
       ? rawStartDateParam === customStartDate
@@ -366,11 +405,13 @@ export function buildOrdersRecordUrl({
     currentUrlStatus === status &&
     currentUrlPaymentStatus === paymentStatus &&
     currentUrlSlot === slot &&
+    normalizedTagIdsParam === localTagIdsParam &&
     pageParamIsCanonical &&
     periodParamIsCanonical &&
     statusParamIsCanonical &&
     paymentStatusParamIsCanonical &&
     slotParamIsCanonical &&
+    tagIdsParamIsCanonical &&
     startDateParamIsCanonical &&
     endDateParamIsCanonical
   ) {
@@ -391,6 +432,7 @@ export function buildOrdersRecordUrl({
     status !== currentUrlStatus ||
     paymentStatus !== currentUrlPaymentStatus ||
     slot !== currentUrlSlot ||
+    localTagIdsParam !== normalizedTagIdsParam ||
     (period === "custom" &&
       (customStartDate !== (rawStartDateParam ?? "") ||
         customEndDate !== (rawEndDateParam ?? "")))
@@ -424,6 +466,12 @@ export function buildOrdersRecordUrl({
     params.set("slot", slot);
   } else {
     params.delete("slot");
+  }
+
+  if (tagIds.length > 0) {
+    params.set("tag_ids", tagIds.join(","));
+  } else {
+    params.delete("tag_ids");
   }
 
   if (period === "custom" && customStartDate && customEndDate) {
@@ -491,6 +539,7 @@ export function OrdersOperationalRecordEmptyState({
   statusLabel,
   paymentStatusLabel,
   slotLabel,
+  tagLabel,
   onClear,
   mode = "operational",
 }: Readonly<{
@@ -499,6 +548,7 @@ export function OrdersOperationalRecordEmptyState({
   statusLabel?: string;
   paymentStatusLabel?: string;
   slotLabel?: string;
+  tagLabel?: string;
   onClear?: () => void;
   mode?: OrderRecordMode;
 }>) {
@@ -508,6 +558,7 @@ export function OrdersOperationalRecordEmptyState({
     statusLabel ? `estado ${statusLabel}` : "",
     paymentStatusLabel ? `pagamento ${paymentStatusLabel}` : "",
     slotLabel ? `slot ${slotLabel}` : "",
+    tagLabel ? `tags ${tagLabel}` : "",
   ].filter(Boolean);
 
   const filterSummary = filterParts.join(", ");
@@ -917,6 +968,7 @@ export function OrdersOperationalRecordContent({
                 <TableHead>Loja</TableHead>
                 <TableHead>Data/Hora de agendamento</TableHead>
                 <TableHead>Slot</TableHead>
+                <TableHead>Tags</TableHead>
                 <TableHead>Estado do pagamento</TableHead>
                 <TableHead>Estado operacional</TableHead>
                 <TableHead>Quantidade total de itens</TableHead>
@@ -932,6 +984,15 @@ export function OrdersOperationalRecordContent({
                   <TableCell>{order.store?.name ?? "Loja não carregada"}</TableCell>
                   <TableCell>{formatOperationalDateTime(order.scheduledAt, timeZone)}</TableCell>
                   <TableCell>{buildSlotLabel(order)}</TableCell>
+                  <TableCell>
+                    {order.tags.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {order.tags.map(renderOrderTagBadge)}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-500">Sem tags</span>
+                    )}
+                  </TableCell>
                   <TableCell>{buildPaymentLabel(order)}</TableCell>
                   <TableCell>{buildOperationalStatusLabel(order, statusLabels)}</TableCell>
                   <TableCell>{buildItemsQuantity(order)}</TableCell>
@@ -987,6 +1048,13 @@ export function OrdersOperationalRecordContent({
                       <span className="font-medium text-slate-950">Data/Hora:</span>{" "}
                       {formatScheduledAtDetailed(order.scheduledAt, timeZone)}
                     </p>
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {order.tags.length > 0 ? (
+                        order.tags.map(renderOrderTagBadge)
+                      ) : (
+                        <span className="text-xs text-slate-500">Sem tags</span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -1076,17 +1144,20 @@ export function OrdersOperationalRecord({
   const rawUrlStatus = searchParams.get("status");
   const rawUrlPaymentStatus = searchParams.get("payment_status");
   const rawUrlSlot = searchParams.get("slot");
+  const rawUrlTagIds = searchParams.get("tag_ids");
   const rawUrlStartDate = searchParams.get("start_date") ?? "";
   const rawUrlEndDate = searchParams.get("end_date") ?? "";
   const currentSearch = searchParams.get("search") ?? "";
   const rawCurrentStatus = rawUrlStatus?.trim() ?? "";
   const rawCurrentPaymentStatus = rawUrlPaymentStatus?.trim() ?? "";
   const rawCurrentSlot = rawUrlSlot?.trim() ?? "";
+  const rawCurrentTagIds = normalizeOrderOperationalTagIds(rawUrlTagIds);
   const [searchTerm, setSearchTerm] = React.useState(urlSearchTerm);
   const [period, setPeriod] = React.useState<OrderOperationalPeriod>(currentPeriod);
   const [status, setStatus] = React.useState(rawUrlStatus?.trim() ?? "");
   const [paymentStatus, setPaymentStatus] = React.useState(rawUrlPaymentStatus?.trim() ?? "");
   const [slot, setSlot] = React.useState(rawUrlSlot?.trim() ?? "");
+  const [tagIds, setTagIds] = React.useState<number[]>(rawCurrentTagIds);
   const [customStartDate, setCustomStartDate] = React.useState(rawUrlStartDate);
   const [customEndDate, setCustomEndDate] = React.useState(rawUrlEndDate);
   const [filtersOpen, setFiltersOpen] = React.useState(false);
@@ -1110,6 +1181,7 @@ export function OrdersOperationalRecord({
     status !== rawCurrentStatus ||
     paymentStatus !== rawCurrentPaymentStatus ||
     slot !== rawCurrentSlot ||
+    tagIds.join(",") !== rawCurrentTagIds.join(",") ||
     (period === "custom" &&
       (customStartDate !== rawUrlStartDate || customEndDate !== rawUrlEndDate));
   const effectivePage = optimisticFiltersChanged ? 1 : currentPage;
@@ -1120,6 +1192,7 @@ export function OrdersOperationalRecord({
       status: status || undefined,
       paymentStatus: paymentStatus || undefined,
       slot: slot || undefined,
+      tagIds,
       customStartDate: period === "custom" ? customStartDate : undefined,
       customEndDate: period === "custom" ? customEndDate : undefined,
       page: effectivePage,
@@ -1130,7 +1203,12 @@ export function OrdersOperationalRecord({
   );
   const currentPaymentStatus = normalizeOrderOperationalPaymentStatus(rawUrlPaymentStatus);
   const currentSlot = normalizeOrderOperationalSlot(rawUrlSlot);
+  const currentTagIds = normalizeOrderOperationalTagIds(rawUrlTagIds);
   const statusLabels = React.useMemo(() => settings?.statusLabels, [settings?.statusLabels]);
+  const availableTags = React.useMemo(
+    () => settings?.availableTags ?? [],
+    [settings?.availableTags],
+  );
 
   const selectedStatusLabel = status
     ? statusOptions.find((option) => option.value === status)?.label ?? status
@@ -1141,6 +1219,13 @@ export function OrdersOperationalRecord({
   const selectedSlotLabel = slot
     ? ORDER_SLOT_LABELS[slot as keyof typeof ORDER_SLOT_LABELS] ?? slot
     : undefined;
+  const selectedTagsLabel =
+    tagIds.length > 0
+      ? availableTags
+          .filter((tag) => tagIds.includes(tag.id))
+          .map((tag) => tag.name)
+          .join(", ")
+      : undefined;
 
   // Sync URL to Local State (Only on mount or URL change)
   React.useEffect(() => {
@@ -1149,6 +1234,7 @@ export function OrdersOperationalRecord({
     setStatus(currentStatus);
     setPaymentStatus(currentPaymentStatus);
     setSlot(currentSlot);
+    setTagIds(currentTagIds);
     setCustomStartDate(rawUrlStartDate);
     setCustomEndDate(rawUrlEndDate);
   }, [
@@ -1156,6 +1242,7 @@ export function OrdersOperationalRecord({
     currentStatus,
     currentPaymentStatus,
     currentSlot,
+    currentTagIds,
     rawUrlEndDate,
     rawUrlStartDate,
     urlSearchTerm,
@@ -1223,6 +1310,7 @@ export function OrdersOperationalRecord({
       status,
       paymentStatus,
       slot,
+      tagIds,
       statusLabels,
     });
 
@@ -1245,6 +1333,7 @@ export function OrdersOperationalRecord({
     status,
     paymentStatus,
     slot,
+    tagIds,
     rawUrlStatus,
   ]);
 
@@ -1311,6 +1400,14 @@ export function OrdersOperationalRecord({
     },
     [],
   );
+
+  const toggleTagFilter = React.useCallback((tagId: number) => {
+    setTagIds((current) =>
+      current.includes(tagId)
+        ? current.filter((currentTagId) => currentTagId !== tagId)
+        : [...current, tagId],
+    );
+  }, []);
 
   const updateCustomStartDate = React.useCallback((nextValue: string) => {
     setCustomStartDate(nextValue);
@@ -1421,6 +1518,7 @@ export function OrdersOperationalRecord({
             storeId: currentOrder.store.id,
             customerName: currentOrder.customerName.trim(),
             customerContact,
+            tagIds: currentOrder.tags.map((tag) => tag.id),
             items: currentOrder.items.map((item) => ({
               productId: item.productId,
               quantity: item.quantity,
@@ -1697,6 +1795,45 @@ export function OrdersOperationalRecord({
               </Select>
             </div>
           </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">Tags</label>
+            {availableTags.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {availableTags.map((tag) => {
+                  const isSelected = tagIds.includes(tag.id);
+
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => toggleTagFilter(tag.id)}
+                      className="inline-flex min-h-9 items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-opacity"
+                      style={{
+                        backgroundColor: isSelected ? tag.color : "#FFFFFF",
+                        borderColor: tag.color,
+                        color: isSelected ? buildTagTextColor(tag.color) : "#0F172A",
+                        opacity: tag.active || isSelected ? 1 : 0.55,
+                      }}
+                    >
+                      <span
+                        className="inline-flex h-2.5 w-2.5 rounded-full"
+                        style={{
+                          backgroundColor: isSelected ? buildTagTextColor(tag.color) : tag.color,
+                        }}
+                        aria-hidden
+                      />
+                      {tag.name}
+                      {!tag.active ? " · inativa" : ""}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Sem tags operacionais disponíveis.
+              </p>
+            )}
+          </div>
           {period === "custom" ? (
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
@@ -1769,6 +1906,7 @@ export function OrdersOperationalRecord({
           statusLabel={selectedStatusLabel}
           paymentStatusLabel={selectedPaymentStatusLabel}
           slotLabel={selectedSlotLabel}
+          tagLabel={selectedTagsLabel}
           onClear={clearSearch}
           mode={mode}
         />

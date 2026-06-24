@@ -36,6 +36,7 @@ export type OrderSearchState = {
   status?: string;
   paymentStatus?: string;
   slot?: string;
+  tagIds?: number[];
   customStartDate?: string;
   customEndDate?: string;
   page: number;
@@ -85,6 +86,17 @@ export function normalizeOrderOperationalSlot(value?: string | null) {
   return ORDER_SLOT_OPTIONS.some((s) => s === normalizedValue)
     ? normalizedValue
     : "";
+}
+
+export function normalizeOrderOperationalTagIds(value?: string | null) {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(",")
+    .map((part) => Number(part.trim()))
+    .filter((tagId) => Number.isInteger(tagId) && tagId > 0);
 }
 
 export async function retryOrderSearchQueries({
@@ -233,6 +245,7 @@ export function buildOrderSearchFilters(
     status: state.status,
     paymentStatus: state.paymentStatus,
     slot: state.slot,
+    tagIds: state.tagIds,
     scheduledFrom: dateRange.scheduledFrom,
     scheduledTo: dateRange.scheduledTo,
   };
@@ -246,6 +259,9 @@ export function useOrderSearch(state: OrderSearchState) {
   const normalizedPaymentStatus =
     normalizeOrderOperationalPaymentStatus(state.paymentStatus) || undefined;
   const normalizedSlot = normalizeOrderOperationalSlot(state.slot) || undefined;
+  const normalizedTagIds = Array.isArray(state.tagIds)
+    ? state.tagIds.filter((tagId) => Number.isInteger(tagId) && tagId > 0)
+    : undefined;
   const timeZone = settingsQuery.data?.timezone ?? "Europe/Lisbon";
   const filters = buildOrderSearchFilters(
     {
@@ -253,6 +269,7 @@ export function useOrderSearch(state: OrderSearchState) {
       status: normalizedStatus,
       paymentStatus: normalizedPaymentStatus,
       slot: normalizedSlot,
+      tagIds: normalizedTagIds,
     },
     timeZone,
   );
@@ -263,6 +280,7 @@ export function useOrderSearch(state: OrderSearchState) {
       status: normalizedStatus ?? "",
       paymentStatus: normalizedPaymentStatus ?? "",
       slot: normalizedSlot ?? "",
+      tagIds: normalizedTagIds?.join(",") ?? "",
       customStartDate: state.customStartDate ?? "",
       customEndDate: state.customEndDate ?? "",
       page: state.page,

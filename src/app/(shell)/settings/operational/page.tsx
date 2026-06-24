@@ -1,4 +1,5 @@
 import { OperationalSettingsForm } from "@/features/settings/components/operational-settings-form";
+import { OperationalOrderTagsManager } from "@/features/settings/components/operational-order-tags-manager";
 import { ProtectedAreaPage } from "@/components/layout/protected-area-page";
 import { requirePanelRoute } from "@/lib/server/panel-access";
 
@@ -16,6 +17,7 @@ export default async function OperationalSettingsPage() {
         <div className="mt-6">
           <OperationalSettingsForm />
         </div>
+        <OperationalOrderTagsManager />
       </div>
     </ProtectedAreaPage>
   );

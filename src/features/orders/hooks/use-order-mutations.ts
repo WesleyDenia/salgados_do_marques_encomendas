@@ -26,6 +26,7 @@ function mergeConfirmedOrder(existingOrder: Order | undefined, updatedOrder: Ord
     slot: updatedOrder.slot ?? existingOrder.slot,
     customerName: updatedOrder.customerName ?? existingOrder.customerName,
     customerContact: updatedOrder.customerContact ?? existingOrder.customerContact,
+    tags: updatedOrder.tags.length > 0 ? updatedOrder.tags : existingOrder.tags,
     items: updatedOrder.items.length > 0 ? updatedOrder.items : existingOrder.items,
     notes: updatedOrder.notes ?? existingOrder.notes,
     scheduledAt: updatedOrder.scheduledAt ?? existingOrder.scheduledAt,

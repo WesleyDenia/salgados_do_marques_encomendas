@@ -27,6 +27,7 @@ export const OrderCreateSchema = z.object({
     /^\+?(?:[0-9][\s-]*){9,15}$/,
     "Formato de contacto inválido. Use apenas números, espaços ou hífens."
   ),
+  tagIds: z.array(z.coerce.number().int().positive()).optional().default([]),
   items: z
     .array(OrderCreateItemSchema)
     .min(1, "Adicione pelo menos um item a encomenda."),

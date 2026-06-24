@@ -11,3 +11,17 @@ export interface OperationalSettings {
 export interface OperationalSettingsUpdatePayload extends Partial<Omit<OperationalSettings, 'SETTINGS_VERSION'>> {
   version: number;
 }
+
+export interface OperationalOrderTag {
+  id: number;
+  name: string;
+  color: string;
+  active: boolean;
+  orders_count?: number;
+}
+
+export interface OperationalOrderTagPayload {
+  name: string;
+  color: string;
+  active: boolean;
+}

@@ -11,6 +11,13 @@ export type OrderFlavorOption = {
   name: string;
 };
 
+export type OrderTag = {
+  id: number;
+  name: string;
+  color: string;
+  active: boolean;
+};
+
 export type OrderProductVariantOption = {
   id: number;
   name: string;
@@ -95,6 +102,7 @@ export type Order = {
   scheduledAt?: string | null;
   cancelledAt?: string | null;
   total?: number;
+  tags: OrderTag[];
   store?: {
     id: number;
     name: string;

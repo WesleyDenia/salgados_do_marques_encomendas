@@ -14,6 +14,7 @@ import type {
   OrderProductVariantOption,
   OrderSlot,
   OrderStoreOption,
+  OrderTag,
 } from "@/features/orders/types";
 import { zonedDateTimeToUtcDate } from "@/features/orders/utils/operational-timezone";
 
@@ -101,6 +102,7 @@ type BackendOrder = {
   scheduled_at?: string | null;
   total?: number;
   notes?: string | null;
+  tags?: BackendOrderTag[];
   items?: BackendOrderItem[];
   store?: {
     id: number;
@@ -117,6 +119,13 @@ type BackendOrder = {
   history?: BackendOrderHistory[];
   created_at?: string | null;
   cancelled_at?: string | null;
+};
+
+type BackendOrderTag = {
+  id: number;
+  name: string;
+  color?: string | null;
+  active?: boolean;
 };
 
 type BackendOrderHistory = {
@@ -178,6 +187,7 @@ export type OrderSearchFilters = {
   status?: string;
   paymentStatus?: string;
   slot?: string;
+  tagIds?: number[];
   scheduledFrom?: string;
   scheduledTo?: string;
   timezone?: string;
@@ -191,7 +201,18 @@ export type OrderSettings = {
   timezone: string;
   schedulingWindowDays: number;
   statusLabels: Record<string, string>;
+  activeTags: OrderTag[];
+  availableTags: OrderTag[];
 };
+
+function normalizeOrderTagResource(resource: BackendOrderTag): OrderTag {
+  return {
+    id: resource.id,
+    name: resource.name,
+    color: resource.color ?? "#92400E",
+    active: resource.active ?? true,
+  };
+}
 
 function normalizeOrderStoresResponse(payload: unknown) {
   const collection = readCollectionPayload<BackendStore>(payload);
@@ -224,6 +245,9 @@ export function normalizeOrderResource(resource: BackendOrder): Order {
     slot: resource.slot ?? null,
     customerName: resource.customer_name ?? null,
     customerContact: resource.customer_contact ?? null,
+    tags: Array.isArray(resource.tags)
+      ? resource.tags.map(normalizeOrderTagResource)
+      : [],
     items: (resource.items ?? []).map((item) => ({
       id: item.id,
       productId: item.product_id,
@@ -330,6 +354,9 @@ export async function getOrders(
   if (filters.paymentStatus?.trim())
     params.payment_status = filters.paymentStatus.trim();
   if (filters.slot?.trim()) params.slot = filters.slot.trim();
+  if (Array.isArray(filters.tagIds) && filters.tagIds.length > 0) {
+    params.tag_ids = filters.tagIds.join(",");
+  }
   if (filters.scheduledFrom?.trim())
     params.scheduled_from = filters.scheduledFrom.trim();
   if (filters.scheduledTo?.trim()) params.scheduled_to = filters.scheduledTo.trim();
@@ -370,6 +397,8 @@ export async function getOrderSettings(): Promise<OrderSettings> {
       timezone: string;
       scheduling_window_days: number;
       status_labels?: Record<string, string>;
+      active_tags?: BackendOrderTag[];
+      available_tags?: BackendOrderTag[];
     }>
   >("/orders/settings");
   const payload = readResourcePayload<{
@@ -380,6 +409,8 @@ export async function getOrderSettings(): Promise<OrderSettings> {
     timezone: string;
     scheduling_window_days: number;
     status_labels?: Record<string, string>;
+    active_tags?: BackendOrderTag[];
+    available_tags?: BackendOrderTag[];
   }>(response.data);
 
   if (!payload) {
@@ -394,6 +425,12 @@ export async function getOrderSettings(): Promise<OrderSettings> {
     timezone: payload.timezone,
     schedulingWindowDays: payload.scheduling_window_days,
     statusLabels: payload.status_labels ?? {},
+    activeTags: Array.isArray(payload.active_tags)
+      ? payload.active_tags.map(normalizeOrderTagResource)
+      : [],
+    availableTags: Array.isArray(payload.available_tags)
+      ? payload.available_tags.map(normalizeOrderTagResource)
+      : [],
   };
 }
 
@@ -508,6 +545,7 @@ function buildOrderWritePayload(
     store_id: payload.storeId,
     customer_name: payload.customerName,
     customer_contact: payload.customerContact,
+    tag_ids: payload.tagIds ?? [],
     payment_status: payload.paymentStatus,
     slot: payload.slot,
     scheduled_at: buildScheduledAt(payload.date, payload.time, timeZone),

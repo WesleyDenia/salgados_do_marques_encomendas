@@ -45,6 +45,7 @@ import {
   type OrderFlavorOption,
   type OrderProductOption,
   type OrderProductVariantOption,
+  type OrderTag,
 } from "@/features/orders/types";
 import {
   useSlotCapacities,
@@ -71,6 +72,7 @@ const defaultValues: OrderFormValues = {
   storeId: 0,
   customerName: "",
   customerContact: "",
+  tagIds: [],
   items: [],
   observations: "",
   date: format(new Date(), "yyyy-MM-dd"),
@@ -91,6 +93,7 @@ function buildDefaultValues(
     storeId: order.store?.id ?? 0,
     customerName: order.customerName ?? order.user?.name ?? "",
     customerContact: order.customerContact ?? "",
+    tagIds: order.tags.map((tag) => tag.id),
     items: order.items.map((item) => ({
       productId: item.productId,
       quantity: item.quantity,
@@ -151,6 +154,20 @@ function formatCurrency(value?: number | null) {
     currency: "EUR",
     minimumFractionDigits: 2,
   }).format(Number(value ?? 0));
+}
+
+function buildTagTextColor(color: string) {
+  const normalized = color.replace("#", "");
+  if (normalized.length !== 6) {
+    return "#111827";
+  }
+
+  const red = Number.parseInt(normalized.slice(0, 2), 16);
+  const green = Number.parseInt(normalized.slice(2, 4), 16);
+  const blue = Number.parseInt(normalized.slice(4, 6), 16);
+  const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
+
+  return luminance > 0.65 ? "#111827" : "#FFFFFF";
 }
 
 function buildItemTitle(
@@ -530,6 +547,10 @@ export function OrderComposerPage({
     });
   }, [products]);
   const stores = React.useMemo(() => storesQuery.data?.data ?? [], [storesQuery.data?.data]);
+  const availableTags = React.useMemo(
+    () => settingsQuery.data?.availableTags ?? [],
+    [settingsQuery.data?.availableTags],
+  );
   const filteredProducts = React.useMemo(() => {
     if (!selectedCategoryId) {
       return [];
@@ -544,11 +565,17 @@ export function OrderComposerPage({
   }, [products, selectedCategoryId]);
   const items = watch("items");
   const storeId = watch("storeId");
+  const tagIds = watch("tagIds");
   const slot = watch("slot");
   const paymentStatus = watch("paymentStatus");
   const date = watch("date");
   const slotCapacitiesQuery = useSlotCapacities({ date, storeId });
   const slotCapacities = slotCapacitiesQuery.data?.data.slots ?? [];
+  const selectedTags = React.useMemo(
+    () =>
+      availableTags.filter((tag) => tagIds.includes(tag.id)),
+    [availableTags, tagIds],
+  );
 
   React.useEffect(() => {
     if (mode !== "edit") {
@@ -790,6 +817,28 @@ export function OrderComposerPage({
 
   const isSubmitting =
     createOrderMutation.isPending || updateOrderMutation.isPending;
+
+  const toggleTagSelection = React.useCallback(
+    (tag: OrderTag) => {
+      const isSelected = tagIds.includes(tag.id);
+
+      if (!tag.active && !isSelected) {
+        return;
+      }
+
+      setValue(
+        "tagIds",
+        isSelected
+          ? tagIds.filter((tagId) => tagId !== tag.id)
+          : [...tagIds, tag.id],
+        {
+          shouldDirty: true,
+          shouldValidate: true,
+        },
+      );
+    },
+    [setValue, tagIds],
+  );
 
   if (mode === "edit" && initialOrderQuery.isLoading && !resolvedInitialOrder) {
     return (
@@ -1059,6 +1108,53 @@ export function OrderComposerPage({
                       <FieldMessage message={errors.customerContact?.message} />
                     </div>
                   </div>
+
+                  <div className="mt-5 space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-slate-950">Tags operacionais</label>
+                      <p className="text-sm text-slate-600">
+                        Classifique já a encomenda para facilitar triagem, prioridade e filtros na fila operacional.
+                      </p>
+                    </div>
+
+                    {availableTags.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {availableTags.map((tag) => {
+                          const isSelected = tagIds.includes(tag.id);
+                          const isSelectable = tag.active || isSelected;
+
+                          return (
+                            <button
+                              key={tag.id}
+                              type="button"
+                              onClick={() => toggleTagSelection(tag)}
+                              disabled={!isSelectable}
+                              className="inline-flex min-h-10 items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
+                              style={{
+                                backgroundColor: isSelected ? tag.color : "#FFFFFF",
+                                borderColor: tag.color,
+                                color: isSelected ? buildTagTextColor(tag.color) : "#0F172A",
+                              }}
+                            >
+                              <span
+                                className="inline-flex h-2.5 w-2.5 rounded-full"
+                                style={{
+                                  backgroundColor: isSelected ? buildTagTextColor(tag.color) : tag.color,
+                                }}
+                                aria-hidden
+                              />
+                              {tag.name}
+                              {!tag.active ? " · inativa" : ""}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500">
+                        Ainda não existem tags configuradas em Governação operacional.
+                      </p>
+                    )}
+                  </div>
                 </section>
 
                 <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -1193,6 +1289,14 @@ export function OrderComposerPage({
                 <div>
                   <dt className="text-slate-500">Itens</dt>
                   <dd className="font-medium text-slate-950">{items.length}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">Tags</dt>
+                  <dd className="font-medium text-slate-950">
+                    {selectedTags.length > 0
+                      ? selectedTags.map((tag) => tag.name).join(", ")
+                      : "Sem tags"}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-slate-500">Agendamento</dt>
