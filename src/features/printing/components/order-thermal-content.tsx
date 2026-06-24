@@ -26,6 +26,7 @@ type OrderThermalContentClasses = {
   sectionTitle?: string;
   row?: string;
   scheduledAtValue?: string;
+  paymentStatusValue?: string;
   item?: string;
   itemRow?: string;
   totalRow?: string;
@@ -106,9 +107,8 @@ export function OrderThermalContent({
               <span className={classes.label}>Valor</span>
               <span className={classes.value}>{order.totalLabel}</span>
             </div>
-            <div className={classes.row}>
-              <span className={classes.label}>Status do Pagamento</span>
-              <span className={classes.value}>{order.paymentLabel}</span>
+            <div className={classes.paymentStatusValue ?? classes.scheduledAtValue ?? classes.value}>
+              {order.paymentLabel}
             </div>
           </section>
 

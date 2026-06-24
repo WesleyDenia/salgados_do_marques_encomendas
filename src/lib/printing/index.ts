@@ -1,7 +1,4 @@
-import {
-  ORDER_PAYMENT_STATUS_LABELS,
-  type Order,
-} from "@/features/orders/types";
+import { type Order } from "@/features/orders/types";
 
 export const PRINT_WIDTH_MM = 80;
 
@@ -133,6 +130,14 @@ function formatCustomerContact(value?: string | null) {
   return value;
 }
 
+function formatPaymentLabel(value?: Order["paymentStatus"] | null) {
+  if (value === "paid") {
+    return "***** PAGO *****";
+  }
+
+  return "------- À PAGAR -------";
+}
+
 function formatScheduledAtDetailed(value?: string | null, timeZone = "Europe/Lisbon") {
   if (!value) {
     return "Por agendar";
@@ -249,9 +254,7 @@ export function toThermalPrintOrder(
       order.customerName?.trim() || order.user?.name || "Cliente não identificado",
     contactLabel: formatCustomerContact(order.customerContact),
     scheduledAtLabel: formatScheduledAtDetailed(order.scheduledAt, timeZone),
-    paymentLabel: order.paymentStatus
-      ? (ORDER_PAYMENT_STATUS_LABELS[order.paymentStatus] ?? order.paymentStatus).toUpperCase()
-      : "Não definido",
+    paymentLabel: formatPaymentLabel(order.paymentStatus),
     totalLabel: formatPrintCurrency(order.total),
     notesLabel: order.notes?.trim() || "Sem notas operacionais",
     items: order.items.map((item, index) => ({
