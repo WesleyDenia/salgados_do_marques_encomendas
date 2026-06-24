@@ -402,6 +402,10 @@ function authorizeApiProxy(
       return authorizePanelRoute(session.user, "/settings/access").allowed;
     }
 
+    if (secondarySegment === "order-tags") {
+      return authorizePanelRoute(session.user, "/settings/operational").allowed;
+    }
+
     if (
       secondarySegment === "settings" &&
       (tertiarySegment === "operational" || tertiarySegment === "test-whatsapp")
