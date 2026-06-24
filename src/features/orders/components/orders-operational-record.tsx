@@ -1151,7 +1151,10 @@ export function OrdersOperationalRecord({
   const rawCurrentStatus = rawUrlStatus?.trim() ?? "";
   const rawCurrentPaymentStatus = rawUrlPaymentStatus?.trim() ?? "";
   const rawCurrentSlot = rawUrlSlot?.trim() ?? "";
-  const rawCurrentTagIds = normalizeOrderOperationalTagIds(rawUrlTagIds);
+  const rawCurrentTagIds = React.useMemo(
+    () => normalizeOrderOperationalTagIds(rawUrlTagIds),
+    [rawUrlTagIds],
+  );
   const [searchTerm, setSearchTerm] = React.useState(urlSearchTerm);
   const [period, setPeriod] = React.useState<OrderOperationalPeriod>(currentPeriod);
   const [status, setStatus] = React.useState(rawUrlStatus?.trim() ?? "");
@@ -1203,7 +1206,10 @@ export function OrdersOperationalRecord({
   );
   const currentPaymentStatus = normalizeOrderOperationalPaymentStatus(rawUrlPaymentStatus);
   const currentSlot = normalizeOrderOperationalSlot(rawUrlSlot);
-  const currentTagIds = normalizeOrderOperationalTagIds(rawUrlTagIds);
+  const currentTagIds = React.useMemo(
+    () => normalizeOrderOperationalTagIds(rawUrlTagIds),
+    [rawUrlTagIds],
+  );
   const statusLabels = React.useMemo(() => settings?.statusLabels, [settings?.statusLabels]);
   const availableTags = React.useMemo(
     () => settings?.availableTags ?? [],
