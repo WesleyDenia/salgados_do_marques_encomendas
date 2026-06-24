@@ -115,12 +115,14 @@ export function OperationalOrderTagsManager() {
             id="order-tag-name"
             value={formState.name}
             maxLength={60}
-            onChange={(event) =>
+            onChange={(event) => {
+              const { value } = event.currentTarget;
+
               setFormState((current) => ({
                 ...current,
-                name: event.currentTarget.value,
-              }))
-            }
+                name: value,
+              }));
+            }}
             placeholder="Ex.: VIP, Urgente, Festa grande"
           />
         </div>
@@ -133,12 +135,14 @@ export function OperationalOrderTagsManager() {
             id="order-tag-color"
             type="color"
             value={normalizeHexColor(formState.color)}
-            onChange={(event) =>
+            onChange={(event) => {
+              const { value } = event.currentTarget;
+
               setFormState((current) => ({
                 ...current,
-                color: event.currentTarget.value,
-              }))
-            }
+                color: value,
+              }));
+            }}
             className="h-10 w-full cursor-pointer p-1"
           />
         </div>
@@ -147,12 +151,14 @@ export function OperationalOrderTagsManager() {
           <input
             type="checkbox"
             checked={formState.active}
-            onChange={(event) =>
+            onChange={(event) => {
+              const { checked } = event.currentTarget;
+
               setFormState((current) => ({
                 ...current,
-                active: event.currentTarget.checked,
-              }))
-            }
+                active: checked,
+              }));
+            }}
             className="h-4 w-4 rounded border-border"
           />
           <span className="text-sm font-medium text-foreground">Ativa</span>
