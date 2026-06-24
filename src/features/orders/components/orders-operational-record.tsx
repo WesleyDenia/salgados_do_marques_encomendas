@@ -91,8 +91,19 @@ const REVALIDATE_MESSAGES = {
 
 const ORDER_RECORD_VIEW_MODE_STORAGE_KEY = "orders-record-view-mode";
 const ORDER_RECORD_FILTERS_OPEN_STORAGE_KEY = "orders-record-filters-open";
+const ORDER_RECORD_FILTERS_STORAGE_KEY = "orders-record-filters";
 
 type OrderRecordSearchParams = Pick<URLSearchParams, "get" | "toString">;
+type PersistedOrderRecordFilters = {
+  searchTerm: string;
+  period: OrderOperationalPeriod;
+  status: string;
+  paymentStatus: string;
+  slot: string;
+  tagIds: number[];
+  customStartDate: string;
+  customEndDate: string;
+};
 
 export const ORDER_STATUS_TRANSITIONS: Record<string, string[]> = {
   placed: ["accepted", "rejected", "canceled"],
@@ -114,6 +125,58 @@ function buildOrderItemKey(item: Order["items"][number], index: number) {
     item.flavorIds?.join("-") ?? "no-flavors",
     index,
   ].join(":");
+}
+
+function buildOrderRecordFiltersStorageKey(mode: OrderRecordMode) {
+  return `${ORDER_RECORD_FILTERS_STORAGE_KEY}:${mode}`;
+}
+
+function hasExplicitOrderFilterParams(searchParams: OrderRecordSearchParams) {
+  return [
+    "search",
+    "period",
+    "status",
+    "payment_status",
+    "slot",
+    "tag_ids",
+    "start_date",
+    "end_date",
+  ].some((key) => searchParams.get(key) != null);
+}
+
+function parsePersistedOrderRecordFilters(
+  value: string | null,
+  defaultPeriod: OrderOperationalPeriod,
+): PersistedOrderRecordFilters | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as Partial<PersistedOrderRecordFilters>;
+    const normalizedPeriod = normalizeOrderOperationalPeriod(
+      typeof parsed.period === "string" ? parsed.period : null,
+      defaultPeriod,
+    );
+
+    return {
+      searchTerm: typeof parsed.searchTerm === "string" ? parsed.searchTerm : "",
+      period: normalizedPeriod,
+      status: typeof parsed.status === "string" ? parsed.status : "",
+      paymentStatus:
+        typeof parsed.paymentStatus === "string" ? parsed.paymentStatus : "",
+      slot: typeof parsed.slot === "string" ? parsed.slot : "",
+      tagIds: Array.isArray(parsed.tagIds)
+        ? parsed.tagIds.filter((tagId): tagId is number => Number.isInteger(tagId) && tagId > 0)
+        : [],
+      customStartDate:
+        typeof parsed.customStartDate === "string" ? parsed.customStartDate : "",
+      customEndDate:
+        typeof parsed.customEndDate === "string" ? parsed.customEndDate : "",
+    };
+  } catch {
+    return null;
+  }
 }
 
 function formatTotal(value?: number) {
@@ -1164,6 +1227,7 @@ export function OrdersOperationalRecord({
   const [customStartDate, setCustomStartDate] = React.useState(rawUrlStartDate);
   const [customEndDate, setCustomEndDate] = React.useState(rawUrlEndDate);
   const [filtersOpen, setFiltersOpen] = React.useState(false);
+  const [filtersHydrated, setFiltersHydrated] = React.useState(false);
   const [selectedOrder, setSelectedOrder] = React.useState<Order | null>(null);
   const [printStateByOrderId, setPrintStateByOrderId] = React.useState<
     Record<string, PrintFlowState>
@@ -1259,9 +1323,15 @@ export function OrdersOperationalRecord({
       return;
     }
 
+    const filtersStorageKey = buildOrderRecordFiltersStorageKey(mode);
     const stored = window.localStorage.getItem(ORDER_RECORD_VIEW_MODE_STORAGE_KEY);
     const storedFiltersOpen = window.localStorage.getItem(
       ORDER_RECORD_FILTERS_OPEN_STORAGE_KEY,
+    );
+    const hasExplicitFilters = hasExplicitOrderFilterParams(searchParams);
+    const persistedFilters = parsePersistedOrderRecordFilters(
+      window.localStorage.getItem(filtersStorageKey),
+      modeConfig.defaultPeriod,
     );
 
     if (stored === "list" || stored === "cards") {
@@ -1271,7 +1341,51 @@ export function OrdersOperationalRecord({
     if (storedFiltersOpen === "true") {
       setFiltersOpen(true);
     }
-  }, []);
+
+    if (!hasExplicitFilters && persistedFilters) {
+      setSearchTerm(persistedFilters.searchTerm);
+      setPeriod(persistedFilters.period);
+      setStatus(persistedFilters.status);
+      setPaymentStatus(persistedFilters.paymentStatus);
+      setSlot(persistedFilters.slot);
+      setTagIds(persistedFilters.tagIds);
+      setCustomStartDate(persistedFilters.customStartDate);
+      setCustomEndDate(persistedFilters.customEndDate);
+    }
+
+    setFiltersHydrated(true);
+  }, [mode, modeConfig.defaultPeriod, searchParams]);
+
+  React.useEffect(() => {
+    if (!filtersHydrated || typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(
+      buildOrderRecordFiltersStorageKey(mode),
+      JSON.stringify({
+        searchTerm,
+        period,
+        status,
+        paymentStatus,
+        slot,
+        tagIds,
+        customStartDate,
+        customEndDate,
+      } satisfies PersistedOrderRecordFilters),
+    );
+  }, [
+    customEndDate,
+    customStartDate,
+    filtersHydrated,
+    mode,
+    paymentStatus,
+    period,
+    searchTerm,
+    slot,
+    status,
+    tagIds,
+  ]);
 
   const updateViewMode = React.useCallback((nextMode: "list" | "cards") => {
     setViewMode(nextMode);
@@ -1298,6 +1412,10 @@ export function OrdersOperationalRecord({
 
   // Sync Local State to URL (Debounced/Controlled)
   React.useEffect(() => {
+    if (!filtersHydrated) {
+      return;
+    }
+
     // Wait for settings to load if we have a status to normalize
     // This prevents wiping URL params if settings fetch is slow
     if (rawUrlStatus && !settings) {
@@ -1340,6 +1458,7 @@ export function OrdersOperationalRecord({
     paymentStatus,
     slot,
     tagIds,
+    filtersHydrated,
     rawUrlStatus,
   ]);
 
@@ -1424,6 +1543,21 @@ export function OrdersOperationalRecord({
     setCustomEndDate(nextValue);
     setPeriod("custom");
   }, []);
+
+  const clearFilters = React.useCallback(() => {
+    setSearchTerm("");
+    setPeriod(modeConfig.defaultPeriod);
+    setStatus("");
+    setPaymentStatus("");
+    setSlot("");
+    setTagIds([]);
+    setCustomStartDate("");
+    setCustomEndDate("");
+
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(buildOrderRecordFiltersStorageKey(mode));
+    }
+  }, [mode, modeConfig.defaultPeriod]);
 
   const retryLoading = React.useCallback(() => {
     void retry();
@@ -1839,6 +1973,11 @@ export function OrdersOperationalRecord({
                 Sem tags operacionais disponíveis.
               </p>
             )}
+          </div>
+          <div className="flex justify-end">
+            <Button type="button" variant="outline" onClick={clearFilters}>
+              Limpar filtros
+            </Button>
           </div>
           {period === "custom" ? (
             <div className="grid gap-3 md:grid-cols-2">
