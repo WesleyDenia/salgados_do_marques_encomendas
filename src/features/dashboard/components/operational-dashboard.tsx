@@ -5,8 +5,21 @@ import Link from "next/link";
 
 import { EmptyState } from "@/components/feedback/empty-state";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { OrderComposerLauncher } from "@/features/orders/components/order-composer-launcher";
 import { OrderSearch } from "@/features/orders/components/order-search";
+import {
+  buildProductDemandSummary,
+  type ProductDemandSummary,
+} from "@/features/dashboard/utils/product-demand";
 import { useOrderSearch, type OrderOperationalPeriod } from "@/features/orders/hooks/use-order-search";
 import { useOrderSettings } from "@/features/orders/hooks/use-order-queries";
 import {
@@ -21,6 +34,7 @@ import {
   getZonedParts,
 } from "@/features/orders/utils/operational-timezone";
 import { useDailyPlanning } from "@/features/planning/hooks/use-daily-planning";
+import { usePeriodPlanning } from "@/features/planning/hooks/use-period-planning";
 import type {
   PlanningSlotOccupancy,
   PlanningSlotOccupancyEntry,
@@ -99,6 +113,22 @@ function buildOrdersHref(period: OrderOperationalPeriod, search?: string) {
   }
 
   return `/orders?${params.toString()}`;
+}
+
+function buildPlanningPeriodHref(startDate: string, endDate: string) {
+  const params = new URLSearchParams();
+
+  params.set("view", "period");
+
+  if (startDate.trim()) {
+    params.set("start_date", startDate.trim());
+  }
+
+  if (endDate.trim()) {
+    params.set("end_date", endDate.trim());
+  }
+
+  return `/planning?${params.toString()}`;
 }
 
 function SummaryCard({
@@ -238,6 +268,165 @@ function SlotOccupancyCard({
           "Leitura do volume previsto neste slot com base nas encomendas do dia."}
       </p>
     </article>
+  );
+}
+
+function ProductDemandSection({
+  timeZone,
+}: Readonly<{
+  timeZone: string;
+}>) {
+  const today = React.useMemo(() => buildOperationalDay(timeZone), [timeZone]);
+  const [startDate, setStartDate] = React.useState(today);
+  const [endDate, setEndDate] = React.useState(today);
+
+  React.useEffect(() => {
+    setStartDate((current) => current || today);
+    setEndDate((current) => current || today);
+  }, [today]);
+
+  const isRangeIncomplete = startDate.trim() === "" || endDate.trim() === "";
+  const isRangeInvalid = !isRangeIncomplete && endDate < startDate;
+  const shouldFetch = !isRangeIncomplete && !isRangeInvalid;
+  const planningQuery = usePeriodPlanning(startDate, endDate, shouldFetch);
+  const demandSummary = React.useMemo<ProductDemandSummary | null>(
+    () =>
+      planningQuery.data
+        ? buildProductDemandSummary(planningQuery.data.orders)
+        : null,
+    [planningQuery.data],
+  );
+
+  let content: React.ReactNode;
+
+  if (isRangeIncomplete) {
+    content = (
+      <EmptyState
+        title="Período incompleto"
+        description="Defina data inicial e data final para calcular o quantitativo necessário por produto."
+        className="p-5"
+      />
+    );
+  } else if (isRangeInvalid) {
+    content = (
+      <EmptyState
+        title="Período inválido"
+        description="A data final tem de ser igual ou posterior à data inicial."
+        className="p-5"
+      />
+    );
+  } else if (planningQuery.isLoading) {
+    content = (
+      <div className="rounded-2xl border border-border/70 bg-background/80 p-5 text-sm text-muted-foreground">
+        A carregar o quantitativo de produtos para o período selecionado...
+      </div>
+    );
+  } else if (planningQuery.error || !demandSummary) {
+    content = (
+      <EmptyState
+        title="Erro ao calcular o quantitativo"
+        description={
+          planningQuery.error instanceof Error
+            ? planningQuery.error.message
+            : "Não foi possível calcular o quantitativo necessário para este período."
+        }
+        className="p-5"
+        action={
+          <Button type="button" variant="outline" onClick={() => void planningQuery.refetch()}>
+            Tentar novamente
+          </Button>
+        }
+      />
+    );
+  } else if (demandSummary.rows.length === 0) {
+    content = (
+      <EmptyState
+        title="Sem produtos por preparar"
+        description="Não existem encomendas ativas no período selecionado para gerar necessidade de stock."
+        className="p-5"
+      />
+    );
+  } else {
+    content = (
+      <div className="space-y-4">
+        <div className="flex flex-col gap-2 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+          <p>
+            {demandSummary.orderCount} encomendas ativas · {demandSummary.totalQuantity} unidades
+            totais
+          </p>
+          <p>
+            Período consultado: <strong>{startDate}</strong> até <strong>{endDate}</strong>
+          </p>
+        </div>
+
+        <div className="overflow-x-auto rounded-2xl border border-border/70 bg-background/80">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Produto</TableHead>
+                <TableHead className="text-right">QTD</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {demandSummary.rows.map((row) => (
+                <TableRow key={row.key}>
+                  <TableCell>{row.label}</TableCell>
+                  <TableCell className="text-right font-semibold">{row.quantity}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <OperationalSection
+      title="Necessidade de stock por produto"
+      description="Consolida os itens das encomendas ativas do período para indicar quanto precisa produzir ou separar."
+      action={
+        <Link href={buildPlanningPeriodHref(startDate, endDate)}>
+          <Button variant="outline">Abrir no planeamento</Button>
+        </Link>
+      }
+    >
+      <div className="space-y-5">
+        <div className="grid gap-4 rounded-2xl border border-border/70 bg-background/80 p-4 md:grid-cols-[minmax(0,16rem)_minmax(0,16rem)_auto] md:items-end">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="dashboard-stock-start">
+              Data inicial
+            </label>
+            <Input
+              id="dashboard-stock-start"
+              type="date"
+              value={startDate}
+              onChange={(event) => setStartDate(event.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="dashboard-stock-end">
+              Data final
+            </label>
+            <Input
+              id="dashboard-stock-end"
+              type="date"
+              value={endDate}
+              onChange={(event) => setEndDate(event.target.value)}
+            />
+          </div>
+
+          <p className="text-sm text-muted-foreground">
+            {planningQuery.isFetching && shouldFetch
+              ? "A atualizar o quantitativo do período..."
+              : "O cálculo considera apenas encomendas ativas, excluindo canceladas, rejeitadas e concluídas."}
+          </p>
+        </div>
+
+        {content}
+      </div>
+    </OperationalSection>
   );
 }
 
@@ -405,6 +594,8 @@ function DashboardContent({
           </div>
         </OperationalSection>
       </div>
+
+      <ProductDemandSection timeZone={timeZone} />
     </div>
   );
 }

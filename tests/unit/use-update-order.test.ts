@@ -58,6 +58,7 @@ test("updateOrder maps the panel form to the backend PATCH contract", async () =
       observations: "Com mais picante",
       date: "2026-05-20",
       time: "10:30",
+      allowScheduleException: true,
       slot: "manha",
       paymentStatus: "paid",
     });
@@ -67,6 +68,8 @@ test("updateOrder maps the panel form to the backend PATCH contract", async () =
       store_id: 3,
       customer_name: "Maria Silva Alterada",
       customer_contact: "912345678",
+      tag_ids: [],
+      allow_schedule_exception: true,
       payment_status: "paid",
       slot: "manha",
       scheduled_at: "2026-05-20T09:30:00.000Z",

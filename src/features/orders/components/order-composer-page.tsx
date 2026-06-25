@@ -77,6 +77,7 @@ const defaultValues: OrderFormValues = {
   observations: "",
   date: format(new Date(), "yyyy-MM-dd"),
   time: "",
+  allowScheduleException: false,
   slot: "manha",
   paymentStatus: "pending",
 };
@@ -103,6 +104,7 @@ function buildDefaultValues(
     observations: order.notes ?? "",
     date: getDateInputValueInTimeZone(order.scheduledAt, timeZone) || defaultValues.date,
     time: getTimeInputValueInTimeZone(order.scheduledAt, timeZone),
+    allowScheduleException: false,
     slot: order.slot ?? "manha",
     paymentStatus: order.paymentStatus ?? "pending",
   };
@@ -569,6 +571,7 @@ export function OrderComposerPage({
   const slot = watch("slot");
   const paymentStatus = watch("paymentStatus");
   const date = watch("date");
+  const allowScheduleException = watch("allowScheduleException");
   const slotCapacitiesQuery = useSlotCapacities({ date, storeId });
   const slotCapacities = slotCapacitiesQuery.data?.data.slots ?? [];
   const selectedTags = React.useMemo(
@@ -1243,6 +1246,30 @@ export function OrderComposerPage({
                       </Select>
                       <FieldMessage message={errors.paymentStatus?.message} />
                     </div>
+                  </div>
+
+                  <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
+                    <label className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        className="mt-1 h-4 w-4 rounded border-slate-300"
+                        checked={allowScheduleException}
+                        onChange={(event) =>
+                          setValue("allowScheduleException", event.currentTarget.checked, {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          })
+                        }
+                      />
+                      <div className="space-y-1">
+                        <span className="text-sm font-medium text-slate-950">
+                          Permitir exceção fora do horário da loja
+                        </span>
+                        <p className="text-sm text-slate-600">
+                          Use apenas quando a retirada foi alinhada manualmente com a loja. Esta opção ignora o horário de funcionamento, mas mantém as restantes validações operacionais.
+                        </p>
+                      </div>
+                    </label>
                   </div>
 
                   <div className="mt-5 space-y-2">

@@ -28,6 +28,7 @@ test("OrderComposerDrawer renders the essential creation fields", () => {
   assert.match(markup, /Produto/);
   assert.match(markup, /Quantidade/);
   assert.match(markup, /Estado de pagamento/);
+  assert.match(markup, /Permitir exceção fora do horário da loja/);
 
   queryClient.clear();
 });
@@ -50,6 +51,7 @@ test("OrderComposerDrawer renders edit mode copy for corrections", () => {
             scheduledAt: "2026-05-20T09:30:00+00:00",
             total: 24,
             notes: "Sem picante",
+            tags: [],
             store: { id: 3, name: "Loja Centro" },
             user: null,
             items: [
@@ -73,6 +75,7 @@ test("OrderComposerDrawer renders edit mode copy for corrections", () => {
 
   assert.match(markup, /Corrigir encomenda/);
   assert.match(markup, /Guardar correção/);
+  assert.match(markup, /Permitir exceção fora do horário da loja/);
 
   queryClient.clear();
 });

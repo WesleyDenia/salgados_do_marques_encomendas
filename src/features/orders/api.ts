@@ -546,6 +546,7 @@ function buildOrderWritePayload(
     customer_name: payload.customerName,
     customer_contact: payload.customerContact,
     tag_ids: payload.tagIds ?? [],
+    allow_schedule_exception: payload.allowScheduleException,
     payment_status: payload.paymentStatus,
     slot: payload.slot,
     scheduled_at: buildScheduledAt(payload.date, payload.time, timeZone),

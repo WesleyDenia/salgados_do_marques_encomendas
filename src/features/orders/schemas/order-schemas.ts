@@ -39,6 +39,7 @@ export const OrderCreateSchema = z.object({
     /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
     "O formato da hora deve ser HH:MM."
   ),
+  allowScheduleException: z.coerce.boolean().optional().default(false),
   slot: z.enum(ORDER_SLOT_OPTIONS, {
     error: "Selecione o slot operacional.",
   }),

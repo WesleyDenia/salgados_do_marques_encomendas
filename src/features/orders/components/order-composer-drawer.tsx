@@ -82,6 +82,7 @@ const defaultValues: OrderFormInput = {
   observations: "",
   date: format(new Date(), "yyyy-MM-dd"),
   time: "",
+  allowScheduleException: false,
   slot: "manha",
   paymentStatus: "pending",
 };
@@ -111,6 +112,7 @@ function buildDefaultValues(
     observations: order.notes ?? "",
     date: getDateInputValueInTimeZone(order.scheduledAt, timeZone) || defaultValues.date,
     time: getTimeInputValueInTimeZone(order.scheduledAt, timeZone),
+    allowScheduleException: false,
     slot: order.slot ?? "manha",
     paymentStatus: order.paymentStatus ?? "pending",
   };
@@ -283,6 +285,7 @@ export function OrderComposerDrawer({
   const slot = watch("slot");
   const paymentStatus = watch("paymentStatus");
   const date = watch("date");
+  const allowScheduleException = watch("allowScheduleException");
 
   const slotCapacitiesQuery = useSlotCapacities({ storeId, date });
   const slotCapacities = slotCapacitiesQuery.data?.data.slots ?? [];
@@ -721,6 +724,30 @@ export function OrderComposerDrawer({
                 </Select>
                 <FieldMessage error={errors.paymentStatus} />
               </div>
+            </section>
+
+            <section className="rounded-lg border border-amber-200 bg-amber-50/80 p-4">
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 rounded border-border"
+                  checked={allowScheduleException}
+                  onChange={(event) =>
+                    setValue("allowScheduleException", event.currentTarget.checked, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }
+                />
+                <div className="space-y-1">
+                  <span className="text-sm font-medium text-foreground">
+                    Permitir exceção fora do horário da loja
+                  </span>
+                  <p className="text-sm text-muted-foreground">
+                    Use apenas quando a retirada foi combinada manualmente. Esta opção ignora o horário de funcionamento da loja, mas mantém capacidade, slot e antecedência mínima.
+                  </p>
+                </div>
+              </label>
             </section>
 
             <section className="space-y-2">
