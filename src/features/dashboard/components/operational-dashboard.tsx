@@ -7,7 +7,6 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { Button } from "@/components/ui/button";
 import { OrderComposerLauncher } from "@/features/orders/components/order-composer-launcher";
 import { OrderSearch } from "@/features/orders/components/order-search";
-import { useDebouncedValue } from "@/features/orders/hooks/use-debounced-value";
 import { useOrderSearch, type OrderOperationalPeriod } from "@/features/orders/hooks/use-order-search";
 import { useOrderSettings } from "@/features/orders/hooks/use-order-queries";
 import {
@@ -250,7 +249,9 @@ function DashboardContent({
   attentionOrders,
   searchedOrders,
   search,
+  appliedSearch,
   onSearchChange,
+  onSearchSubmit,
   onSearchClear,
   isSearching,
   statusLabels,
@@ -263,7 +264,9 @@ function DashboardContent({
   attentionOrders: Order[];
   searchedOrders: Order[];
   search: string;
+  appliedSearch: string;
   onSearchChange: (value: string) => void;
+  onSearchSubmit: () => void;
   onSearchClear: () => void;
   isSearching: boolean;
   statusLabels?: Record<string, string>;
@@ -375,7 +378,7 @@ function DashboardContent({
           title="Pesquisa rápida"
           description="Localize uma encomenda específica sem sair do dashboard."
           action={
-            <Link href={buildOrdersHref("today", search)}>
+            <Link href={buildOrdersHref("today", appliedSearch)}>
               <Button variant="outline">Abrir pesquisa completa</Button>
             </Link>
           }
@@ -384,9 +387,12 @@ function DashboardContent({
             <OrderSearch
               value={search}
               onChange={onSearchChange}
+              onSubmit={onSearchSubmit}
               onClear={onSearchClear}
               loading={isSearching}
-              helpTextIdle="Pesquise por cliente, contacto ou número da encomenda para abrir a fila já filtrada."
+              label="Nome do cliente"
+              placeholder="Buscar por nome do cliente"
+              helpTextIdle="Digite o nome do cliente e clique em Buscar para abrir a fila já filtrada."
             />
 
             <OrderList
@@ -409,13 +415,13 @@ export function OperationalDashboard({
   role: string;
 }>) {
   const [search, setSearch] = React.useState("");
-  const debouncedSearch = useDebouncedValue(search, 250);
+  const [appliedSearch, setAppliedSearch] = React.useState("");
   const settingsQuery = useOrderSettings();
   const timeZone = settingsQuery.data?.timezone ?? "Europe/Lisbon";
   const day = React.useMemo(() => buildOperationalDay(timeZone), [timeZone]);
   const planningQuery = useDailyPlanning(day, true);
   const searchQuery = useOrderSearch({
-    search: debouncedSearch,
+    search: appliedSearch,
     period: "today",
     page: 1,
   });
@@ -458,7 +464,7 @@ export function OperationalDashboard({
   const searchData = searchQuery.data?.data ?? [];
   const upcomingOrders = getUpcomingOrders(planningData?.orders ?? []);
   const attentionOrders = getAttentionOrders(planningData?.orders ?? []);
-  const searchedOrders = (debouncedSearch.trim() ? searchData : upcomingOrders).slice(0, 5);
+  const searchedOrders = (appliedSearch.trim() ? searchData : upcomingOrders).slice(0, 5);
 
   return (
     <DashboardContent
@@ -470,8 +476,13 @@ export function OperationalDashboard({
       attentionOrders={attentionOrders}
       searchedOrders={searchedOrders}
       search={search}
+      appliedSearch={appliedSearch}
       onSearchChange={setSearch}
-      onSearchClear={() => setSearch("")}
+      onSearchSubmit={() => setAppliedSearch(search.trim())}
+      onSearchClear={() => {
+        setSearch("");
+        setAppliedSearch("");
+      }}
       isSearching={searchQuery.isFetching}
       statusLabels={settingsQuery.data?.statusLabels}
     />

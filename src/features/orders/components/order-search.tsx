@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 export function OrderSearch({
   value,
   onChange,
+  onSubmit,
   onClear,
   loading,
   label = "Pesquisar encomenda existente",
@@ -17,6 +18,7 @@ export function OrderSearch({
 }: Readonly<{
   value: string;
   onChange: (value: string) => void;
+  onSubmit: () => void;
   onClear: () => void;
   loading?: boolean;
   label?: string;
@@ -25,7 +27,13 @@ export function OrderSearch({
   helpTextLoading?: string;
 }>) {
   return (
-    <div className="space-y-2">
+    <form
+      className="space-y-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit();
+      }}
+    >
       <label
         htmlFor="orders-search"
         className="text-sm font-medium text-foreground"
@@ -40,7 +48,7 @@ export function OrderSearch({
           />
           <Input
             id="orders-search"
-            type="search"
+            type="text"
             value={value}
             onChange={(event) => onChange(event.target.value)}
             placeholder={placeholder}
@@ -48,6 +56,10 @@ export function OrderSearch({
             aria-describedby="orders-search-help"
           />
         </div>
+        <Button type="submit" disabled={loading}>
+          <Search className="size-4" />
+          Buscar
+        </Button>
         {value.trim() ? (
           <Button type="button" variant="outline" onClick={onClear}>
             <X className="size-4" />
@@ -58,6 +70,6 @@ export function OrderSearch({
       <p id="orders-search-help" className="text-xs leading-5 text-muted-foreground">
         {loading ? helpTextLoading : helpTextIdle}
       </p>
-    </div>
+    </form>
   );
 }

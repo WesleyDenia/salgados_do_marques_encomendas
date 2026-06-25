@@ -40,7 +40,6 @@ import {
 } from "@/features/orders/hooks/use-order-mutations";
 import { useOrderDetail } from "@/features/orders/hooks/use-order-queries";
 import { OrderSearch } from "@/features/orders/components/order-search";
-import { useDebouncedValue } from "@/features/orders/hooks/use-debounced-value";
 import {
   normalizeOrderOperationalPaymentStatus,
   normalizeOrderOperationalPeriod,
@@ -1218,6 +1217,7 @@ export function OrdersOperationalRecord({
     () => normalizeOrderOperationalTagIds(rawUrlTagIds),
     [rawUrlTagIds],
   );
+  const [searchInput, setSearchInput] = React.useState(urlSearchTerm);
   const [searchTerm, setSearchTerm] = React.useState(urlSearchTerm);
   const [period, setPeriod] = React.useState<OrderOperationalPeriod>(currentPeriod);
   const [status, setStatus] = React.useState(rawUrlStatus?.trim() ?? "");
@@ -1240,8 +1240,7 @@ export function OrdersOperationalRecord({
   const detailQuery = useOrderDetail(selectedOrder?.id ?? null);
   const updateOrderStatusMutation = useUpdateOrderStatus();
   const updateOrderMutation = useUpdateOrder();
-  const debouncedSearchTerm = useDebouncedValue(searchTerm, 350);
-  const normalizedSearchTerm = debouncedSearchTerm.trim();
+  const normalizedSearchTerm = searchTerm.trim();
   const optimisticFiltersChanged =
     normalizedSearchTerm !== currentSearch ||
     period !== currentPeriod ||
@@ -1299,6 +1298,7 @@ export function OrdersOperationalRecord({
 
   // Sync URL to Local State (Only on mount or URL change)
   React.useEffect(() => {
+    setSearchInput(urlSearchTerm);
     setSearchTerm(urlSearchTerm);
     setPeriod(currentPeriod);
     setStatus(currentStatus);
@@ -1343,6 +1343,7 @@ export function OrdersOperationalRecord({
     }
 
     if (!hasExplicitFilters && persistedFilters) {
+      setSearchInput(persistedFilters.searchTerm);
       setSearchTerm(persistedFilters.searchTerm);
       setPeriod(persistedFilters.period);
       setStatus(persistedFilters.status);
@@ -1463,8 +1464,16 @@ export function OrdersOperationalRecord({
   ]);
 
   const clearSearch = React.useCallback(() => {
+    setSearchInput("");
     setSearchTerm("");
   }, []);
+
+  const submitSearch = React.useCallback(() => {
+    const normalizedValue = searchInput.trim();
+
+    setSearchInput(normalizedValue);
+    setSearchTerm(normalizedValue);
+  }, [searchInput]);
 
   const updatePage = React.useCallback(
     (page: number) => {
@@ -1545,6 +1554,7 @@ export function OrdersOperationalRecord({
   }, []);
 
   const clearFilters = React.useCallback(() => {
+    setSearchInput("");
     setSearchTerm("");
     setPeriod(modeConfig.defaultPeriod);
     setStatus("");
@@ -1855,8 +1865,9 @@ export function OrdersOperationalRecord({
       {filtersOpen ? (
         <>
           <OrderSearch
-            value={searchTerm}
-            onChange={setSearchTerm}
+            value={searchInput}
+            onChange={setSearchInput}
+            onSubmit={submitSearch}
             onClear={clearSearch}
             loading={isFetching}
             label={modeConfig.searchLabel}

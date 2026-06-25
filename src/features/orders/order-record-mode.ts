@@ -36,18 +36,18 @@ const ORDER_RECORD_MODE_CONFIG: Record<OrderRecordMode, OrderRecordModeConfig> =
     loadingMessage: "A carregar registo operacional de encomendas...",
     loadErrorMessage:
       "Não foi possível carregar o registo operacional. Verifique a sessão e a disponibilidade do backend.",
-    searchLabel: "Pesquisar encomenda existente",
-    searchPlaceholder: "Pesquisar por nº da encomenda, cliente ou contacto",
+    searchLabel: "Nome do cliente",
+    searchPlaceholder: "Buscar por nome do cliente",
     searchHelpIdle:
-      "Use critérios operacionais relevantes para localizar rapidamente a encomenda certa.",
-    searchHelpLoading: "A procurar encomendas no backend...",
+      "Digite o nome do cliente e clique em Buscar para localizar a encomenda certa.",
+    searchHelpLoading: "A procurar clientes no backend...",
     emptyStateTitle: ({ searchTerm }) =>
       searchTerm.trim().length > 0
         ? "Nenhuma encomenda encontrada"
         : "Não existem encomendas para os filtros ativos.",
     emptyStateDescription: ({ filterSummary, searchTerm }) =>
       searchTerm.trim().length > 0
-        ? `Não encontrámos resultados para "${searchTerm}". Ajuste o número, nome do cliente ou contacto e tente novamente.`
+        ? `Não encontrámos resultados para "${searchTerm}". Ajuste o nome do cliente e tente novamente.`
         : `Não encontrámos encomendas para os critérios: ${filterSummary}. Ajuste os filtros operacionais para continuar a triagem.`,
     detailTitle: (orderId) =>
       orderId != null ? `Encomenda #${orderId}` : "Detalhe da encomenda",
@@ -66,18 +66,18 @@ const ORDER_RECORD_MODE_CONFIG: Record<OrderRecordMode, OrderRecordModeConfig> =
     loadingMessage: "A carregar investigação de encomendas...",
     loadErrorMessage:
       "Não foi possível carregar a investigação de encomendas. Verifique a sessão e a disponibilidade do backend.",
-    searchLabel: "Pesquisar encomenda para investigação",
-    searchPlaceholder: "Pesquisar por ID, cliente ou contacto",
+    searchLabel: "Nome do cliente",
+    searchPlaceholder: "Buscar por nome do cliente",
     searchHelpIdle:
-      "Pesquise qualquer encomenda administrativa por ID, nome do cliente ou contacto.",
-    searchHelpLoading: "A pesquisar encomendas administrativas no backend...",
+      "Digite o nome do cliente e clique em Buscar para pesquisar nas encomendas administrativas.",
+    searchHelpLoading: "A pesquisar clientes no backend...",
     emptyStateTitle: ({ searchTerm }) =>
       searchTerm.trim().length > 0
         ? "Nenhuma encomenda encontrada para investigação"
         : "Nenhuma encomenda corresponde aos critérios atuais.",
     emptyStateDescription: ({ filterSummary, searchTerm }) =>
       searchTerm.trim().length > 0
-        ? `Não encontrámos resultados para "${searchTerm}" no universo pesquisável de encomendas administrativas. Ajuste o ID, nome do cliente ou contacto e tente novamente.`
+        ? `Não encontrámos resultados para "${searchTerm}" no universo pesquisável de encomendas administrativas. Ajuste o nome do cliente e tente novamente.`
         : `Não encontrámos encomendas no universo pesquisável para os critérios: ${filterSummary}. Ajuste a pesquisa ou os filtros e tente novamente.`,
     detailTitle: (orderId) =>
       orderId != null
