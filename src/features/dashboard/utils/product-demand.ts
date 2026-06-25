@@ -35,6 +35,79 @@ function buildDemandItemLabel(item: OrderItem) {
   return productName;
 }
 
+function inferPackFlavorSlots(item: OrderItem) {
+  const variantName = item.variantName?.trim();
+
+  if (!variantName) {
+    return null;
+  }
+
+  const unitMatch = variantName.match(/(\d+)/);
+
+  if (!unitMatch) {
+    return null;
+  }
+
+  const units = Number(unitMatch[1]);
+
+  if (!Number.isFinite(units) || units < 25 || units % 25 !== 0) {
+    return null;
+  }
+
+  return units / 25;
+}
+
+function buildFlavorDemandLabels(item: OrderItem) {
+  if (item.flavorNames && item.flavorNames.length > 0) {
+    const labels = item.flavorNames.map((name) => name.trim()).filter(Boolean);
+
+    if (labels.length === 0) {
+      return [];
+    }
+
+    const inferredSlots = inferPackFlavorSlots(item);
+
+    if (labels.length === 1 && inferredSlots && inferredSlots > 1) {
+      return Array.from({ length: inferredSlots }, () => labels[0]);
+    }
+
+    return labels;
+  }
+
+  if (item.flavorIds && item.flavorIds.length > 0) {
+    const labels = item.flavorIds.map((id) => `#${id}`);
+    const inferredSlots = inferPackFlavorSlots(item);
+
+    if (labels.length === 1 && inferredSlots && inferredSlots > 1) {
+      return Array.from({ length: inferredSlots }, () => labels[0]);
+    }
+
+    return labels;
+  }
+
+  return [];
+}
+
+function buildDemandRowsForItem(item: OrderItem): ProductDemandRow[] {
+  const flavorLabels = buildFlavorDemandLabels(item);
+
+  if (flavorLabels.length > 0) {
+    return flavorLabels.map((label) => ({
+      key: `flavor:${label}`,
+      label,
+      quantity: item.quantity,
+    }));
+  }
+
+  return [
+    {
+      key: buildDemandItemKey(item),
+      label: buildDemandItemLabel(item),
+      quantity: item.quantity,
+    },
+  ];
+}
+
 export function buildProductDemandSummary(orders: Order[]): ProductDemandSummary {
   const aggregates = new Map<string, ProductDemandRow>();
   let orderCount = 0;
@@ -52,16 +125,17 @@ export function buildProductDemandSummary(orders: Order[]): ProductDemandSummary
         continue;
       }
 
-      const key = buildDemandItemKey(item);
-      const existing = aggregates.get(key);
-      const nextQuantity = (existing?.quantity ?? 0) + item.quantity;
+      for (const row of buildDemandRowsForItem(item)) {
+        const existing = aggregates.get(row.key);
+        const nextQuantity = (existing?.quantity ?? 0) + row.quantity;
 
-      totalQuantity += item.quantity;
-      aggregates.set(key, {
-        key,
-        label: buildDemandItemLabel(item),
-        quantity: nextQuantity,
-      });
+        totalQuantity += row.quantity;
+        aggregates.set(row.key, {
+          key: row.key,
+          label: row.label,
+          quantity: nextQuantity,
+        });
+      }
     }
   }
 
