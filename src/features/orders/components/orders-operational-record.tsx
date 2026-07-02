@@ -244,14 +244,6 @@ function buildFlavorSummary(item: Order["items"][number]) {
   return null;
 }
 
-function buildFlavorCountsFromIds(flavorIds: number[] | undefined) {
-  return (flavorIds ?? []).reduce<Record<number, number>>((counts, flavorId) => {
-    counts[flavorId] = (counts[flavorId] ?? 0) + 1;
-
-    return counts;
-  }, {});
-}
-
 function flattenFlavorCounts(flavorCounts: Record<number, number>) {
   return Object.entries(flavorCounts).flatMap(([flavorId, quantity]) =>
     Array.from({ length: Math.max(0, quantity) }, () => Number(flavorId)),
@@ -819,9 +811,10 @@ export function OrderDetailSheet({
     () =>
       resolveRequiredWithdrawalFlavorCount(
         selectedWithdrawalItem ?? undefined,
+        selectedWithdrawalProduct,
         Number.isFinite(parsedWithdrawalUnits) ? parsedWithdrawalUnits : 0,
       ),
-    [parsedWithdrawalUnits, selectedWithdrawalItem],
+    [parsedWithdrawalUnits, selectedWithdrawalItem, selectedWithdrawalProduct],
   );
   const selectedWithdrawalFlavorTotal = React.useMemo(
     () => Object.values(withdrawalFlavorCounts).reduce((total, current) => total + current, 0),

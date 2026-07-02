@@ -86,6 +86,27 @@ test("toThermalPrintOrder expands repeated single-flavor pack selections for the
   ]);
 });
 
+test("toThermalPrintOrder appends partial withdrawal observations to the thermal notes", () => {
+  const printable = toThermalPrintOrder({
+    ...baseOrder,
+    notes: "Cliente pediu confirmação",
+    partialWithdrawals: [
+      {
+        id: 8,
+        requestedUnits: 25,
+        flavorNames: ["Frango"],
+        scheduledAt: "2026-05-20T17:00:00.000Z",
+        status: "planned",
+      },
+    ],
+  });
+
+  assert.match(printable.notesLabel, /Cliente pediu confirmação/);
+  assert.match(printable.notesLabel, /Retiradas parciais:/);
+  assert.match(printable.notesLabel, /Retirada: 25 unid\./);
+  assert.match(printable.notesLabel, /Frango/);
+});
+
 test("buildOrderPrintHref encodes ids for the dedicated print route", () => {
   assert.equal(buildOrderPrintHref(123), "/orders/123/print");
   assert.equal(buildOrderPrintHref("abc/45"), "/orders/abc%2F45/print");

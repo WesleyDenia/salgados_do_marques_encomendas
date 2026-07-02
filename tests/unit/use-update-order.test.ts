@@ -195,6 +195,8 @@ test("createOrderPartialWithdrawal sends the derived-order contract for operatio
             parent_order_item_id: 5,
             generated_order_id: 92,
             requested_units: 25,
+            flavor_ids: [7],
+            flavor_names: ["Frango"],
             scheduled_at: "2026-07-02T17:00:00.000Z",
             status: "planned",
             notes: "Retirada das 18h",
@@ -223,6 +225,7 @@ test("createOrderPartialWithdrawal sends the derived-order contract for operatio
       {
         parentOrderItemId: 5,
         requestedUnits: 25,
+        flavorIds: [7],
         date: "2026-07-02",
         time: "18:00",
         generateChildOrder: true,
@@ -235,11 +238,13 @@ test("createOrderPartialWithdrawal sends the derived-order contract for operatio
     assert.deepEqual(capturedPayload, {
       parent_order_item_id: 5,
       requested_units: 25,
+      flavor_ids: [7],
       scheduled_at: "2026-07-02T17:00:00.000Z",
       generate_child_order: true,
       notes: "Retirada das 18h",
     });
     assert.equal(result.withdrawal.requestedUnits, 25);
+    assert.deepEqual(result.withdrawal.flavorNames, ["Frango"]);
     assert.equal(result.generatedOrder?.parentOrderId, 91);
   } finally {
     apiClient.post = originalPost;

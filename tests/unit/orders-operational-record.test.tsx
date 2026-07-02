@@ -111,6 +111,15 @@ test("OrdersOperationalRecordContent renders full operational cards in blocks mo
           scheduledAt: "2026-06-13T16:00:00+00:00",
           total: 30,
           notes: "",
+          partialWithdrawals: [
+            {
+              id: 77,
+              requestedUnits: 25,
+              flavorNames: ["Frango"],
+              status: "planned",
+              scheduledAt: "2026-06-13T16:00:00+00:00",
+            },
+          ],
           store: {
             id: 3,
             name: "Loja Centro",
@@ -148,6 +157,8 @@ test("OrdersOperationalRecordContent renders full operational cards in blocks mo
   assert.match(markup, /Pack 100 Unidades/);
   assert.match(markup, /\* Pack Mix/);
   assert.match(markup, /\* Coxinha de Frango/);
+  assert.match(markup, /Retirada parcial registada/);
+  assert.match(markup, /25 unidades em 1 agendamento/);
   assert.match(markup, /Valor:<\/span> 30,00/);
   assert.match(markup, /Sem notas operacionais persistidas/);
 });

@@ -135,6 +135,10 @@ function formatPaymentLabel(value?: Order["paymentStatus"] | null) {
     return "***** PAGO *****";
   }
 
+  if (value === "partial") {
+    return "PARCIAL";
+  }
+
   return "------- À PAGAR -------";
 }
 

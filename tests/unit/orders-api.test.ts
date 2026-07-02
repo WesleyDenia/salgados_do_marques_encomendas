@@ -119,6 +119,8 @@ test("normalizeOrderResource keeps derivation and partial withdrawal metadata fo
         parent_order_item_id: 5,
         generated_order_id: 88,
         requested_units: 25,
+        flavor_ids: [7],
+        flavor_names: ["Frango"],
         scheduled_at: "2026-07-02T18:00:00.000Z",
         status: "planned",
       },
@@ -132,4 +134,5 @@ test("normalizeOrderResource keeps derivation and partial withdrawal metadata fo
   assert.equal(order.parentOrder?.id, 41);
   assert.equal(order.items[0]?.parentOrderItemId, 5);
   assert.equal(order.partialWithdrawals?.[0]?.generatedOrderId, 88);
+  assert.deepEqual(order.partialWithdrawals?.[0]?.flavorNames, ["Frango"]);
 });
