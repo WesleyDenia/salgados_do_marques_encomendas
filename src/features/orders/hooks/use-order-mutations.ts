@@ -206,6 +206,7 @@ export function useCreateOrderPartialWithdrawal() {
       input: {
         parentOrderItemId: number;
         requestedUnits: number;
+        flavorIds?: number[];
         date: string;
         time: string;
         generateChildOrder?: boolean;

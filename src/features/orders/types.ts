@@ -87,6 +87,8 @@ export type OrderPartialWithdrawal = {
   parentOrderItemId?: number | null;
   generatedOrderId?: number | null;
   requestedUnits: number;
+  flavorIds?: number[];
+  flavorNames?: string[];
   scheduledAt?: string | null;
   status: "planned" | "completed" | "cancelled" | string;
   notes?: string | null;

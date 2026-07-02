@@ -159,6 +159,8 @@ type BackendOrderPartialWithdrawal = {
   parent_order_item_id?: number | null;
   generated_order_id?: number | null;
   requested_units: number;
+  flavor_ids?: number[];
+  flavor_names?: string[];
   scheduled_at?: string | null;
   status: string;
   notes?: string | null;
@@ -269,6 +271,8 @@ function normalizePartialWithdrawalResource(
     parentOrderItemId: resource.parent_order_item_id ?? null,
     generatedOrderId: resource.generated_order_id ?? null,
     requestedUnits: resource.requested_units,
+    flavorIds: resource.flavor_ids ?? [],
+    flavorNames: resource.flavor_names ?? [],
     scheduledAt: normalizeOperationalApiDateTime(resource.scheduled_at ?? null),
     status: resource.status,
     notes: resource.notes ?? null,
@@ -576,6 +580,7 @@ export async function createOrderPartialWithdrawal(
   input: {
     parentOrderItemId: number;
     requestedUnits: number;
+    flavorIds?: number[];
     date: string;
     time: string;
     generateChildOrder?: boolean;
@@ -594,6 +599,7 @@ export async function createOrderPartialWithdrawal(
     {
       parent_order_item_id: input.parentOrderItemId,
       requested_units: input.requestedUnits,
+      flavor_ids: input.flavorIds ?? [],
       scheduled_at: buildScheduledAt(input.date, input.time, timeZone),
       generate_child_order: input.generateChildOrder ?? true,
       notes: input.notes?.trim() ? input.notes.trim() : null,

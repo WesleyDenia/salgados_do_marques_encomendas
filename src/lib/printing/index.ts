@@ -238,6 +238,30 @@ function buildFlavorLines(item: Order["items"][number]) {
   return [];
 }
 
+function buildWithdrawalLines(order: Order, timeZone: string) {
+  return (order.partialWithdrawals ?? []).map((withdrawal) => {
+    const flavorSummary =
+      withdrawal.flavorNames && withdrawal.flavorNames.length > 0
+        ? withdrawal.flavorNames.join(", ")
+        : withdrawal.flavorIds && withdrawal.flavorIds.length > 0
+          ? withdrawal.flavorIds.map((id) => `#${id}`).join(", ")
+          : "sabores não informados";
+
+    return `Retirada: ${withdrawal.requestedUnits} unid. · ${formatScheduledAtDetailed(withdrawal.scheduledAt, timeZone)} · ${flavorSummary}`;
+  });
+}
+
+function buildPrintNotesLabel(order: Order, timeZone: string) {
+  const baseNotes = order.notes?.trim() || "Sem notas operacionais";
+  const withdrawalLines = buildWithdrawalLines(order, timeZone);
+
+  if (withdrawalLines.length === 0) {
+    return baseNotes;
+  }
+
+  return [baseNotes, "Retiradas parciais:", ...withdrawalLines].join("\n");
+}
+
 export function toThermalPrintOrder(
   order: Order,
   options?: {
@@ -256,7 +280,7 @@ export function toThermalPrintOrder(
     scheduledAtLabel: formatScheduledAtDetailed(order.scheduledAt, timeZone),
     paymentLabel: formatPaymentLabel(order.paymentStatus),
     totalLabel: formatPrintCurrency(order.total),
-    notesLabel: order.notes?.trim() || "Sem notas operacionais",
+    notesLabel: buildPrintNotesLabel(order, timeZone),
     items: order.items.map((item, index) => ({
       key: String(item.id ?? `${item.productId}-${index}`),
       title: buildPrintItemTitle(item),

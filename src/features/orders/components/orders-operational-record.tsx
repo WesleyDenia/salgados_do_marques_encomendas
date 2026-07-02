@@ -40,7 +40,10 @@ import {
   useUpdateOrder,
   useUpdateOrderStatus,
 } from "@/features/orders/hooks/use-order-mutations";
-import { useOrderDetail } from "@/features/orders/hooks/use-order-queries";
+import {
+  useOrderDetail,
+  useOrderProducts,
+} from "@/features/orders/hooks/use-order-queries";
 import { OrderSearch } from "@/features/orders/components/order-search";
 import {
   normalizeOrderOperationalPaymentStatus,
@@ -60,7 +63,7 @@ import {
   ORDER_PAYMENT_STATUS_LABELS,
   ORDER_SLOT_LABELS,
 } from "@/features/orders/types";
-import type { Order, OrderTag } from "@/features/orders/types";
+import type { Order, OrderProductOption, OrderTag } from "@/features/orders/types";
 import { formatOperationalDateTime } from "@/features/orders/utils/operational-timezone";
 import {
   buildOrderPrintAttemptId,
@@ -239,6 +242,84 @@ function buildFlavorSummary(item: Order["items"][number]) {
   }
 
   return null;
+}
+
+function buildFlavorCountsFromIds(flavorIds: number[] | undefined) {
+  return (flavorIds ?? []).reduce<Record<number, number>>((counts, flavorId) => {
+    counts[flavorId] = (counts[flavorId] ?? 0) + 1;
+
+    return counts;
+  }, {});
+}
+
+function flattenFlavorCounts(flavorCounts: Record<number, number>) {
+  return Object.entries(flavorCounts).flatMap(([flavorId, quantity]) =>
+    Array.from({ length: Math.max(0, quantity) }, () => Number(flavorId)),
+  );
+}
+
+function resolveRequiredWithdrawalFlavorCount(
+  item: Order["items"][number] | undefined,
+  product: OrderProductOption | null,
+  requestedUnits: number,
+) {
+  if (!item || !Number.isFinite(requestedUnits) || requestedUnits < 1) {
+    return 0;
+  }
+
+  const originalUnits = Math.max(1, item.originalUnits ?? item.quantity);
+  const parentFlavorCount = item.flavorIds?.length ?? 0;
+
+  if (parentFlavorCount > 0) {
+    return Math.max(1, Math.round((parentFlavorCount * requestedUnits) / originalUnits));
+  }
+
+  const selectedVariant =
+    product?.variants?.find((variant) => variant.id === item.variantId) ?? null;
+
+  if ((selectedVariant?.maxFlavors ?? 0) > 0 && (selectedVariant?.unitCount ?? 0) > 0) {
+    return Math.max(
+      1,
+      Math.round(
+        (selectedVariant!.maxFlavors * requestedUnits) /
+          Math.max(1, selectedVariant!.unitCount),
+      ),
+    );
+  }
+
+  return 0;
+}
+
+function buildWithdrawalFlavorSummary(
+  withdrawal: NonNullable<Order["partialWithdrawals"]>[number],
+) {
+  if (withdrawal.flavorNames && withdrawal.flavorNames.length > 0) {
+    return withdrawal.flavorNames.join(", ");
+  }
+
+  if (withdrawal.flavorIds && withdrawal.flavorIds.length > 0) {
+    return withdrawal.flavorIds.map((flavorId) => `#${flavorId}`).join(", ");
+  }
+
+  return null;
+}
+
+function buildPartialWithdrawalStatusSummary(order: Order) {
+  const withdrawals = order.partialWithdrawals ?? [];
+
+  if (withdrawals.length === 0) {
+    return null;
+  }
+
+  const totalUnits = withdrawals.reduce(
+    (total, withdrawal) => total + withdrawal.requestedUnits,
+    0,
+  );
+
+  return {
+    totalUnits,
+    totalWithdrawals: withdrawals.length,
+  };
 }
 
 function buildTagTextColor(color: string) {
@@ -663,6 +744,7 @@ export function OrderDetailSheet({
   printState = "ready",
   printErrorMessage,
   statusLabels,
+  productCatalog,
   timeZone,
   mode = "operational",
   historyLoading = false,
@@ -677,6 +759,7 @@ export function OrderDetailSheet({
   onCreatePartialWithdrawal?: (input: {
     parentOrderItemId: number;
     requestedUnits: number;
+    flavorIds?: number[];
     date: string;
     time: string;
     generateChildOrder: boolean;
@@ -690,6 +773,7 @@ export function OrderDetailSheet({
   printState?: PrintFlowState;
   printErrorMessage?: string | null;
   statusLabels?: Record<string, string>;
+  productCatalog?: OrderProductOption[];
   timeZone?: string;
   mode?: OrderRecordMode;
   historyLoading?: boolean;
@@ -714,9 +798,35 @@ export function OrderDetailSheet({
   const [withdrawalDate, setWithdrawalDate] = React.useState("");
   const [withdrawalTime, setWithdrawalTime] = React.useState("");
   const [withdrawalNotes, setWithdrawalNotes] = React.useState("");
+  const [withdrawalFlavorCounts, setWithdrawalFlavorCounts] = React.useState<Record<number, number>>({});
   const [generateChildOrder, setGenerateChildOrder] = React.useState(true);
   const [isSubmittingWithdrawal, setIsSubmittingWithdrawal] = React.useState(false);
   const [withdrawalError, setWithdrawalError] = React.useState<string | null>(null);
+  const selectedWithdrawalItem = React.useMemo(
+    () => eligibleWithdrawalItems.find((item) => String(item.id) === withdrawalItemId) ?? null,
+    [eligibleWithdrawalItems, withdrawalItemId],
+  );
+  const selectedWithdrawalProduct = React.useMemo(
+    () =>
+      productCatalog?.find(
+        (product) => product.id === selectedWithdrawalItem?.productId,
+      ) ?? null,
+    [productCatalog, selectedWithdrawalItem?.productId],
+  );
+  const withdrawalAllowedFlavors = selectedWithdrawalProduct?.allowedFlavors ?? [];
+  const parsedWithdrawalUnits = Number(withdrawalUnits);
+  const requiredWithdrawalFlavorCount = React.useMemo(
+    () =>
+      resolveRequiredWithdrawalFlavorCount(
+        selectedWithdrawalItem ?? undefined,
+        Number.isFinite(parsedWithdrawalUnits) ? parsedWithdrawalUnits : 0,
+      ),
+    [parsedWithdrawalUnits, selectedWithdrawalItem],
+  );
+  const selectedWithdrawalFlavorTotal = React.useMemo(
+    () => Object.values(withdrawalFlavorCounts).reduce((total, current) => total + current, 0),
+    [withdrawalFlavorCounts],
+  );
 
   React.useEffect(() => {
     if (!order) {
@@ -726,6 +836,7 @@ export function OrderDetailSheet({
       setWithdrawalDate("");
       setWithdrawalTime("");
       setWithdrawalNotes("");
+      setWithdrawalFlavorCounts({});
       setGenerateChildOrder(true);
       setWithdrawalError(null);
       return;
@@ -738,10 +849,30 @@ export function OrderDetailSheet({
     setWithdrawalDate(getDateInputValue(order.scheduledAt, timeZone));
     setWithdrawalTime(getTimeInputValue(order.scheduledAt, timeZone));
     setWithdrawalNotes("");
+    setWithdrawalFlavorCounts({});
     setGenerateChildOrder(true);
     setWithdrawalError(null);
     setWithdrawalFormOpen(false);
   }, [eligibleWithdrawalItems, order, timeZone]);
+
+  React.useEffect(() => {
+    setWithdrawalFlavorCounts({});
+  }, [requiredWithdrawalFlavorCount, selectedWithdrawalItem?.id]);
+
+  function handleWithdrawalFlavorChange(flavorId: number, nextValue: number) {
+    const safeValue = Math.max(0, nextValue);
+    const currentValue = withdrawalFlavorCounts[flavorId] ?? 0;
+    const nextTotal = selectedWithdrawalFlavorTotal - currentValue + safeValue;
+
+    if (requiredWithdrawalFlavorCount > 0 && nextTotal > requiredWithdrawalFlavorCount) {
+      return;
+    }
+
+    setWithdrawalFlavorCounts((current) => ({
+      ...current,
+      [flavorId]: safeValue,
+    }));
+  }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -871,6 +1002,16 @@ export function OrderDetailSheet({
                   </p>
                 </div>
               )}
+
+              {order.parentOrderId === null && buildPartialWithdrawalStatusSummary(order) ? (
+                <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                  <p className="font-medium">Retirada parcial já registada</p>
+                  <p className="mt-1">
+                    {buildPartialWithdrawalStatusSummary(order)?.totalUnits} unidades em{" "}
+                    {buildPartialWithdrawalStatusSummary(order)?.totalWithdrawals} agendamento(s).
+                  </p>
+                </div>
+              ) : null}
 
               <section className="grid gap-4 md:grid-cols-2">
                 <div className="rounded-xl border border-border/70 bg-card/60 p-4">
@@ -1055,6 +1196,74 @@ export function OrderDetailSheet({
                         />
                       </div>
 
+                      {requiredWithdrawalFlavorCount > 0 ? (
+                        <div className="space-y-3 md:col-span-2 rounded-xl border border-border/70 bg-card/50 p-4">
+                          <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-foreground">
+                                Sabores da retirada
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Selecione exatamente {requiredWithdrawalFlavorCount} sabor(es) para esta retirada.
+                              </p>
+                            </div>
+                            <div className="text-sm font-medium text-foreground">
+                              {selectedWithdrawalFlavorTotal} de {requiredWithdrawalFlavorCount}
+                            </div>
+                          </div>
+
+                          {withdrawalAllowedFlavors.length > 0 ? (
+                            <div className="space-y-3">
+                              {withdrawalAllowedFlavors.map((flavor) => (
+                                <div
+                                  key={flavor.id}
+                                  className="flex items-center justify-between gap-4 rounded-lg border border-border/70 bg-background/80 px-4 py-3"
+                                >
+                                  <p className="font-medium text-foreground">{flavor.name}</p>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() =>
+                                        handleWithdrawalFlavorChange(
+                                          flavor.id,
+                                          (withdrawalFlavorCounts[flavor.id] ?? 0) - 1,
+                                        )
+                                      }
+                                    >
+                                      -
+                                    </Button>
+                                    <span className="w-8 text-center text-sm font-medium text-foreground">
+                                      {withdrawalFlavorCounts[flavor.id] ?? 0}
+                                    </span>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() =>
+                                        handleWithdrawalFlavorChange(
+                                          flavor.id,
+                                          (withdrawalFlavorCounts[flavor.id] ?? 0) + 1,
+                                        )
+                                      }
+                                    >
+                                      +
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-amber-700">
+                              Este artigo ainda não tem sabores disponíveis no catálogo carregado.
+                            </p>
+                          )}
+                        </div>
+                      ) : null}
+
                       <div className="space-y-2 md:col-span-2">
                         <label className="text-sm font-medium" htmlFor="withdrawal-notes">
                           Notas
@@ -1095,23 +1304,30 @@ export function OrderDetailSheet({
                           type="button"
                           disabled={isSubmittingWithdrawal}
                           onClick={async () => {
-                            const selectedItem = eligibleWithdrawalItems.find(
-                              (item) => String(item.id) === withdrawalItemId,
-                            );
-                            const parsedUnits = Number(withdrawalUnits);
+                            const selectedFlavorIds = flattenFlavorCounts(withdrawalFlavorCounts);
 
-                            if (!selectedItem?.id) {
+                            if (!selectedWithdrawalItem?.id) {
                               setWithdrawalError("Selecione o item da encomenda mãe.");
                               return;
                             }
 
-                            if (!Number.isFinite(parsedUnits) || parsedUnits < 25 || parsedUnits % 25 !== 0) {
+                            if (!Number.isFinite(parsedWithdrawalUnits) || parsedWithdrawalUnits < 25 || parsedWithdrawalUnits % 25 !== 0) {
                               setWithdrawalError("A retirada parcial deve ser registada em múltiplos de 25 unidades.");
                               return;
                             }
 
-                            if ((selectedItem.remainingUnits ?? 0) < parsedUnits) {
+                            if ((selectedWithdrawalItem.remainingUnits ?? 0) < parsedWithdrawalUnits) {
                               setWithdrawalError("A quantidade pedida excede o saldo disponível para este item.");
+                              return;
+                            }
+
+                            if (
+                              requiredWithdrawalFlavorCount > 0 &&
+                              selectedWithdrawalFlavorTotal !== requiredWithdrawalFlavorCount
+                            ) {
+                              setWithdrawalError(
+                                `Selecione exatamente ${requiredWithdrawalFlavorCount} sabor(es) para a retirada.`,
+                              );
                               return;
                             }
 
@@ -1125,8 +1341,9 @@ export function OrderDetailSheet({
 
                             try {
                               await onCreatePartialWithdrawal({
-                                parentOrderItemId: Number(selectedItem.id),
-                                requestedUnits: parsedUnits,
+                                parentOrderItemId: Number(selectedWithdrawalItem.id),
+                                requestedUnits: parsedWithdrawalUnits,
+                                flavorIds: selectedFlavorIds,
                                 date: withdrawalDate,
                                 time: withdrawalTime,
                                 generateChildOrder,
@@ -1167,6 +1384,11 @@ export function OrderDetailSheet({
                               ? ` · encomenda derivada #${withdrawal.generatedOrderId}`
                               : ""}
                           </p>
+                          {buildWithdrawalFlavorSummary(withdrawal) ? (
+                            <p className="mt-1 text-muted-foreground">
+                              Sabores: {buildWithdrawalFlavorSummary(withdrawal)}
+                            </p>
+                          ) : null}
                           {withdrawal.notes?.trim() ? (
                             <p className="mt-2 whitespace-pre-wrap text-muted-foreground">
                               {withdrawal.notes}
@@ -1434,7 +1656,17 @@ export function OrdersOperationalRecordContent({
                 </div>
               </div>
 
-              <div className="mt-4 space-y-4">
+	              <div className="mt-4 space-y-4">
+                {buildPartialWithdrawalStatusSummary(order) ? (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    <p className="font-medium">Retirada parcial registada</p>
+                    <p className="mt-1">
+                      {buildPartialWithdrawalStatusSummary(order)?.totalUnits} unidades em{" "}
+                      {buildPartialWithdrawalStatusSummary(order)?.totalWithdrawals} agendamento(s).
+                    </p>
+                  </div>
+                ) : null}
+
                 {order.items.map((item, index) => {
                   const flavorSummary = buildFlavorSummary(item);
 
@@ -1531,6 +1763,7 @@ export function OrdersOperationalRecord({
   const [viewMode, setViewMode] = React.useState<"list" | "cards">("list");
   const printAttemptByOrderIdRef = React.useRef<Record<string, string | null>>({});
   const detailQuery = useOrderDetail(selectedOrder?.id ?? null);
+  const productsQuery = useOrderProducts();
   const createPartialWithdrawalMutation = useCreateOrderPartialWithdrawal();
   const updateOrderStatusMutation = useUpdateOrderStatus();
   const updateOrderMutation = useUpdateOrder();
@@ -2431,6 +2664,7 @@ export function OrdersOperationalRecord({
           selectedOrder ? printErrorByOrderId[String(selectedOrder.id)] : null
         }
         statusLabels={settings?.statusLabels}
+        productCatalog={productsQuery.data?.data ?? []}
         timeZone={settings?.timezone}
         mode={mode}
         historyLoading={
