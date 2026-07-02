@@ -14,6 +14,7 @@ test("OrderDetailSheet renders all required sections following AC 2 hierarchy", 
     <OrderDetailSheet
       open={true}
       onOpenChange={() => {}}
+      onEditOrder={() => {}}
       statusLabels={{ pending: "Pendente" }}
       timeZone="Europe/Lisbon"
       order={{
@@ -100,6 +101,7 @@ test("OrderDetailSheet hides the withdrawal action for derived orders", () => {
     <OrderDetailSheet
       open={true}
       onOpenChange={() => {}}
+      onOpenWithdrawal={() => {}}
       order={{
         id: 126,
         parentOrderId: 55,
@@ -112,7 +114,37 @@ test("OrderDetailSheet hides the withdrawal action for derived orders", () => {
   );
 
   assert.match(markup, /Encomenda derivada/);
-  assert.doesNotMatch(markup, /Registar retirada/);
+  assert.doesNotMatch(markup, /Retirada<\/button>/);
+});
+
+test("OrderDetailSheet shows the withdrawal action for eligible parent orders", () => {
+  const markup = renderToStaticMarkup(
+    <OrderDetailSheet
+      open={true}
+      onOpenChange={() => {}}
+      onOpenWithdrawal={() => {}}
+      order={{
+        id: 127,
+        status: "accepted",
+        canEdit: true,
+        items: [
+          {
+            id: 11,
+            productId: 8,
+            productName: "Mini Salgados",
+            quantity: 1,
+            total: 35,
+            canWithdrawPartially: true,
+            remainingUnits: 75,
+            originalUnits: 100,
+          },
+        ],
+      }}
+    />,
+  );
+
+  assert.match(markup, /Retiradas parciais/);
+  assert.match(markup, /Retirada<\/button>/);
 });
 
 test("OrderDetailSheet shows warning and disables button when canEdit is false", () => {
@@ -120,6 +152,7 @@ test("OrderDetailSheet shows warning and disables button when canEdit is false",
     <OrderDetailSheet
       open={true}
       onOpenChange={() => {}}
+      onEditOrder={() => {}}
       order={{
         id: 125,
         status: "ready",

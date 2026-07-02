@@ -60,6 +60,72 @@ test("OrdersOperationalRecordContent renders the persisted operational record", 
   assert.doesNotMatch(markup, /Sem picante/);
 });
 
+test("OrdersOperationalRecordContent shows withdrawal action only for eligible parent orders", () => {
+  const markup = renderToStaticMarkup(
+    <OrdersOperationalRecordContent
+      orders={[
+        {
+          id: 42,
+          status: "placed",
+          paymentStatus: "pending",
+          slot: "manha",
+          customerName: "Maria Silva",
+          scheduledAt: "2026-05-20T09:30:00+00:00",
+          total: 24,
+          store: {
+            id: 3,
+            name: "Loja Centro",
+          },
+          items: [
+            {
+              id: 1,
+              productId: 12,
+              productName: "Pack 100",
+              quantity: 1,
+              total: 24,
+              canWithdrawPartially: true,
+              remainingUnits: 75,
+            },
+          ],
+          createdAt: "2026-05-12T09:30:00+00:00",
+        },
+        {
+          id: 43,
+          parentOrderId: 42,
+          status: "placed",
+          paymentStatus: "pending",
+          slot: "manha",
+          customerName: "Filha",
+          scheduledAt: "2026-05-20T09:30:00+00:00",
+          total: 12,
+          store: {
+            id: 3,
+            name: "Loja Centro",
+          },
+          items: [
+            {
+              id: 2,
+              parentOrderItemId: 1,
+              productId: 12,
+              productName: "Pack 25",
+              quantity: 1,
+              total: 12,
+              canWithdrawPartially: true,
+              remainingUnits: 25,
+            },
+          ],
+          createdAt: "2026-05-12T09:30:00+00:00",
+        },
+      ]}
+      meta={{ current_page: 1, last_page: 1, total: 2 }}
+      timeZone="Europe/Lisbon"
+      onOpenWithdrawal={() => {}}
+    />,
+  );
+
+  assert.equal((markup.match(/Retirada<\/button>/g) ?? []).length, 1);
+});
+
 test("OrdersOperationalRecordContent adapts copy for investigation mode", () => {
   const markup = renderToStaticMarkup(
     <OrdersOperationalRecordContent
@@ -168,6 +234,7 @@ test("OrderDetailSheet enables edit button when canEdit is true", () => {
     <OrderDetailSheet
       open={true}
       onOpenChange={() => {}}
+      onEditOrder={() => {}}
       statusLabels={{ placed: "Realizado" }}
       timeZone="Europe/Lisbon"
       order={{
@@ -189,6 +256,7 @@ test("OrderDetailSheet disables edit button and shows reason when canEdit is fal
     <OrderDetailSheet
       open={true}
       onOpenChange={() => {}}
+      onEditOrder={() => {}}
       statusLabels={{ concluido: "Concluído" }}
       timeZone="Europe/Lisbon"
       order={{
@@ -211,6 +279,7 @@ test("OrderDetailSheet does not block corrections when canEdit is still unknown"
     <OrderDetailSheet
       open={true}
       onOpenChange={() => {}}
+      onEditOrder={() => {}}
       statusLabels={{ placed: "Realizado" }}
       timeZone="Europe/Lisbon"
       order={{
