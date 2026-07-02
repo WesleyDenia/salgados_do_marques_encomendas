@@ -90,6 +90,18 @@ test("toThermalPrintOrder appends partial withdrawal observations to the thermal
   const printable = toThermalPrintOrder({
     ...baseOrder,
     notes: "Cliente pediu confirmação",
+    items: [
+      {
+        id: 99,
+        productId: 99,
+        productName: "Pack 100",
+        quantity: 1,
+        total: 60,
+        originalUnits: 100,
+        remainingUnits: 75,
+        canWithdrawPartially: true,
+      },
+    ],
     partialWithdrawals: [
       {
         id: 8,
@@ -103,6 +115,7 @@ test("toThermalPrintOrder appends partial withdrawal observations to the thermal
 
   assert.match(printable.notesLabel, /Cliente pediu confirmação/);
   assert.match(printable.notesLabel, /Retiradas parciais:/);
+  assert.match(printable.notesLabel, /Saldo restante: 75 unid\./);
   assert.match(printable.notesLabel, /Retirada: 25 unid\./);
   assert.match(printable.notesLabel, /Frango/);
 });

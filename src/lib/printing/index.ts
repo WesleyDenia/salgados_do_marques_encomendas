@@ -255,15 +255,45 @@ function buildWithdrawalLines(order: Order, timeZone: string) {
   });
 }
 
+function buildRemainingWithdrawalUnitsLabel(order: Order) {
+  const eligibleItems = order.items.filter(
+    (item) => item.canWithdrawPartially || item.originalUnits != null || item.remainingUnits != null,
+  );
+
+  if (eligibleItems.length === 0) {
+    return null;
+  }
+
+  const totalRemainingUnits = eligibleItems.reduce((total, item) => {
+    if (typeof item.remainingUnits === "number") {
+      return total + Math.max(0, item.remainingUnits);
+    }
+
+    if (typeof item.originalUnits === "number") {
+      return total + Math.max(0, item.originalUnits - (item.withdrawnUnits ?? 0));
+    }
+
+    return total;
+  }, 0);
+
+  return `Saldo restante: ${totalRemainingUnits} unid.`;
+}
+
 function buildPrintNotesLabel(order: Order, timeZone: string) {
   const baseNotes = order.notes?.trim() || "Sem notas operacionais";
   const withdrawalLines = buildWithdrawalLines(order, timeZone);
+  const remainingUnitsLabel = buildRemainingWithdrawalUnitsLabel(order);
 
   if (withdrawalLines.length === 0) {
     return baseNotes;
   }
 
-  return [baseNotes, "Retiradas parciais:", ...withdrawalLines].join("\n");
+  return [
+    baseNotes,
+    "Retiradas parciais:",
+    ...(remainingUnitsLabel ? [remainingUnitsLabel] : []),
+    ...withdrawalLines,
+  ].join("\n");
 }
 
 export function toThermalPrintOrder(
