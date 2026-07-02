@@ -583,6 +583,7 @@ export async function createOrderPartialWithdrawal(
     flavorIds?: number[];
     date: string;
     time: string;
+    allowScheduleException?: boolean;
     generateChildOrder?: boolean;
     notes?: string;
   },
@@ -601,6 +602,7 @@ export async function createOrderPartialWithdrawal(
       requested_units: input.requestedUnits,
       flavor_ids: input.flavorIds ?? [],
       scheduled_at: buildScheduledAt(input.date, input.time, timeZone),
+      allow_schedule_exception: input.allowScheduleException ?? false,
       generate_child_order: input.generateChildOrder ?? true,
       notes: input.notes?.trim() ? input.notes.trim() : null,
     },

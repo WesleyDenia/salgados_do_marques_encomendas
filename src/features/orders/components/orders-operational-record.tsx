@@ -1169,6 +1169,7 @@ function PartialWithdrawalModal({
       flavorIds?: number[];
       date: string;
       time: string;
+      allowScheduleException: boolean;
       generateChildOrder: boolean;
       notes: string;
     },
@@ -1187,6 +1188,7 @@ function PartialWithdrawalModal({
   const [withdrawalTime, setWithdrawalTime] = React.useState("");
   const [withdrawalNotes, setWithdrawalNotes] = React.useState("");
   const [withdrawalFlavorCounts, setWithdrawalFlavorCounts] = React.useState<Record<number, number>>({});
+  const [allowScheduleException, setAllowScheduleException] = React.useState(false);
   const [generateChildOrder, setGenerateChildOrder] = React.useState(true);
   const [isSubmittingWithdrawal, setIsSubmittingWithdrawal] = React.useState(false);
   const [withdrawalError, setWithdrawalError] = React.useState<string | null>(null);
@@ -1225,6 +1227,7 @@ function PartialWithdrawalModal({
       setWithdrawalTime("");
       setWithdrawalNotes("");
       setWithdrawalFlavorCounts({});
+      setAllowScheduleException(false);
       setGenerateChildOrder(true);
       setWithdrawalError(null);
       return;
@@ -1238,6 +1241,7 @@ function PartialWithdrawalModal({
     setWithdrawalTime(getTimeInputValue(order.scheduledAt, timeZone));
     setWithdrawalNotes("");
     setWithdrawalFlavorCounts({});
+    setAllowScheduleException(false);
     setGenerateChildOrder(true);
     setWithdrawalError(null);
   }, [eligibleWithdrawalItems, open, order, timeZone]);
@@ -1421,6 +1425,23 @@ function PartialWithdrawalModal({
               />
             </div>
 
+            <label className="md:col-span-2 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50/80 p-3">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-slate-300"
+                checked={allowScheduleException}
+                onChange={(event) => setAllowScheduleException(event.currentTarget.checked)}
+              />
+              <div className="space-y-1">
+                <span className="text-sm font-medium text-slate-950">
+                  Permitir exceção fora do horário da loja
+                </span>
+                <p className="text-sm text-slate-600">
+                  Use apenas para lançamentos retroativos ou retiradas alinhadas manualmente. Esta opção ignora horário de funcionamento e antecedência mínima.
+                </p>
+              </div>
+            </label>
+
             <label className="md:col-span-2 flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50/70 p-3">
               <input
                 type="checkbox"
@@ -1496,6 +1517,7 @@ function PartialWithdrawalModal({
                   flavorIds: selectedFlavorIds,
                   date: withdrawalDate,
                   time: withdrawalTime,
+                  allowScheduleException,
                   generateChildOrder,
                   notes: withdrawalNotes,
                 });
@@ -2323,6 +2345,7 @@ export function OrdersOperationalRecord({
         flavorIds?: number[];
         date: string;
         time: string;
+        allowScheduleException: boolean;
         generateChildOrder: boolean;
         notes: string;
       },

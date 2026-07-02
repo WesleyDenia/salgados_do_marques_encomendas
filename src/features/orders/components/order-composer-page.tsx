@@ -1269,7 +1269,7 @@ export function OrderComposerPage({
                           Permitir exceção fora do horário da loja
                         </span>
                         <p className="text-sm text-slate-600">
-                          Use apenas quando a retirada foi alinhada manualmente com a loja. Esta opção ignora o horário de funcionamento, mas mantém as restantes validações operacionais.
+                          Use apenas para lançamentos retroativos ou retiradas alinhadas manualmente com a loja. Esta opção ignora horário de funcionamento e antecedência mínima.
                         </p>
                       </div>
                     </label>

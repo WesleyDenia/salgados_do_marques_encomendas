@@ -745,7 +745,7 @@ export function OrderComposerDrawer({
                     Permitir exceção fora do horário da loja
                   </span>
                   <p className="text-sm text-muted-foreground">
-                    Use apenas quando a retirada foi combinada manualmente. Esta opção ignora o horário de funcionamento da loja, mas mantém capacidade, slot e antecedência mínima.
+                    Use apenas para lançamentos retroativos ou retiradas combinadas manualmente. Esta opção ignora horário de funcionamento e antecedência mínima.
                   </p>
                 </div>
               </label>

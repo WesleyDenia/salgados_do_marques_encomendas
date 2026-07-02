@@ -209,6 +209,7 @@ export function useCreateOrderPartialWithdrawal() {
         flavorIds?: number[];
         date: string;
         time: string;
+        allowScheduleException?: boolean;
         generateChildOrder?: boolean;
         notes?: string;
       };
