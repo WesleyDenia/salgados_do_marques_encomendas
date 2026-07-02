@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
+  createOrderPartialWithdrawal,
   createOrder,
   type OrdersResponse,
   updateOrder,
@@ -18,21 +19,32 @@ function mergeConfirmedOrder(existingOrder: Order | undefined, updatedOrder: Ord
     return updatedOrder;
   }
 
+  const updatedTags = Array.isArray(updatedOrder.tags) ? updatedOrder.tags : undefined;
+  const updatedItems = Array.isArray(updatedOrder.items) ? updatedOrder.items : undefined;
+  const updatedPartialWithdrawals = Array.isArray(updatedOrder.partialWithdrawals)
+    ? updatedOrder.partialWithdrawals
+    : undefined;
+  const updatedHistory = Array.isArray(updatedOrder.history) ? updatedOrder.history : undefined;
+
   return {
     ...existingOrder,
     ...updatedOrder,
+    parentOrderId: updatedOrder.parentOrderId ?? existingOrder.parentOrderId,
     canEdit: updatedOrder.canEdit ?? existingOrder.canEdit,
     paymentStatus: updatedOrder.paymentStatus ?? existingOrder.paymentStatus,
     slot: updatedOrder.slot ?? existingOrder.slot,
     customerName: updatedOrder.customerName ?? existingOrder.customerName,
     customerContact: updatedOrder.customerContact ?? existingOrder.customerContact,
-    tags: updatedOrder.tags.length > 0 ? updatedOrder.tags : existingOrder.tags,
-    items: updatedOrder.items.length > 0 ? updatedOrder.items : existingOrder.items,
+    tags: updatedTags ?? existingOrder.tags,
+    items: updatedItems && updatedItems.length > 0 ? updatedItems : existingOrder.items,
     notes: updatedOrder.notes ?? existingOrder.notes,
     scheduledAt: updatedOrder.scheduledAt ?? existingOrder.scheduledAt,
     total: updatedOrder.total ?? existingOrder.total,
+    partialWithdrawals: updatedPartialWithdrawals ?? existingOrder.partialWithdrawals,
+    parentOrder: updatedOrder.parentOrder ?? existingOrder.parentOrder,
     store: updatedOrder.store ?? existingOrder.store,
     user: updatedOrder.user ?? existingOrder.user,
+    history: updatedHistory ?? existingOrder.history,
     createdAt: updatedOrder.createdAt ?? existingOrder.createdAt,
   };
 }
@@ -177,6 +189,32 @@ export function useUpdateOrderStatus() {
     }) => updateOrderStatus(orderId, status),
     onSuccess: (updatedOrder, { orderId }) => {
       handleConfirmedOrderStatusUpdate(queryClient, updatedOrder, orderId);
+    },
+  });
+}
+
+export function useCreateOrderPartialWithdrawal() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      orderId,
+      input,
+      timeZone,
+    }: {
+      orderId: number | string;
+      input: {
+        parentOrderItemId: number;
+        requestedUnits: number;
+        date: string;
+        time: string;
+        generateChildOrder?: boolean;
+        notes?: string;
+      };
+      timeZone?: string;
+    }) => createOrderPartialWithdrawal(orderId, input, timeZone),
+    onSuccess: async (_, { orderId }) => {
+      await invalidateOrderWriteQueries(queryClient, orderId);
     },
   });
 }

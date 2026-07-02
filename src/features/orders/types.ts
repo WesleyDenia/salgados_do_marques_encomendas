@@ -66,14 +66,32 @@ export type OrderStoreOption = {
 
 export type OrderItem = {
   id?: string | number;
+  parentOrderItemId?: number | null;
   productId: number;
   productName: string;
   quantity: number;
   total?: number;
   variantId?: number | null;
   variantName?: string | null;
+  variantUnitCount?: number | null;
+  originalUnits?: number | null;
+  withdrawnUnits?: number;
+  remainingUnits?: number | null;
+  canWithdrawPartially?: boolean;
   flavorIds?: number[];
   flavorNames?: string[];
+};
+
+export type OrderPartialWithdrawal = {
+  id: string | number;
+  parentOrderItemId?: number | null;
+  generatedOrderId?: number | null;
+  requestedUnits: number;
+  scheduledAt?: string | null;
+  status: "planned" | "completed" | "cancelled" | string;
+  notes?: string | null;
+  completedAt?: string | null;
+  cancelledAt?: string | null;
 };
 
 export type OrderHistoryEntry = {
@@ -91,6 +109,7 @@ export type OrderHistoryEntry = {
 
 export type Order = {
   id: string | number;
+  parentOrderId?: number | null;
   status: string;
   canEdit?: boolean;
   paymentStatus?: OrderPaymentStatus | null;
@@ -116,5 +135,10 @@ export type Order = {
     email: string;
   } | null;
   history?: OrderHistoryEntry[];
+  partialWithdrawals?: OrderPartialWithdrawal[];
+  parentOrder?: {
+    id: number;
+    status: string;
+  } | null;
   createdAt?: string | null;
 };

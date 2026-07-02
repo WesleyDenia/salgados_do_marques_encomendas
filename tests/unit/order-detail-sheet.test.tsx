@@ -95,6 +95,26 @@ test("OrderDetailSheet handles empty states for sections", () => {
   assert.match(markup, /Abra uma vista térmica dedicada para reimprimir/);
 });
 
+test("OrderDetailSheet hides the withdrawal action for derived orders", () => {
+  const markup = renderToStaticMarkup(
+    <OrderDetailSheet
+      open={true}
+      onOpenChange={() => {}}
+      order={{
+        id: 126,
+        parentOrderId: 55,
+        parentOrder: { id: 55, status: "accepted" },
+        status: "placed",
+        canEdit: true,
+        items: [],
+      }}
+    />,
+  );
+
+  assert.match(markup, /Encomenda derivada/);
+  assert.doesNotMatch(markup, /Registar retirada/);
+});
+
 test("OrderDetailSheet shows warning and disables button when canEdit is false", () => {
   const markup = renderToStaticMarkup(
     <OrderDetailSheet

@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
 import {
   Select,
@@ -35,6 +36,7 @@ import {
 import { OrderAuditContext } from "@/features/orders/components/order-audit-context";
 import { OrderHistoryList } from "@/features/orders/components/order-history-list";
 import {
+  useCreateOrderPartialWithdrawal,
   useUpdateOrder,
   useUpdateOrderStatus,
 } from "@/features/orders/hooks/use-order-mutations";
@@ -220,6 +222,13 @@ function buildItemsQuantity(order: Order) {
   return order.items.reduce((total, item) => total + item.quantity, 0);
 }
 
+function buildPartialWithdrawalItemLabel(item: Order["items"][number]) {
+  const remainingUnits = item.remainingUnits ?? item.originalUnits ?? item.quantity;
+  const baseLabel = item.variantName?.trim() || item.productName;
+
+  return `${baseLabel} · saldo ${remainingUnits} unid.`;
+}
+
 function buildFlavorSummary(item: Order["items"][number]) {
   if (item.flavorNames && item.flavorNames.length > 0) {
     return item.flavorNames.join(", ");
@@ -395,7 +404,7 @@ export function buildOrdersRecordUrl({
   status,
   paymentStatus,
   slot,
-  tagIds,
+  tagIds = [],
   statusLabels,
 }: Readonly<{
   pathname: string;
@@ -409,7 +418,7 @@ export function buildOrdersRecordUrl({
   status: string;
   paymentStatus: string;
   slot: string;
-  tagIds: number[];
+  tagIds?: number[];
   statusLabels?: Record<string, string>;
 }>) {
   const currentSearch = searchParams.get("search") ?? "";
@@ -645,6 +654,7 @@ export function OrderDetailSheet({
   open,
   onOpenChange,
   onEditOrder,
+  onCreatePartialWithdrawal,
   onStatusChange,
   onPaymentStatusChange,
   onPrintOrder,
@@ -664,6 +674,14 @@ export function OrderDetailSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onEditOrder?: (order: Order) => void;
+  onCreatePartialWithdrawal?: (input: {
+    parentOrderItemId: number;
+    requestedUnits: number;
+    date: string;
+    time: string;
+    generateChildOrder: boolean;
+    notes: string;
+  }) => Promise<void>;
   onStatusChange?: (nextStatus: string) => void;
   onPaymentStatusChange?: (nextStatus: keyof typeof ORDER_PAYMENT_STATUS_LABELS) => void;
   onPrintOrder?: (order: Order) => void;
@@ -683,6 +701,47 @@ export function OrderDetailSheet({
   const availableTransitions = order
     ? getAllowedOrderStatusTransitions(order.status)
     : [];
+  const eligibleWithdrawalItems = React.useMemo(
+    () =>
+      (order?.items ?? []).filter(
+        (item) => item.canWithdrawPartially && (item.remainingUnits ?? 0) >= 25,
+      ),
+    [order?.items],
+  );
+  const [withdrawalFormOpen, setWithdrawalFormOpen] = React.useState(false);
+  const [withdrawalItemId, setWithdrawalItemId] = React.useState<string>("");
+  const [withdrawalUnits, setWithdrawalUnits] = React.useState("25");
+  const [withdrawalDate, setWithdrawalDate] = React.useState("");
+  const [withdrawalTime, setWithdrawalTime] = React.useState("");
+  const [withdrawalNotes, setWithdrawalNotes] = React.useState("");
+  const [generateChildOrder, setGenerateChildOrder] = React.useState(true);
+  const [isSubmittingWithdrawal, setIsSubmittingWithdrawal] = React.useState(false);
+  const [withdrawalError, setWithdrawalError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!order) {
+      setWithdrawalFormOpen(false);
+      setWithdrawalItemId("");
+      setWithdrawalUnits("25");
+      setWithdrawalDate("");
+      setWithdrawalTime("");
+      setWithdrawalNotes("");
+      setGenerateChildOrder(true);
+      setWithdrawalError(null);
+      return;
+    }
+
+    const firstItem = eligibleWithdrawalItems[0];
+
+    setWithdrawalItemId(firstItem?.id != null ? String(firstItem.id) : "");
+    setWithdrawalUnits("25");
+    setWithdrawalDate(getDateInputValue(order.scheduledAt, timeZone));
+    setWithdrawalTime(getTimeInputValue(order.scheduledAt, timeZone));
+    setWithdrawalNotes("");
+    setGenerateChildOrder(true);
+    setWithdrawalError(null);
+    setWithdrawalFormOpen(false);
+  }, [eligibleWithdrawalItems, order, timeZone]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -794,6 +853,16 @@ export function OrderDetailSheet({
         <div className={cn("flex-1 overflow-y-auto px-5 py-5 space-y-6", isRefetching && "opacity-50 pointer-events-none transition-opacity")}>
           {order ? (
             <>
+              {order.parentOrderId ? (
+                <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                  <p className="font-medium">Encomenda derivada</p>
+                  <p className="mt-1">
+                    Esta encomenda foi gerada a partir da encomenda mãe #
+                    {order.parentOrder?.id ?? order.parentOrderId} e não permite novas retiradas.
+                  </p>
+                </div>
+              ) : null}
+
               {modeConfig.showEditBlockedNotice && order.canEdit === false && (
                 <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
                   <p className="font-medium">Esta encomenda já não permite correções</p>
@@ -857,6 +926,12 @@ export function OrderDetailSheet({
                                   Variação: {item.variantName}
                                 </p>
                               )}
+                              {item.originalUnits != null ? (
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  Registado: {item.originalUnits} unid. · Saldo:{" "}
+                                  {item.remainingUnits ?? item.originalUnits} unid.
+                                </p>
+                              ) : null}
                             </div>
                           </TableCell>
                           <TableCell>{item.quantity}</TableCell>
@@ -889,6 +964,221 @@ export function OrderDetailSheet({
                   </p>
                 </section>
               </div>
+
+              {order.parentOrderId === null ? (
+                <section className="rounded-xl border border-border/70 bg-card/60 p-4 space-y-4">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        Retiradas parciais
+                      </p>
+                      <p className="text-sm text-foreground">
+                        Registe retiradas em blocos de 25 unidades e, se necessário, gere a encomenda operacional derivada.
+                      </p>
+                    </div>
+                    {eligibleWithdrawalItems.length > 0 && onCreatePartialWithdrawal ? (
+                      <Button
+                        type="button"
+                        variant={withdrawalFormOpen ? "secondary" : "outline"}
+                        onClick={() => {
+                          setWithdrawalFormOpen((current) => !current);
+                          setWithdrawalError(null);
+                        }}
+                      >
+                        {withdrawalFormOpen ? "Fechar retirada" : "Registar retirada"}
+                      </Button>
+                    ) : null}
+                  </div>
+
+                  {eligibleWithdrawalItems.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Esta encomenda não tem itens com saldo elegível para retirada parcial.
+                    </p>
+                  ) : null}
+
+                  {withdrawalFormOpen && onCreatePartialWithdrawal ? (
+                    <div className="grid gap-4 rounded-xl border border-border/70 bg-background/80 p-4 md:grid-cols-2">
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="text-sm font-medium">Item da encomenda mãe</label>
+                        <Select value={withdrawalItemId} onValueChange={setWithdrawalItemId}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecionar item" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {eligibleWithdrawalItems.map((item) => (
+                              <SelectItem key={String(item.id)} value={String(item.id)}>
+                                {buildPartialWithdrawalItemLabel(item)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium" htmlFor="withdrawal-units">
+                          Quantidade
+                        </label>
+                        <Input
+                          id="withdrawal-units"
+                          type="number"
+                          step={25}
+                          min={25}
+                          value={withdrawalUnits}
+                          onChange={(event) => setWithdrawalUnits(event.currentTarget.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium" htmlFor="withdrawal-date">
+                          Data
+                        </label>
+                        <Input
+                          id="withdrawal-date"
+                          type="date"
+                          value={withdrawalDate}
+                          onChange={(event) => setWithdrawalDate(event.currentTarget.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium" htmlFor="withdrawal-time">
+                          Hora
+                        </label>
+                        <Input
+                          id="withdrawal-time"
+                          type="time"
+                          value={withdrawalTime}
+                          onChange={(event) => setWithdrawalTime(event.currentTarget.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="text-sm font-medium" htmlFor="withdrawal-notes">
+                          Notas
+                        </label>
+                        <Textarea
+                          id="withdrawal-notes"
+                          className="min-h-20"
+                          value={withdrawalNotes}
+                          onChange={(event) => setWithdrawalNotes(event.currentTarget.value)}
+                        />
+                      </div>
+
+                      <label className="md:col-span-2 flex items-start gap-3 rounded-lg border border-border/70 bg-card/50 p-3">
+                        <input
+                          type="checkbox"
+                          className="mt-1 h-4 w-4 rounded border-border"
+                          checked={generateChildOrder}
+                          onChange={(event) => setGenerateChildOrder(event.currentTarget.checked)}
+                        />
+                        <div className="space-y-1">
+                          <span className="text-sm font-medium text-foreground">
+                            Gerar encomenda operacional derivada
+                          </span>
+                          <p className="text-sm text-muted-foreground">
+                            Quando ativa, a retirada cria também uma encomenda filha ligada à mãe para entrar no quadro operacional.
+                          </p>
+                        </div>
+                      </label>
+
+                      {withdrawalError ? (
+                        <p className="md:col-span-2 text-sm font-medium text-destructive">
+                          {withdrawalError}
+                        </p>
+                      ) : null}
+
+                      <div className="md:col-span-2 flex justify-end">
+                        <Button
+                          type="button"
+                          disabled={isSubmittingWithdrawal}
+                          onClick={async () => {
+                            const selectedItem = eligibleWithdrawalItems.find(
+                              (item) => String(item.id) === withdrawalItemId,
+                            );
+                            const parsedUnits = Number(withdrawalUnits);
+
+                            if (!selectedItem?.id) {
+                              setWithdrawalError("Selecione o item da encomenda mãe.");
+                              return;
+                            }
+
+                            if (!Number.isFinite(parsedUnits) || parsedUnits < 25 || parsedUnits % 25 !== 0) {
+                              setWithdrawalError("A retirada parcial deve ser registada em múltiplos de 25 unidades.");
+                              return;
+                            }
+
+                            if ((selectedItem.remainingUnits ?? 0) < parsedUnits) {
+                              setWithdrawalError("A quantidade pedida excede o saldo disponível para este item.");
+                              return;
+                            }
+
+                            if (!withdrawalDate || !withdrawalTime) {
+                              setWithdrawalError("Defina a data e a hora da retirada.");
+                              return;
+                            }
+
+                            setIsSubmittingWithdrawal(true);
+                            setWithdrawalError(null);
+
+                            try {
+                              await onCreatePartialWithdrawal({
+                                parentOrderItemId: Number(selectedItem.id),
+                                requestedUnits: parsedUnits,
+                                date: withdrawalDate,
+                                time: withdrawalTime,
+                                generateChildOrder,
+                                notes: withdrawalNotes,
+                              });
+                              setWithdrawalFormOpen(false);
+                            } catch (error) {
+                              setWithdrawalError(
+                                error instanceof Error
+                                  ? error.message
+                                  : "Não foi possível registar a retirada parcial.",
+                              );
+                            } finally {
+                              setIsSubmittingWithdrawal(false);
+                            }
+                          }}
+                        >
+                          {isSubmittingWithdrawal ? "A registar..." : "Guardar retirada"}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {(order.partialWithdrawals ?? []).length > 0 ? (
+                    <div className="space-y-3">
+                      {(order.partialWithdrawals ?? []).map((withdrawal) => (
+                        <div
+                          key={String(withdrawal.id)}
+                          className="rounded-xl border border-border/70 bg-background/80 p-4 text-sm"
+                        >
+                          <p className="font-medium text-foreground">
+                            {withdrawal.requestedUnits} unidades ·{" "}
+                            {formatOperationalDateTime(withdrawal.scheduledAt, timeZone)}
+                          </p>
+                          <p className="mt-1 text-muted-foreground">
+                            Estado: {withdrawal.status}
+                            {withdrawal.generatedOrderId
+                              ? ` · encomenda derivada #${withdrawal.generatedOrderId}`
+                              : ""}
+                          </p>
+                          {withdrawal.notes?.trim() ? (
+                            <p className="mt-2 whitespace-pre-wrap text-muted-foreground">
+                              {withdrawal.notes}
+                            </p>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Ainda não existem retiradas parciais registadas para esta encomenda.
+                    </p>
+                  )}
+                </section>
+              ) : null}
 
               {mode === "investigation" ? (
                 <OrderAuditContext
@@ -1047,9 +1337,9 @@ export function OrdersOperationalRecordContent({
                   <TableCell>{formatOperationalDateTime(order.scheduledAt, timeZone)}</TableCell>
                   <TableCell>{buildSlotLabel(order)}</TableCell>
                   <TableCell>
-                    {order.tags.length > 0 ? (
+                    {(order.tags ?? []).length > 0 ? (
                       <div className="flex flex-wrap gap-1.5">
-                        {order.tags.map(renderOrderTagBadge)}
+                        {(order.tags ?? []).map(renderOrderTagBadge)}
                       </div>
                     ) : (
                       <span className="text-xs text-slate-500">Sem tags</span>
@@ -1111,8 +1401,8 @@ export function OrdersOperationalRecordContent({
                       {formatScheduledAtDetailed(order.scheduledAt, timeZone)}
                     </p>
                     <div className="flex flex-wrap gap-1.5 pt-1">
-                      {order.tags.length > 0 ? (
-                        order.tags.map(renderOrderTagBadge)
+                      {(order.tags ?? []).length > 0 ? (
+                        (order.tags ?? []).map(renderOrderTagBadge)
                       ) : (
                         <span className="text-xs text-slate-500">Sem tags</span>
                       )}
@@ -1238,6 +1528,7 @@ export function OrdersOperationalRecord({
   const [viewMode, setViewMode] = React.useState<"list" | "cards">("list");
   const printAttemptByOrderIdRef = React.useRef<Record<string, string | null>>({});
   const detailQuery = useOrderDetail(selectedOrder?.id ?? null);
+  const createPartialWithdrawalMutation = useCreateOrderPartialWithdrawal();
   const updateOrderStatusMutation = useUpdateOrderStatus();
   const updateOrderMutation = useUpdateOrder();
   const normalizedSearchTerm = searchTerm.trim();
@@ -1668,8 +1959,9 @@ export function OrdersOperationalRecord({
             storeId: currentOrder.store.id,
             customerName: currentOrder.customerName.trim(),
             customerContact,
-            tagIds: currentOrder.tags.map((tag) => tag.id),
+            tagIds: (currentOrder.tags ?? []).map((tag) => tag.id),
             items: currentOrder.items.map((item) => ({
+              parentOrderItemId: item.parentOrderItemId ?? null,
               productId: item.productId,
               quantity: item.quantity,
               variantId: item.variantId ?? null,
@@ -1697,6 +1989,39 @@ export function OrdersOperationalRecord({
       );
     },
     [detailQuery.data, selectedOrder, settings?.timezone, toast, updateOrderMutation],
+  );
+
+  const handleCreatePartialWithdrawal = React.useCallback(
+    async (input: {
+      parentOrderItemId: number;
+      requestedUnits: number;
+      date: string;
+      time: string;
+      generateChildOrder: boolean;
+      notes: string;
+    }) => {
+      const currentOrder = detailQuery.data ?? selectedOrder;
+
+      if (!currentOrder) {
+        throw new Error("A encomenda já não está disponível para registar a retirada.");
+      }
+
+      const result = await createPartialWithdrawalMutation.mutateAsync({
+        orderId: currentOrder.id,
+        timeZone: settings?.timezone,
+        input,
+      });
+
+      setSelectedOrder(result.parentOrder);
+      toast(
+        result.generatedOrder
+          ? `Retirada registada e encomenda derivada #${result.generatedOrder.id} criada.`
+          : "Retirada parcial registada.",
+        "success",
+      );
+      await detailQuery.refetch();
+    },
+    [createPartialWithdrawalMutation, detailQuery, selectedOrder, settings?.timezone, toast],
   );
 
   const handleRefetch = React.useCallback(async () => {
@@ -2091,6 +2416,7 @@ export function OrdersOperationalRecord({
         isUpdatingStatus={updateOrderStatusMutation.isPending}
         isUpdatingPaymentStatus={updateOrderMutation.isPending}
         onStatusChange={handleStatusChange}
+        onCreatePartialWithdrawal={handleCreatePartialWithdrawal}
         onPaymentStatusChange={handlePaymentStatusChange}
         onPrintOrder={handlePrintOrder}
         printState={

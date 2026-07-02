@@ -80,6 +80,11 @@ const ORDER_HISTORY_ACTIONS: Record<string, OrderHistoryActionMeta> = {
     tone: "info",
     icon: FilePenLine,
   },
+  partial_withdrawal_planned: {
+    label: "Retirada parcial registada",
+    tone: "warning",
+    icon: Clock,
+  },
 };
 
 const ORDER_CHANGE_FIELD_LABELS: Record<string, string> = {
@@ -219,6 +224,10 @@ export function formatOrderChange(
 ) {
   if (key === "items") {
     return "Itens alterados";
+  }
+
+  if (key === "partial_withdrawal") {
+    return "Retirada parcial registada";
   }
 
   const label = ORDER_CHANGE_FIELD_LABELS[key] ?? key.replaceAll("_", " ");

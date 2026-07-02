@@ -103,6 +103,7 @@ function buildDefaultValues(
     items:
       order.items.length > 0
         ? order.items.map((item) => ({
+            parentOrderItemId: item.parentOrderItemId ?? null,
             productId: item.productId,
             quantity: item.quantity,
             variantId: item.variantId ?? null,

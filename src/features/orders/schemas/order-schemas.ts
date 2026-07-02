@@ -5,6 +5,7 @@ import { ORDER_PAYMENT_STATUSES, ORDER_SLOT_OPTIONS } from "@/features/orders/ty
 const requiredText = (message: string) => z.string().trim().min(1, message);
 
 export const OrderCreateItemSchema = z.object({
+  parentOrderItemId: z.coerce.number().int().positive().optional().nullable(),
   productId: z.coerce
     .number()
     .int("Selecione um produto válido.")

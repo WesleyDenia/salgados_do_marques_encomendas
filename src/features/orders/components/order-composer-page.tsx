@@ -96,6 +96,7 @@ function buildDefaultValues(
     customerContact: order.customerContact ?? "",
     tagIds: order.tags.map((tag) => tag.id),
     items: order.items.map((item) => ({
+      parentOrderItemId: item.parentOrderItemId ?? null,
       productId: item.productId,
       quantity: item.quantity,
       variantId: item.variantId ?? null,
@@ -729,6 +730,8 @@ export function OrderComposerPage({
   function handleConfirmItem(config: ItemConfigState) {
     const flavorIds = buildFlavorIdsFromCounts(config.flavorCounts);
     const nextItem = {
+      parentOrderItemId:
+        config.itemIndex === null ? null : items[config.itemIndex]?.parentOrderItemId ?? null,
       flavorIds,
       productId: config.product.id,
       quantity: config.quantity,

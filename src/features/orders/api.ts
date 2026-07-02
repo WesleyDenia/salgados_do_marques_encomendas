@@ -9,6 +9,7 @@ import type {
   OrderFlavorOption,
   Order,
   OrderHistoryEntry,
+  OrderPartialWithdrawal,
   OrderPaymentStatus,
   OrderProductOption,
   OrderProductVariantOption,
@@ -79,12 +80,18 @@ function normalizeOperationalApiDateTime(value?: string | null) {
 
 type BackendOrderItem = {
   id: number;
+  parent_order_item_id?: number | null;
   product_id: number;
   variant_id?: number | null;
   variant_name?: string | null;
+  variant_unit_count?: number | null;
   name: string;
   quantity: number;
   total: number;
+  original_units?: number;
+  withdrawn_units?: number;
+  remaining_units?: number;
+  can_withdraw_partially?: boolean;
   options?: {
     flavors?: number[];
     flavor_names?: string[];
@@ -93,6 +100,7 @@ type BackendOrderItem = {
 
 type BackendOrder = {
   id: number;
+  parent_order_id?: number | null;
   status: string;
   can_edit?: boolean;
   payment_status?: OrderPaymentStatus | null;
@@ -103,7 +111,12 @@ type BackendOrder = {
   total?: number;
   notes?: string | null;
   tags?: BackendOrderTag[];
+  partial_withdrawals?: BackendOrderPartialWithdrawal[];
   items?: BackendOrderItem[];
+  parent_order?: {
+    id: number;
+    status: string;
+  } | null;
   store?: {
     id: number;
     name: string;
@@ -139,6 +152,18 @@ type BackendOrderHistory = {
   action: string;
   changes?: Record<string, unknown> | null;
   created_at?: string | null;
+};
+
+type BackendOrderPartialWithdrawal = {
+  id: number;
+  parent_order_item_id?: number | null;
+  generated_order_id?: number | null;
+  requested_units: number;
+  scheduled_at?: string | null;
+  status: string;
+  notes?: string | null;
+  completed_at?: string | null;
+  cancelled_at?: string | null;
 };
 
 type BackendProduct = {
@@ -236,9 +261,26 @@ function normalizeOrderHistoryEntry(
   };
 }
 
+function normalizePartialWithdrawalResource(
+  resource: BackendOrderPartialWithdrawal,
+): OrderPartialWithdrawal {
+  return {
+    id: resource.id,
+    parentOrderItemId: resource.parent_order_item_id ?? null,
+    generatedOrderId: resource.generated_order_id ?? null,
+    requestedUnits: resource.requested_units,
+    scheduledAt: normalizeOperationalApiDateTime(resource.scheduled_at ?? null),
+    status: resource.status,
+    notes: resource.notes ?? null,
+    completedAt: normalizeOperationalApiDateTime(resource.completed_at ?? null),
+    cancelledAt: normalizeOperationalApiDateTime(resource.cancelled_at ?? null),
+  };
+}
+
 export function normalizeOrderResource(resource: BackendOrder): Order {
   return {
     id: resource.id,
+    parentOrderId: resource.parent_order_id ?? null,
     status: resource.status,
     canEdit: resource.can_edit,
     paymentStatus: resource.payment_status ?? null,
@@ -250,12 +292,18 @@ export function normalizeOrderResource(resource: BackendOrder): Order {
       : [],
     items: (resource.items ?? []).map((item) => ({
       id: item.id,
+      parentOrderItemId: item.parent_order_item_id ?? null,
       productId: item.product_id,
       productName: item.name,
       quantity: item.quantity,
       total: item.total,
       variantId: item.variant_id ?? null,
       variantName: item.variant_name ?? null,
+      variantUnitCount: item.variant_unit_count ?? null,
+      originalUnits: item.original_units ?? null,
+      withdrawnUnits: item.withdrawn_units ?? 0,
+      remainingUnits: item.remaining_units ?? null,
+      canWithdrawPartially: item.can_withdraw_partially ?? false,
       flavorIds: item.options?.flavors ?? [],
       flavorNames: item.options?.flavor_names ?? [],
     })),
@@ -264,9 +312,13 @@ export function normalizeOrderResource(resource: BackendOrder): Order {
     cancelledAt: normalizeOperationalApiDateTime(resource.cancelled_at ?? null),
     total: resource.total,
     store: resource.store ?? null,
+    parentOrder: resource.parent_order ?? null,
     user: resource.user ?? null,
     history: Array.isArray(resource.history)
       ? resource.history.map(normalizeOrderHistoryEntry)
+      : [],
+    partialWithdrawals: Array.isArray(resource.partial_withdrawals)
+      ? resource.partial_withdrawals.map(normalizePartialWithdrawalResource)
       : [],
     createdAt: normalizeOperationalApiDateTime(resource.created_at ?? null),
   };
@@ -519,6 +571,53 @@ export async function updateOrder(
   return normalizeOrderResource(resource);
 }
 
+export async function createOrderPartialWithdrawal(
+  orderId: number | string,
+  input: {
+    parentOrderItemId: number;
+    requestedUnits: number;
+    date: string;
+    time: string;
+    generateChildOrder?: boolean;
+    notes?: string;
+  },
+  timeZone?: string,
+) {
+  const response = await apiClient.post<
+    ResourceResponse<{
+      withdrawal: BackendOrderPartialWithdrawal;
+      parent_order: BackendOrder;
+      generated_order?: BackendOrder | null;
+    }>
+  >(
+    `/admin/orders/${encodeURIComponent(orderId)}/partial-withdrawals`,
+    {
+      parent_order_item_id: input.parentOrderItemId,
+      requested_units: input.requestedUnits,
+      scheduled_at: buildScheduledAt(input.date, input.time, timeZone),
+      generate_child_order: input.generateChildOrder ?? true,
+      notes: input.notes?.trim() ? input.notes.trim() : null,
+    },
+  );
+  const payload = readResourcePayload<{
+    withdrawal: BackendOrderPartialWithdrawal;
+    parent_order: BackendOrder;
+    generated_order?: BackendOrder | null;
+  }>(response.data);
+
+  if (!payload) {
+    throw new Error("Resposta inválida ao registar a retirada parcial.");
+  }
+
+  return {
+    withdrawal: normalizePartialWithdrawalResource(payload.withdrawal),
+    parentOrder: normalizeOrderResource(payload.parent_order),
+    generatedOrder: payload.generated_order
+      ? normalizeOrderResource(payload.generated_order)
+      : null,
+  };
+}
+
 export async function updateOrderStatus(
   orderId: number | string,
   status: string,
@@ -552,6 +651,9 @@ function buildOrderWritePayload(
     scheduled_at: buildScheduledAt(payload.date, payload.time, timeZone),
     notes: buildOperationalNotes(payload),
     items: payload.items.map((item) => ({
+      ...(item.parentOrderItemId != null
+        ? { parent_order_item_id: item.parentOrderItemId }
+        : {}),
       product_id: item.productId,
       quantity: item.quantity,
       ...(item.variantId != null ? { variant_id: item.variantId } : {}),

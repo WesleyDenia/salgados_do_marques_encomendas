@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { QueryClient } from "@tanstack/react-query";
 
-import { updateOrder, updateOrderStatus } from "@/features/orders/api";
+import {
+  createOrderPartialWithdrawal,
+  updateOrder,
+  updateOrderStatus,
+} from "@/features/orders/api";
 import {
   handleConfirmedOrderStatusUpdate,
   invalidateOrderQueries,
@@ -171,6 +175,74 @@ test("updateOrderStatus sends the status-only PATCH contract and normalizes the 
     assert.equal(order.canEdit, true);
   } finally {
     apiClient.patch = originalPatch;
+  }
+});
+
+test("createOrderPartialWithdrawal sends the derived-order contract for operational pickups", async () => {
+  const originalPost = apiClient.post;
+  let capturedUrl = "";
+  let capturedPayload: Record<string, unknown> | null = null;
+
+  apiClient.post = (async (url, payload) => {
+    capturedUrl = String(url);
+    capturedPayload = payload as Record<string, unknown>;
+
+    return {
+      data: {
+        data: {
+          withdrawal: {
+            id: 3,
+            parent_order_item_id: 5,
+            generated_order_id: 92,
+            requested_units: 25,
+            scheduled_at: "2026-07-02T17:00:00.000Z",
+            status: "planned",
+            notes: "Retirada das 18h",
+          },
+          parent_order: {
+            id: 91,
+            status: "accepted",
+            total: 120,
+            items: [],
+          },
+          generated_order: {
+            id: 92,
+            parent_order_id: 91,
+            status: "placed",
+            total: 30,
+            items: [],
+          },
+        },
+      },
+    };
+  }) as typeof apiClient.post;
+
+  try {
+    const result = await createOrderPartialWithdrawal(
+      91,
+      {
+        parentOrderItemId: 5,
+        requestedUnits: 25,
+        date: "2026-07-02",
+        time: "18:00",
+        generateChildOrder: true,
+        notes: "Retirada das 18h",
+      },
+      "Europe/Lisbon",
+    );
+
+    assert.equal(capturedUrl, "/admin/orders/91/partial-withdrawals");
+    assert.deepEqual(capturedPayload, {
+      parent_order_item_id: 5,
+      requested_units: 25,
+      scheduled_at: "2026-07-02T17:00:00.000Z",
+      generate_child_order: true,
+      notes: "Retirada das 18h",
+    });
+    assert.equal(result.withdrawal.requestedUnits, 25);
+    assert.equal(result.generatedOrder?.parentOrderId, 91);
+  } finally {
+    apiClient.post = originalPost;
   }
 });
 
