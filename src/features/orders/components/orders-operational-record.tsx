@@ -1000,7 +1000,10 @@ export function OrderDetailSheet({
                     <div className="grid gap-4 rounded-xl border border-border/70 bg-background/80 p-4 md:grid-cols-2">
                       <div className="space-y-2 md:col-span-2">
                         <label className="text-sm font-medium">Item da encomenda mãe</label>
-                        <Select value={withdrawalItemId} onValueChange={setWithdrawalItemId}>
+                        <Select
+                          value={withdrawalItemId || undefined}
+                          onValueChange={(value) => setWithdrawalItemId(value ?? "")}
+                        >
                           <SelectTrigger>
                             <SelectValue placeholder="Selecionar item" />
                           </SelectTrigger>
