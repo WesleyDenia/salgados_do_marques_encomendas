@@ -314,6 +314,18 @@ function buildPartialWithdrawalStatusSummary(order: Order) {
   };
 }
 
+function OrdersOperationalRecordTotal({
+  total,
+}: Readonly<{
+  total: number;
+}>) {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-700 shadow-sm">
+      Total de registros: {total}
+    </div>
+  );
+}
+
 function canOrderRegisterPartialWithdrawal(order?: Order | null) {
   if (!order || order.parentOrderId != null) {
     return false;
@@ -1568,39 +1580,14 @@ export function OrdersOperationalRecordContent({
 }>) {
   const currentPage = meta?.current_page ?? 1;
   const lastPage = meta?.last_page ?? 1;
+  const totalRecords = meta?.total ?? orders.length;
   const allowWithdrawalActions = _mode === "operational";
 
   return (
     <section className="space-y-4">
       {searchSlot}
 
-      {lastPage > 1 ? (
-        <div className="flex justify-end rounded-3xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600 shadow-sm">
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={currentPage <= 1}
-              onClick={() => onPageChange?.(currentPage - 1)}
-            >
-              Anterior
-            </Button>
-            <span>
-              Página {currentPage} de {lastPage}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={currentPage >= lastPage}
-              onClick={() => onPageChange?.(currentPage + 1)}
-            >
-              Seguinte
-            </Button>
-          </div>
-        </div>
-      ) : null}
+      <OrdersOperationalRecordTotal total={totalRecords} />
 
       {viewMode === "list" ? (
         <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
@@ -1683,7 +1670,7 @@ export function OrdersOperationalRecordContent({
           </Table>
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {orders.map((order) => (
             <article
               key={`card-${order.id}`}
@@ -1748,7 +1735,7 @@ export function OrdersOperationalRecordContent({
                 </div>
               </div>
 
-	              <div className="mt-4 space-y-4">
+              <div className="mt-4 space-y-4">
                 {buildPartialWithdrawalStatusSummary(order) ? (
                   <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                     <p className="font-medium">Retirada parcial registada</p>
@@ -1800,6 +1787,34 @@ export function OrdersOperationalRecordContent({
           ))}
         </div>
       )}
+
+      {lastPage > 1 ? (
+        <div className="flex justify-end rounded-3xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={currentPage <= 1}
+              onClick={() => onPageChange?.(currentPage - 1)}
+            >
+              Anterior
+            </Button>
+            <span>
+              Página {currentPage} de {lastPage}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={currentPage >= lastPage}
+              onClick={() => onPageChange?.(currentPage + 1)}
+            >
+              Seguinte
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -2734,6 +2749,7 @@ export function OrdersOperationalRecord({
     orders.length === 0 ? (
       <section className="space-y-4">
         {filters}
+        <OrdersOperationalRecordTotal total={data?.meta?.total ?? 0} />
         <OrdersOperationalRecordEmptyState
           searchTerm={normalizedSearchTerm}
           periodLabel={ORDER_OPERATIONAL_PERIOD_LABELS[period]}

@@ -55,9 +55,15 @@ test("OrdersOperationalRecordContent renders the persisted operational record", 
   assert.match(markup, /Manhã/);
   assert.match(markup, /20\/05\/2026, 10:30/);
   assert.match(markup, /Página 1 de 3/);
+  assert.match(markup, /Total de registros: 41/);
   assert.match(markup, /Abrir/);
   assert.doesNotMatch(markup, /Leitura operacional da fila/);
   assert.doesNotMatch(markup, /Sem picante/);
+
+  assert.ok(
+    markup.indexOf("Total de registros: 41") < markup.indexOf("Fila detalhada"),
+  );
+  assert.ok(markup.indexOf("Página 1 de 3") > markup.indexOf("Abrir"));
 });
 
 test("OrdersOperationalRecordContent shows withdrawal action only for eligible parent orders", () => {
@@ -217,6 +223,7 @@ test("OrdersOperationalRecordContent renders full operational cards in blocks mo
   );
 
   assert.match(markup, /Encomenda #36/);
+  assert.match(markup, /md:grid-cols-2 lg:grid-cols-3/);
   assert.match(markup, /Nome:<\/span> WESLEY SILVA/);
   assert.match(markup, /Tel:<\/span> 911 928 481/);
   assert.match(markup, /13\/06\/2026 às 17:00/);
