@@ -210,6 +210,7 @@ export function useCreateOrderPartialWithdrawal() {
         date: string;
         time: string;
         allowScheduleException?: boolean;
+        allowPreparationCapacityOverflow?: boolean;
         generateChildOrder?: boolean;
         notes?: string;
       };

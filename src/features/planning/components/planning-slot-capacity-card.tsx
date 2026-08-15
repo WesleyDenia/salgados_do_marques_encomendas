@@ -20,11 +20,11 @@ type PlanningSlotCapacityCardProps = {
 
 type SlotCapacityFormProps = {
   entries: SlotCapacityConfigEntry[];
-  values: Record<"manha" | "tarde" | "noite", string>;
+  values: Record<string, string>;
   disabled?: boolean;
   feedback?: string | null;
   feedbackTone?: "success" | "error" | null;
-  onChange: (slot: "manha" | "tarde" | "noite", value: string) => void;
+  onChange: (slot: string, value: string) => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
 };
 
@@ -42,11 +42,11 @@ export function PlanningSlotCapacityForm({
       <div className="space-y-1">
         <h2 className="text-base font-semibold text-slate-950">Capacidade base por slot</h2>
         <p className="text-sm text-slate-600">
-          Configuração global do MVP. Apenas os slots canónicos entram na governança oficial.
+          Configuração global dos slots oficiais definidos nas configurações operacionais.
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
         {entries.map((entry) => (
           <label key={entry.slot} className="space-y-2">
             <span className="block text-sm font-medium text-slate-950">{entry.label}</span>
@@ -55,7 +55,7 @@ export function PlanningSlotCapacityForm({
               min={0}
               step={1}
               inputMode="numeric"
-              value={values[entry.slot]}
+              value={values[entry.slot] ?? ""}
               disabled={disabled}
               aria-label={`Capacidade base de ${entry.label}`}
               onChange={(event) => onChange(entry.slot, event.currentTarget.value)}
@@ -115,11 +115,7 @@ function PlanningSlotCapacityAdminCard() {
   const { toast } = useToast();
   const query = useSlotCapacityConfig(true);
   const mutation = useUpdateSlotCapacityConfig();
-  const [values, setValues] = React.useState<Record<"manha" | "tarde" | "noite", string>>({
-    manha: "",
-    tarde: "",
-    noite: "",
-  });
+  const [values, setValues] = React.useState<Record<string, string>>({});
   const [feedback, setFeedback] = React.useState<{
     message: string;
     tone: "success" | "error";
@@ -130,11 +126,9 @@ function PlanningSlotCapacityAdminCard() {
       return;
     }
 
-    setValues({
-      manha: String(query.data.slotCapacities.find((entry) => entry.slot === "manha")?.value ?? 0),
-      tarde: String(query.data.slotCapacities.find((entry) => entry.slot === "tarde")?.value ?? 0),
-      noite: String(query.data.slotCapacities.find((entry) => entry.slot === "noite")?.value ?? 0),
-    });
+    setValues(Object.fromEntries(
+      query.data.slotCapacities.map((entry) => [entry.slot, String(entry.value)]),
+    ));
   }, [query.data]);
 
   const entries = query.data?.slotCapacities ?? [
@@ -143,7 +137,7 @@ function PlanningSlotCapacityAdminCard() {
     { slot: "noite", label: "Noite", value: 0 },
   ];
 
-  function handleChange(slot: "manha" | "tarde" | "noite", value: string) {
+  function handleChange(slot: string, value: string) {
     setFeedback(null);
     setValues((current) => ({
       ...current,
@@ -155,7 +149,8 @@ function PlanningSlotCapacityAdminCard() {
     event.preventDefault();
     setFeedback(null);
 
-    const payload = (["manha", "tarde", "noite"] as const).reduce((accumulator, slot) => {
+    const payload = entries.reduce((accumulator, entry) => {
+      const slot = entry.slot;
       const parsed = Number.parseInt(values[slot], 10);
 
       return {
@@ -175,11 +170,9 @@ function PlanningSlotCapacityAdminCard() {
     try {
       const response = await mutation.mutateAsync(payload);
 
-      setValues({
-        manha: String(response.slotCapacities.find((entry) => entry.slot === "manha")?.value ?? 0),
-        tarde: String(response.slotCapacities.find((entry) => entry.slot === "tarde")?.value ?? 0),
-        noite: String(response.slotCapacities.find((entry) => entry.slot === "noite")?.value ?? 0),
-      });
+      setValues(Object.fromEntries(
+        response.slotCapacities.map((entry) => [entry.slot, String(entry.value)]),
+      ));
       setFeedback({ message: "Capacidade base atualizada com sucesso.", tone: "success" });
       toast("Capacidade base atualizada com sucesso.", "success");
     } catch (error) {

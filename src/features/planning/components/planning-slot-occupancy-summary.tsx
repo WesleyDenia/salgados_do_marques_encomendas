@@ -46,6 +46,21 @@ function buildOccupancyLabel(state: string | null, contextStatus: string | null)
   return "Contexto oficial insuficiente";
 }
 
+function formatDuration(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return "0m";
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+
+  if (minutes === 0) {
+    return `${remainingSeconds}s`;
+  }
+
+  return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
+}
+
 export function PlanningSlotOccupancySummary({
   title,
   description,
@@ -138,6 +153,21 @@ export function PlanningSlotOccupancySummary({
                         <p className="mt-3 text-sm leading-6 text-muted-foreground">
                           {entry.contextReason}
                         </p>
+                      ) : null}
+
+                      {entry.preparation && entry.preparation.allocationsCount > 0 ? (
+                        <div className="mt-3 border-t border-border/60 pt-3 text-sm text-muted-foreground">
+                          <p>
+                            Preparo consolidado:{" "}
+                            <span className="font-medium text-foreground">
+                              {formatDuration(entry.preparation.maxPreparationTimeSeconds)}
+                            </span>
+                          </p>
+                          <p className="mt-1">
+                            {entry.preparation.allocationsCount} lotes em{" "}
+                            {entry.preparation.preparationSlots.length} cubas.
+                          </p>
+                        </div>
                       ) : null}
                     </article>
                   ))}

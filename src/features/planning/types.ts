@@ -9,6 +9,21 @@ export type PlanningSummary = {
   paidCount: number;
   attentionCount: number;
   slotCounts: Record<string, number>;
+  preparationSummary?: Record<string, PlanningPreparationSummary>;
+};
+
+export type PlanningPreparationSummary = {
+  scheduledSlot: string;
+  totalPreparationTimeSeconds: number;
+  maxPreparationTimeSeconds: number;
+  allocationsCount: number;
+  preparationSlots: Array<{
+    id: number;
+    name: string;
+    preparationTimeSeconds: number;
+    batches: number;
+    units: number;
+  }>;
 };
 
 export type PlanningSlotOccupancyState =
@@ -27,6 +42,7 @@ export type PlanningSlotOccupancyEntry = {
   state: PlanningSlotOccupancyState | null;
   contextStatus: PlanningSlotOccupancyContextStatus | null;
   contextReason: string | null;
+  preparation?: PlanningPreparationSummary | null;
 };
 
 export type PlanningSlotOccupancy = Record<string, PlanningSlotOccupancyEntry>;
@@ -79,7 +95,7 @@ export type PeriodPlanningResponse = {
 };
 
 export type SlotCapacityConfigEntry = {
-  slot: "manha" | "tarde" | "noite";
+  slot: string;
   label: string;
   value: number;
 };
@@ -87,21 +103,14 @@ export type SlotCapacityConfigEntry = {
 export type SlotCapacityConfigResponse = {
   scope: "global";
   settingKey: string;
+  slotMode?: "periodo" | "horario";
   slotCapacities: SlotCapacityConfigEntry[];
 };
 
-export type SlotCapacityConfigInput = {
-  manha: number;
-  tarde: number;
-  noite: number;
-};
+export type SlotCapacityConfigInput = Record<string, number>;
 
 export type PlanningSlotOperationalRules = {
-  lead_times: {
-    manha: number;
-    tarde: number;
-    noite: number;
-  };
+  lead_times: Record<string, number>;
   blocked_dates: Array<{
     date: string;
     slots: string[];
@@ -111,5 +120,12 @@ export type PlanningSlotOperationalRules = {
 export type PlanningSlotOperationalRulesResponse = {
   scope: "global";
   settingKey: string;
+  slotMode?: "periodo" | "horario";
+  slots: Array<{
+    slot: string;
+    label: string;
+    start: number;
+    end: number;
+  }>;
   rules: PlanningSlotOperationalRules;
 };

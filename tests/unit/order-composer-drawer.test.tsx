@@ -91,6 +91,7 @@ test("mapBackendErrorsToForm maps 422 errors to react-hook-form fields", () => {
 
   const mockError = {
     isAxiosError: true,
+    message: "Erro de validação",
     status: 422,
     validationErrors: {
       customer_name: ["O nome é obrigatório"],
@@ -110,7 +111,7 @@ test("mapBackendErrorsToForm maps 422 errors to react-hook-form fields", () => {
   assert.equal(capturedCalls.length, 6);
   assert.equal(capturedCalls.find(c => c.field === "customerName")?.error.message, "O nome é obrigatório");
   assert.equal(capturedCalls.find(c => c.field === "customerContact")?.error.message, "Contacto inválido");
-  assert.equal(capturedCalls.find(c => c.field === "slot")?.error.message, "Slot indisponível");
+  assert.equal(capturedCalls.find(c => c.field === "time")?.error.message, "Slot indisponível");
   assert.equal(capturedCalls.find(c => c.field === "paymentStatus")?.error.message, "Estado inválido");
   assert.equal(capturedCalls.find(c => c.field === "items.0.productId")?.error.message, "Produto inválido");
   assert.equal(capturedCalls.find(c => c.field === "items.1.quantity")?.error.message, "Quantidade insuficiente");

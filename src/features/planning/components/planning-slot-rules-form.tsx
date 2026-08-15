@@ -14,30 +14,36 @@ export function PlanningSlotRulesForm() {
   const query = useOperationalRules();
   const mutation = useUpdateOperationalRules();
 
-  const [leadTimes, setLeadTimes] = React.useState({
-    manha: "120",
-    tarde: "60",
-    noite: "60",
-  });
+  const [leadTimes, setLeadTimes] = React.useState<Record<string, string>>({});
 
   const [blockedDates, setBlockedDates] = React.useState<Array<{ date: string; slots: string[] }>>([]);
 
   const [newBlockedDate, setNewBlockedDate] = React.useState("");
-  const [newBlockedSlots, setNewBlockedSlots] = React.useState<string[]>(["manha", "tarde", "noite"]);
+  const [newBlockedSlots, setNewBlockedSlots] = React.useState<string[]>([]);
+  const slots = React.useMemo(
+    () =>
+      query.data?.slots.length
+        ? query.data.slots
+        : [
+            { slot: "manha", label: "Manhã", start: 480, end: 719 },
+            { slot: "tarde", label: "Tarde", start: 720, end: 1079 },
+            { slot: "noite", label: "Noite", start: 1080, end: 1379 },
+          ],
+    [query.data?.slots],
+  );
 
   React.useEffect(() => {
     if (!query.data) return;
 
-    setLeadTimes({
-      manha: String(query.data.rules.lead_times.manha),
-      tarde: String(query.data.rules.lead_times.tarde),
-      noite: String(query.data.rules.lead_times.noite),
-    });
+    setLeadTimes(Object.fromEntries(
+      slots.map((slot) => [slot.slot, String(query.data?.rules.lead_times[slot.slot] ?? 0)]),
+    ));
 
     setBlockedDates(query.data.rules.blocked_dates);
-  }, [query.data]);
+    setNewBlockedSlots(slots.map((slot) => slot.slot));
+  }, [query.data, slots]);
 
-  function handleLeadTimeChange(slot: keyof typeof leadTimes, value: string) {
+  function handleLeadTimeChange(slot: string, value: string) {
     setLeadTimes((prev) => ({ ...prev, [slot]: value }));
   }
 
@@ -73,12 +79,13 @@ export function PlanningSlotRulesForm() {
 
   async function handleSave() {
     const payload: PlanningSlotOperationalRules = {
-      lead_times: {
-        manha: parseInt(leadTimes.manha) || 0,
-        tarde: parseInt(leadTimes.tarde) || 0,
-        noite: parseInt(leadTimes.noite) || 0,
-      },
-      blocked_dates: blockedDates,
+      lead_times: Object.fromEntries(
+        slots.map((slot) => [slot.slot, parseInt(leadTimes[slot.slot], 10) || 0]),
+      ),
+      blocked_dates: blockedDates.map((item) => ({
+        date: item.date,
+        slots: item.slots.filter((slot) => slots.some((definition) => definition.slot === slot)),
+      })),
     };
 
     try {
@@ -103,16 +110,16 @@ export function PlanningSlotRulesForm() {
           Tempo em minutos necessário entre a hora atual e o início do slot para permitir encomendas.
         </p>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          {(["manha", "tarde", "noite"] as const).map((slot) => (
-            <label key={slot} className="space-y-2">
-              <span className="block text-sm font-medium capitalize text-foreground">{slot}</span>
+        <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
+          {slots.map((slot) => (
+            <label key={slot.slot} className="space-y-2">
+              <span className="block text-sm font-medium text-foreground">{slot.label}</span>
               <div className="flex items-center gap-2">
                 <Input
                   type="number"
                   min={0}
-                  value={leadTimes[slot]}
-                  onChange={(e) => handleLeadTimeChange(slot, e.target.value)}
+                  value={leadTimes[slot.slot] ?? ""}
+                  onChange={(e) => handleLeadTimeChange(slot.slot, e.target.value)}
                   className="w-full"
                 />
                 <span className="text-xs text-muted-foreground">min</span>
@@ -144,17 +151,16 @@ export function PlanningSlotRulesForm() {
           </div>
           <div className="space-y-2">
             <span className="block text-sm font-medium text-foreground">Slots</span>
-            <div className="flex gap-2">
-              {(["manha", "tarde", "noite"] as const).map((slot) => (
+            <div className="flex flex-wrap gap-2">
+              {slots.map((slot) => (
                 <Button
-                  key={slot}
+                  key={slot.slot}
                   type="button"
-                  variant={newBlockedSlots.includes(slot) ? "default" : "outline"}
+                  variant={newBlockedSlots.includes(slot.slot) ? "default" : "outline"}
                   size="sm"
-                  onClick={() => toggleNewBlockedSlot(slot)}
-                  className="capitalize"
+                  onClick={() => toggleNewBlockedSlot(slot.slot)}
                 >
-                  {slot}
+                  {slot.label}
                 </Button>
               ))}
             </div>
@@ -176,7 +182,7 @@ export function PlanningSlotRulesForm() {
                     <div className="flex gap-1">
                       {item.slots.map((s) => (
                         <span key={s} className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">
-                          {s}
+                          {slots.find((slot) => slot.slot === s)?.label ?? s}
                         </span>
                       ))}
                     </div>

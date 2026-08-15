@@ -20,7 +20,6 @@ test("OrderCreateSchema accepts the essential order creation fields", () => {
     observations: "Sem picante",
     date: "2026-05-20",
     time: "10:30",
-    slot: "manha",
     paymentStatus: "pending",
   });
 
@@ -37,7 +36,6 @@ test("OrderCreateSchema rejects incomplete or invalid order data", () => {
     items: [{ productId: 0, quantity: 0 }],
     date: "",
     time: "",
-    slot: "",
     paymentStatus: "unknown",
   });
 
@@ -58,7 +56,6 @@ test("normalizeOrderCreateInput trims text fields before persistence", () => {
     observations: "  Entregar na loja  ",
     date: "2026-05-21",
     time: "15:45",
-    slot: "tarde",
     paymentStatus: "paid",
   });
 
@@ -76,7 +73,6 @@ test("OrderCreateSchema rejects invalid phone format", () => {
     items: [{ productId: 12, quantity: 12 }],
     date: "2026-05-20",
     time: "10:30",
-    slot: "manha",
     paymentStatus: "pending",
   });
   assert.equal(result.success, false);
@@ -93,7 +89,6 @@ test("OrderCreateSchema rejects phone with only spaces/hyphens", () => {
     items: [{ productId: 12, quantity: 12 }],
     date: "2026-05-20",
     time: "10:30",
-    slot: "manha",
     paymentStatus: "pending",
   });
   assert.equal(result.success, false);
@@ -107,7 +102,6 @@ test("OrderCreateSchema rejects invalid date/time format", () => {
     items: [{ productId: 12, quantity: 12 }],
     date: "20-05-2026", // invalid date format
     time: "10:30",
-    slot: "manha",
     paymentStatus: "pending",
   });
   assert.equal(resultDate1.success, false);
@@ -119,7 +113,6 @@ test("OrderCreateSchema rejects invalid date/time format", () => {
     items: [{ productId: 12, quantity: 12 }],
     date: "9999-99-99", // invalid date conceptually
     time: "10:30",
-    slot: "manha",
     paymentStatus: "pending",
   });
   assert.equal(resultDate2.success, false);
@@ -131,7 +124,6 @@ test("OrderCreateSchema rejects invalid date/time format", () => {
     items: [{ productId: 12, quantity: 12 }],
     date: "2026-05-20",
     time: "25:61", // invalid time format
-    slot: "manha",
     paymentStatus: "pending",
   });
   assert.equal(resultTime.success, false);
@@ -145,7 +137,6 @@ test("OrderCreateSchema rejects empty items list", () => {
     items: [], // empty items
     date: "2026-05-20",
     time: "10:30",
-    slot: "manha",
     paymentStatus: "pending",
   });
   assert.equal(result.success, false);

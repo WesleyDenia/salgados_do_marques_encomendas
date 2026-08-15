@@ -1909,6 +1909,13 @@ export function OrdersOperationalRecord({
     [rawUrlTagIds],
   );
   const statusLabels = React.useMemo(() => settings?.statusLabels, [settings?.statusLabels]);
+  const slotLabels = React.useMemo(
+    () =>
+      Object.keys(settings?.slotLabels ?? {}).length > 0
+        ? settings?.slotLabels ?? {}
+        : ORDER_SLOT_LABELS,
+    [settings?.slotLabels],
+  );
   const availableTags = React.useMemo(
     () => settings?.availableTags ?? [],
     [settings?.availableTags],
@@ -1921,7 +1928,7 @@ export function OrdersOperationalRecord({
     ? ORDER_PAYMENT_STATUS_LABELS[paymentStatus as keyof typeof ORDER_PAYMENT_STATUS_LABELS] ?? paymentStatus
     : undefined;
   const selectedSlotLabel = slot
-    ? ORDER_SLOT_LABELS[slot as keyof typeof ORDER_SLOT_LABELS] ?? slot
+    ? slotLabels[slot] ?? slot
     : undefined;
   const selectedTagsLabel =
     tagIds.length > 0
@@ -2326,7 +2333,6 @@ export function OrdersOperationalRecord({
             observations: currentOrder.notes ?? "",
             date,
             time,
-            slot: currentOrder.slot,
             paymentStatus: nextPaymentStatus,
           },
         },
@@ -2631,7 +2637,9 @@ export function OrdersOperationalRecord({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os slots</SelectItem>
-                  {Object.entries(ORDER_SLOT_LABELS).map(([value, label]) => (
+                  {Object.entries(slotLabels)
+                    .filter(([value]) => value !== "sem_slot")
+                    .map(([value, label]) => (
                     <SelectItem key={value} value={value}>
                       {label}
                     </SelectItem>

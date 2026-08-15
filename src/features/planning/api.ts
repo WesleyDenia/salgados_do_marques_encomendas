@@ -6,6 +6,7 @@ import type {
   PlanningSlotOccupancyEntry,
   PlanningSlotOccupancyContextStatus,
   PlanningSlotOccupancyState,
+  PlanningPreparationSummary,
   PeriodPlanningResponse,
   SlotCapacityConfigInput,
   SlotCapacityConfigResponse,
@@ -20,7 +21,7 @@ type BackendPlanningOrder = {
   status: string;
   can_edit?: boolean;
   payment_status?: "pending" | "partial" | "paid" | null;
-  slot?: "manha" | "tarde" | "noite" | null;
+  slot?: string | null;
   customer_name?: string | null;
   customer_contact?: string | null;
   scheduled_at?: string | null;
@@ -71,6 +72,21 @@ type BackendPlanningSlotOccupancyEntry = {
   state?: string | null;
   context_status?: string | null;
   context_reason?: string | null;
+  preparation?: BackendPlanningPreparationSummary | null;
+};
+
+type BackendPlanningPreparationSummary = {
+  scheduled_slot?: string;
+  total_preparation_time_seconds?: number;
+  max_preparation_time_seconds?: number;
+  allocations_count?: number;
+  preparation_slots?: Array<{
+    id?: number;
+    name?: string;
+    preparation_time_seconds?: number;
+    batches?: number;
+    units?: number;
+  }>;
 };
 
 type BackendWeeklyPlanningResponse = {
@@ -105,13 +121,15 @@ type BackendPlanningDaySummaryEntry = {
   paidCount?: number;
   attentionCount?: number;
   slotCounts?: Record<string, number>;
+  preparationSummary?: Record<string, BackendPlanningPreparationSummary>;
+  preparation_summary?: Record<string, BackendPlanningPreparationSummary>;
   slot_counts?: Record<string, number>;
   slotOccupancy?: Record<string, Partial<BackendPlanningSlotOccupancyEntry>> | null;
   slot_occupancy?: Record<string, Partial<BackendPlanningSlotOccupancyEntry>> | null;
 };
 
 type BackendSlotCapacityConfigEntry = {
-  slot?: "manha" | "tarde" | "noite";
+  slot?: string;
   label?: string;
   value?: number;
 };
@@ -120,20 +138,26 @@ type BackendSlotCapacityConfigResponse = {
   data?: {
     scope?: "global";
     setting_key?: string;
+    slot_mode?: "periodo" | "horario";
     slot_capacities?: BackendSlotCapacityConfigEntry[];
   };
+};
+
+type BackendPlanningSlotDefinition = {
+  slot?: string;
+  label?: string;
+  start?: number;
+  end?: number;
 };
 
 type BackendPlanningSlotOperationalRulesResponse = {
   data?: {
     scope?: "global";
     setting_key?: string;
+    slot_mode?: "periodo" | "horario";
+    slots?: BackendPlanningSlotDefinition[];
     rules?: {
-      lead_times?: {
-        manha?: number;
-        tarde?: number;
-        noite?: number;
-      };
+      lead_times?: Record<string, number>;
       blocked_dates?: Array<{
         date?: string;
         slots?: string[];
@@ -169,6 +193,30 @@ function normalizePlanningSummary(
     paidCount: normalizeSummaryCount(summary.paidCount),
     attentionCount: normalizeSummaryCount(summary.attentionCount),
     slotCounts: normalizePlanningSlotCounts(summary.slotCounts),
+    ...(summary.preparationSummary ? { preparationSummary: summary.preparationSummary } : {}),
+  };
+}
+
+function normalizePlanningPreparationSummary(
+  summary: BackendPlanningPreparationSummary | null | undefined,
+): PlanningPreparationSummary | null {
+  if (!summary) {
+    return null;
+  }
+
+  return {
+    scheduledSlot:
+      typeof summary.scheduled_slot === "string" ? summary.scheduled_slot : "",
+    totalPreparationTimeSeconds: normalizeSummaryCount(summary.total_preparation_time_seconds),
+    maxPreparationTimeSeconds: normalizeSummaryCount(summary.max_preparation_time_seconds),
+    allocationsCount: normalizeSummaryCount(summary.allocations_count),
+    preparationSlots: (summary.preparation_slots ?? []).map((slot) => ({
+      id: normalizeSummaryCount(slot.id),
+      name: typeof slot.name === "string" ? slot.name : "Cuba",
+      preparationTimeSeconds: normalizeSummaryCount(slot.preparation_time_seconds),
+      batches: normalizeSummaryCount(slot.batches),
+      units: normalizeSummaryCount(slot.units),
+    })),
   };
 }
 
@@ -212,6 +260,7 @@ function normalizePlanningSlotOccupancy(
       const normalizedEntry =
         entry && typeof entry === "object" ? entry : ({} as Partial<BackendPlanningSlotOccupancyEntry>);
       const state = normalizePlanningSlotOccupancyState(normalizedEntry.state);
+      const preparation = normalizePlanningPreparationSummary(normalizedEntry.preparation);
 
       return [
         slot,
@@ -231,6 +280,7 @@ function normalizePlanningSlotOccupancy(
             normalizedEntry.context_reason.trim() !== ""
               ? normalizedEntry.context_reason
               : null,
+          ...(preparation ? { preparation } : {}),
         } satisfies PlanningSlotOccupancyEntry,
       ];
     }),
@@ -273,37 +323,53 @@ function normalizeSlotCapacityEntries(
   entries: BackendSlotCapacityConfigEntry[] | undefined,
 ): SlotCapacityConfigResponse["slotCapacities"] {
   const normalizedEntries = Array.isArray(entries) ? entries : [];
-  const canonicalEntries: SlotCapacityConfigResponse["slotCapacities"] = [];
 
-  for (const slot of ["manha", "tarde", "noite"] as const) {
-    const entry = normalizedEntries.find((candidate) => candidate.slot === slot);
-
-    canonicalEntries.push({
-      slot,
+  return normalizedEntries
+    .filter((entry) => typeof entry.slot === "string" && entry.slot.trim() !== "")
+    .map((entry) => ({
+      slot: entry.slot ?? "",
       label:
-        typeof entry?.label === "string" && entry.label.trim() !== ""
+        typeof entry.label === "string" && entry.label.trim() !== ""
           ? entry.label
-          : slot,
+          : entry.slot ?? "",
       value:
-        typeof entry?.value === "number" && Number.isFinite(entry.value)
+        typeof entry.value === "number" && Number.isFinite(entry.value)
           ? entry.value
           : 0,
-    });
-  }
+    }));
+}
 
-  return canonicalEntries;
+function normalizeSlotDefinitions(
+  entries: BackendPlanningSlotDefinition[] | undefined,
+): PlanningSlotOperationalRulesResponse["slots"] {
+  return (Array.isArray(entries) ? entries : [])
+    .filter((entry) => typeof entry.slot === "string" && entry.slot.trim() !== "")
+    .map((entry) => ({
+      slot: entry.slot ?? "",
+      label:
+        typeof entry.label === "string" && entry.label.trim() !== ""
+          ? entry.label
+          : entry.slot ?? "",
+      start: typeof entry.start === "number" && Number.isFinite(entry.start) ? entry.start : 0,
+      end: typeof entry.end === "number" && Number.isFinite(entry.end) ? entry.end : 0,
+    }));
 }
 
 function normalizeOperationalRules(
   rules: BackendPlanningSlotOperationalRulesResponse["data"],
 ): PlanningSlotOperationalRules {
   const actualRules = rules?.rules;
+  const leadTimes = actualRules?.lead_times && typeof actualRules.lead_times === "object"
+    ? Object.fromEntries(
+        Object.entries(actualRules.lead_times).map(([slot, value]) => [
+          slot,
+          typeof value === "number" && Number.isFinite(value) ? value : 0,
+        ]),
+      )
+    : {};
+
   return {
-    lead_times: {
-      manha: actualRules?.lead_times?.manha ?? 120,
-      tarde: actualRules?.lead_times?.tarde ?? 60,
-      noite: actualRules?.lead_times?.noite ?? 60,
-    },
+    lead_times: leadTimes,
     blocked_dates: Array.isArray(actualRules?.blocked_dates)
       ? actualRules.blocked_dates.map((entry) => ({
           date: entry.date ?? "",
@@ -370,6 +436,7 @@ export async function getSlotCapacityConfig(): Promise<SlotCapacityConfigRespons
   return {
     scope: response.data.data?.scope ?? "global",
     settingKey: response.data.data?.setting_key ?? "ORDER_SLOT_BASE_CAPACITY",
+    ...(response.data.data?.slot_mode ? { slotMode: response.data.data.slot_mode } : {}),
     slotCapacities: normalizeSlotCapacityEntries(response.data.data?.slot_capacities),
   };
 }
@@ -385,6 +452,7 @@ export async function updateSlotCapacityConfig(
   return {
     scope: response.data.data?.scope ?? "global",
     settingKey: response.data.data?.setting_key ?? "ORDER_SLOT_BASE_CAPACITY",
+    ...(response.data.data?.slot_mode ? { slotMode: response.data.data.slot_mode } : {}),
     slotCapacities: normalizeSlotCapacityEntries(response.data.data?.slot_capacities),
   };
 }
@@ -397,6 +465,8 @@ export async function getOperationalRules(): Promise<PlanningSlotOperationalRule
   return {
     scope: response.data.data?.scope ?? "global",
     settingKey: response.data.data?.setting_key ?? "ORDER_SLOT_OPERATIONAL_RULES",
+    ...(response.data.data?.slot_mode ? { slotMode: response.data.data.slot_mode } : {}),
+    slots: normalizeSlotDefinitions(response.data.data?.slots),
     rules: normalizeOperationalRules(response.data.data),
   };
 }
@@ -412,6 +482,8 @@ export async function updateOperationalRules(
   return {
     scope: response.data.data?.scope ?? "global",
     settingKey: response.data.data?.setting_key ?? "ORDER_SLOT_OPERATIONAL_RULES",
+    ...(response.data.data?.slot_mode ? { slotMode: response.data.data.slot_mode } : {}),
+    slots: normalizeSlotDefinitions(response.data.data?.slots),
     rules: normalizeOperationalRules(response.data.data),
   };
 }

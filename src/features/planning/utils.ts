@@ -530,6 +530,7 @@ export function buildPlanningSlotOccupancyEntries(
     state: PlanningSlotOccupancy[string]["state"];
     contextStatus: PlanningSlotOccupancy[string]["contextStatus"];
     contextReason: PlanningSlotOccupancy[string]["contextReason"];
+    preparation: PlanningSlotOccupancy[string]["preparation"];
   }> = PLANNING_SLOT_ORDER.filter((slot) =>
     Object.prototype.hasOwnProperty.call(slotOccupancy, slot),
   ).map((slot) => {
@@ -545,6 +546,7 @@ export function buildPlanningSlotOccupancyEntries(
       state: entry?.state ?? null,
       contextStatus: entry?.contextStatus ?? null,
       contextReason: entry?.contextReason ?? null,
+      preparation: entry?.preparation ?? null,
     };
   });
 
@@ -564,6 +566,7 @@ export function buildPlanningSlotOccupancyEntries(
       state: entry?.state ?? null,
       contextStatus: entry?.contextStatus ?? null,
       contextReason: entry?.contextReason ?? null,
+      preparation: entry?.preparation ?? null,
     }));
 
   return orderedEntries.concat(extraEntries);

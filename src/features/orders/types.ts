@@ -4,7 +4,7 @@ export const ORDER_SLOT_OPTIONS = ["manha", "tarde", "noite"] as const;
 
 export type OrderPaymentStatus = (typeof ORDER_PAYMENT_STATUSES)[number];
 
-export type OrderSlot = (typeof ORDER_SLOT_OPTIONS)[number];
+export type OrderSlot = string;
 
 export type OrderFlavorOption = {
   id: number;
@@ -34,7 +34,7 @@ export const ORDER_PAYMENT_STATUS_LABELS: Record<OrderPaymentStatus, string> = {
   paid: "Pago",
 };
 
-export const ORDER_SLOT_LABELS: Record<OrderSlot, string> = {
+export const ORDER_SLOT_LABELS: Record<string, string> = {
   manha: "Manhã",
   tarde: "Tarde",
   noite: "Noite",

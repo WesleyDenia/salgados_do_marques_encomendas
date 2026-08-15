@@ -11,6 +11,7 @@ export const operationalSettingsSchema = z
     ORDER_MINIMUM_MINUTES: z.number().min(0),
     ORDER_CANCEL_MINUTES: z.number().min(0),
     ORDER_SCHEDULING_WINDOW_DAYS: z.number().min(1),
+    ORDER_SLOT_MODE: z.enum(["periodo", "horario"]).default("periodo"),
     WHATSAPP_ORDER_TO: z
       .string()
       .trim()

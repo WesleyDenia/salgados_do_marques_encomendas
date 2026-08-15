@@ -63,7 +63,6 @@ test("updateOrder maps the panel form to the backend PATCH contract", async () =
       date: "2026-05-20",
       time: "10:30",
       allowScheduleException: true,
-      slot: "manha",
       paymentStatus: "paid",
     });
 
@@ -75,7 +74,6 @@ test("updateOrder maps the panel form to the backend PATCH contract", async () =
       tag_ids: [],
       allow_schedule_exception: true,
       payment_status: "paid",
-      slot: "manha",
       scheduled_at: "2026-05-20T09:30:00.000Z",
       notes: "Com mais picante",
       items: [{ product_id: 12, quantity: 15, flavors: [] }],
@@ -240,6 +238,7 @@ test("createOrderPartialWithdrawal sends the derived-order contract for operatio
       requested_units: 25,
       flavor_ids: [7],
       scheduled_at: "2026-07-02T17:00:00.000Z",
+      allow_schedule_exception: false,
       generate_child_order: true,
       notes: "Retirada das 18h",
     });

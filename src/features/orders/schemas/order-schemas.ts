@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { ORDER_PAYMENT_STATUSES, ORDER_SLOT_OPTIONS } from "@/features/orders/types";
+import { ORDER_PAYMENT_STATUSES } from "@/features/orders/types";
 
 const requiredText = (message: string) => z.string().trim().min(1, message);
 
@@ -41,9 +41,7 @@ export const OrderCreateSchema = z.object({
     "O formato da hora deve ser HH:MM."
   ),
   allowScheduleException: z.coerce.boolean().optional().default(false),
-  slot: z.enum(ORDER_SLOT_OPTIONS, {
-    error: "Selecione o slot operacional.",
-  }),
+  allowPreparationCapacityOverflow: z.coerce.boolean().optional().default(false),
   paymentStatus: z.enum(ORDER_PAYMENT_STATUSES, {
     error: "Selecione o estado de pagamento.",
   }),

@@ -13,7 +13,6 @@ import type {
   OrderPaymentStatus,
   OrderProductOption,
   OrderProductVariantOption,
-  OrderSlot,
   OrderStoreOption,
   OrderTag,
 } from "@/features/orders/types";
@@ -104,7 +103,7 @@ type BackendOrder = {
   status: string;
   can_edit?: boolean;
   payment_status?: OrderPaymentStatus | null;
-  slot?: OrderSlot | null;
+  slot?: string | null;
   customer_name?: string | null;
   customer_contact?: string | null;
   scheduled_at?: string | null;
@@ -228,6 +227,7 @@ export type OrderSettings = {
   timezone: string;
   schedulingWindowDays: number;
   statusLabels: Record<string, string>;
+  slotLabels: Record<string, string>;
   activeTags: OrderTag[];
   availableTags: OrderTag[];
 };
@@ -453,6 +453,7 @@ export async function getOrderSettings(): Promise<OrderSettings> {
       timezone: string;
       scheduling_window_days: number;
       status_labels?: Record<string, string>;
+      slot_labels?: Record<string, string>;
       active_tags?: BackendOrderTag[];
       available_tags?: BackendOrderTag[];
     }>
@@ -465,6 +466,7 @@ export async function getOrderSettings(): Promise<OrderSettings> {
     timezone: string;
     scheduling_window_days: number;
     status_labels?: Record<string, string>;
+    slot_labels?: Record<string, string>;
     active_tags?: BackendOrderTag[];
     available_tags?: BackendOrderTag[];
   }>(response.data);
@@ -481,6 +483,7 @@ export async function getOrderSettings(): Promise<OrderSettings> {
     timezone: payload.timezone,
     schedulingWindowDays: payload.scheduling_window_days,
     statusLabels: payload.status_labels ?? {},
+    slotLabels: payload.slot_labels ?? {},
     activeTags: Array.isArray(payload.active_tags)
       ? payload.active_tags.map(normalizeOrderTagResource)
       : [],
@@ -584,6 +587,7 @@ export async function createOrderPartialWithdrawal(
     date: string;
     time: string;
     allowScheduleException?: boolean;
+    allowPreparationCapacityOverflow?: boolean;
     generateChildOrder?: boolean;
     notes?: string;
   },
@@ -603,6 +607,9 @@ export async function createOrderPartialWithdrawal(
       flavor_ids: input.flavorIds ?? [],
       scheduled_at: buildScheduledAt(input.date, input.time, timeZone),
       allow_schedule_exception: input.allowScheduleException ?? false,
+      ...(input.allowPreparationCapacityOverflow
+        ? { allow_preparation_capacity_overflow: true }
+        : {}),
       generate_child_order: input.generateChildOrder ?? true,
       notes: input.notes?.trim() ? input.notes.trim() : null,
     },
@@ -654,8 +661,10 @@ function buildOrderWritePayload(
     customer_contact: payload.customerContact,
     tag_ids: payload.tagIds ?? [],
     allow_schedule_exception: payload.allowScheduleException,
+    ...(payload.allowPreparationCapacityOverflow
+      ? { allow_preparation_capacity_overflow: true }
+      : {}),
     payment_status: payload.paymentStatus,
-    slot: payload.slot,
     scheduled_at: buildScheduledAt(payload.date, payload.time, timeZone),
     notes: buildOperationalNotes(payload),
     items: payload.items.map((item) => ({

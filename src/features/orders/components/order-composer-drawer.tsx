@@ -39,8 +39,6 @@ import {
   useCreateOrder,
   useUpdateOrder,
 } from "@/features/orders/hooks/use-order-mutations";
-import { useSlotCapacities } from "@/features/slots/hooks/use-slot-capacity";
-import { validateSlotSelection } from "@/features/slots/slot-validation";
 import {
   OrderCreateSchema,
   type NormalizedOrderCreateInput,
@@ -48,8 +46,6 @@ import {
 import {
   ORDER_PAYMENT_STATUS_LABELS,
   ORDER_PAYMENT_STATUSES,
-  ORDER_SLOT_LABELS,
-  ORDER_SLOT_OPTIONS,
   type Order,
   type OrderTag,
 } from "@/features/orders/types";
@@ -83,7 +79,7 @@ const defaultValues: OrderFormInput = {
   date: format(new Date(), "yyyy-MM-dd"),
   time: "",
   allowScheduleException: false,
-  slot: "manha",
+  allowPreparationCapacityOverflow: false,
   paymentStatus: "pending",
 };
 
@@ -114,7 +110,7 @@ function buildDefaultValues(
     date: getDateInputValueInTimeZone(order.scheduledAt, timeZone) || defaultValues.date,
     time: getTimeInputValueInTimeZone(order.scheduledAt, timeZone),
     allowScheduleException: false,
-    slot: order.slot ?? "manha",
+    allowPreparationCapacityOverflow: false,
     paymentStatus: order.paymentStatus ?? "pending",
   };
 }
@@ -155,6 +151,18 @@ function buildTagTextColor(color: string) {
   return luminance > 0.65 ? "#111827" : "#FFFFFF";
 }
 
+function slotAvailabilityMessage(code: string) {
+  return code === "SLOT_CAPACITY_FULL"
+    ? "Capacidade atingida para este horário."
+    : code === "SLOT_LEAD_TIME_VIOLATION"
+      ? "Pedido demasiado em cima da hora para este horário."
+      : code === "SLOT_DATE_BLOCKED"
+        ? "Data bloqueada manualmente pelo administrador."
+        : code === "SLOT_NO_WINDOW"
+          ? "Não existe janela de retirada disponível para este horário."
+          : code;
+}
+
 export function mapBackendErrorsToForm(
   error: ApiError,
   setError: UseFormSetError<OrderFormValues>,
@@ -181,28 +189,22 @@ export function mapBackendErrorsToForm(
   }
 
   if (error.validationErrors?.scheduled_at?.[0]) {
+    const message = slotAvailabilityMessage(error.validationErrors.scheduled_at[0]);
+
     setError("date", {
       type: "server",
-      message: error.validationErrors.scheduled_at[0],
+      message,
     });
     setError("time", {
       type: "server",
-      message: error.validationErrors.scheduled_at[0],
+      message,
     });
   }
 
   if (error.validationErrors?.slot?.[0]) {
-    const code = error.validationErrors.slot[0];
-    const message =
-      code === "SLOT_CAPACITY_FULL"
-        ? "Capacidade atingida para este horário."
-        : code === "SLOT_LEAD_TIME_VIOLATION"
-          ? "Pedido demasiado em cima da hora para este horário."
-          : code === "SLOT_DATE_BLOCKED"
-            ? "Data bloqueada manualmente pelo administrador."
-            : code;
+    const message = slotAvailabilityMessage(error.validationErrors.slot[0]);
 
-    setError("slot", {
+    setError("time", {
       type: "server",
       message: message,
     });
@@ -283,13 +285,10 @@ export function OrderComposerDrawer({
   const availableTags = settingsQuery.data?.availableTags ?? [];
   const storeId = watch("storeId");
   const tagIds = watch("tagIds");
-  const slot = watch("slot");
   const paymentStatus = watch("paymentStatus");
-  const date = watch("date");
   const allowScheduleException = watch("allowScheduleException");
+  const allowPreparationCapacityOverflow = watch("allowPreparationCapacityOverflow");
 
-  const slotCapacitiesQuery = useSlotCapacities({ storeId, date });
-  const slotCapacities = slotCapacitiesQuery.data?.data.slots ?? [];
   const submitMutation = mode === "edit" ? updateOrderMutation : createOrderMutation;
 
   const toggleTagSelection = React.useCallback(
@@ -340,15 +339,6 @@ export function OrderComposerDrawer({
   }, [setValue, storeId, stores]);
 
   const submitOrder = handleSubmit((values) => {
-    const slotValidationError = validateSlotSelection(values.slot, slotCapacities);
-    if (slotValidationError) {
-      setError("slot", {
-        type: "manual",
-        message: slotValidationError,
-      });
-      return;
-    }
-
     const mutationOptions = {
       onSuccess: () => {
         toast(
@@ -657,45 +647,6 @@ export function OrderComposerDrawer({
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Slot</label>
-                <Select
-                  value={slot}
-                  onValueChange={(value) =>
-                    setValue("slot", value as OrderFormValues["slot"], {
-                      shouldDirty: true,
-                      shouldValidate: true,
-                    })
-                  }
-                >
-                  <SelectTrigger aria-invalid={Boolean(errors.slot)}>
-                    <SelectValue placeholder="Selecionar slot" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ORDER_SLOT_OPTIONS.map((option) => {
-                      const capacity = slotCapacities.find((c) => c.slot === option);
-                      return (
-                        <SelectItem key={option} value={option} disabled={capacity?.state === "bloqueado"}>
-                          <div className="flex items-center justify-between w-full gap-3">
-                            <span>{ORDER_SLOT_LABELS[option]}</span>
-                            {capacity?.state === "disponível" && (
-                              <span className="text-[10px] uppercase tracking-wider font-semibold text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded ml-auto">Disponível</span>
-                            )}
-                            {capacity?.state === "limitado" && (
-                              <span className="text-[10px] uppercase tracking-wider font-semibold text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded ml-auto">Limitado</span>
-                            )}
-                            {capacity?.state === "bloqueado" && (
-                              <span className="text-[10px] uppercase tracking-wider font-semibold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded ml-auto">Bloqueado</span>
-                            )}
-                          </div>
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-                <FieldMessage error={errors.slot} />
-              </div>
-
-              <div className="space-y-2">
                 <label className="text-sm font-medium">
                   Estado de pagamento
                 </label>
@@ -727,7 +678,7 @@ export function OrderComposerDrawer({
               </div>
             </section>
 
-            <section className="rounded-lg border border-amber-200 bg-amber-50/80 p-4">
+            <section className="space-y-3 rounded-lg border border-amber-200 bg-amber-50/80 p-4">
               <label className="flex items-start gap-3">
                 <input
                   type="checkbox"
@@ -746,6 +697,27 @@ export function OrderComposerDrawer({
                   </span>
                   <p className="text-sm text-muted-foreground">
                     Use apenas para lançamentos retroativos ou retiradas combinadas manualmente. Esta opção ignora horário de funcionamento e antecedência mínima.
+                  </p>
+                </div>
+              </label>
+              <label className="flex items-start gap-3 border-t border-amber-200 pt-3">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 rounded border-border"
+                  checked={allowPreparationCapacityOverflow}
+                  onChange={(event) =>
+                    setValue("allowPreparationCapacityOverflow", event.currentTarget.checked, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }
+                />
+                <div className="space-y-1">
+                  <span className="text-sm font-medium text-foreground">
+                    Permitir exceder capacidade de preparo
+                  </span>
+                  <p className="text-sm text-muted-foreground">
+                    Use quando a produção será antecipada manualmente, mantendo o registo da carga total nas cubas.
                   </p>
                 </div>
               </label>

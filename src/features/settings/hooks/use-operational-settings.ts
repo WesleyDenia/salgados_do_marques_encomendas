@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { 
   createOperationalOrderTag,
+  getPreparationCapacityConfig,
   getOperationalSettings, 
   getOperationalOrderTags,
+  updatePreparationCapacityConfig,
   updateOperationalSettings, 
   updateOperationalOrderTag,
   resetOperationalSettings, 
@@ -10,6 +12,7 @@ import {
 } from "../api";
 import {
   OperationalOrderTagPayload,
+  OperationalPreparationCapacityUpdatePayload,
   OperationalSettingsUpdatePayload,
 } from "../types";
 
@@ -26,6 +29,10 @@ export function useUpdateOperationalSettings() {
     mutationFn: (payload: OperationalSettingsUpdatePayload) => updateOperationalSettings(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["operational-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["orders", "settings"] });
+      queryClient.invalidateQueries({ queryKey: ["planning"] });
+      queryClient.invalidateQueries({ queryKey: ["planning-admin"] });
+      queryClient.invalidateQueries({ queryKey: ["slots"] });
     },
   });
 }
@@ -36,6 +43,10 @@ export function useResetOperationalSettings() {
     mutationFn: (version: number) => resetOperationalSettings(version),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["operational-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["orders", "settings"] });
+      queryClient.invalidateQueries({ queryKey: ["planning"] });
+      queryClient.invalidateQueries({ queryKey: ["planning-admin"] });
+      queryClient.invalidateQueries({ queryKey: ["slots"] });
     },
   });
 }
@@ -50,6 +61,27 @@ export function useOperationalOrderTags() {
   return useQuery({
     queryKey: ["operational-order-tags"],
     queryFn: getOperationalOrderTags,
+  });
+}
+
+export function usePreparationCapacityConfig() {
+  return useQuery({
+    queryKey: ["operational-preparation-capacity"],
+    queryFn: getPreparationCapacityConfig,
+  });
+}
+
+export function useUpdatePreparationCapacityConfig() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: OperationalPreparationCapacityUpdatePayload) =>
+      updatePreparationCapacityConfig(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["operational-preparation-capacity"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["planning"] });
+    },
   });
 }
 

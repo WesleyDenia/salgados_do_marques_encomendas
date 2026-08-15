@@ -1,7 +1,7 @@
 export type SlotCapacityState = "disponível" | "limitado" | "bloqueado";
 
 export type SlotCapacity = {
-  slot: "manha" | "tarde" | "noite";
+  slot: string;
   state: SlotCapacityState;
 };
 

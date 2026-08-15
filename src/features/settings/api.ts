@@ -4,6 +4,8 @@ import { ApiMeta, ApiResponse } from "@/types/api";
 import {
   OperationalOrderTag,
   OperationalOrderTagPayload,
+  OperationalPreparationCapacityConfig,
+  OperationalPreparationCapacityUpdatePayload,
   OperationalSettings,
   OperationalSettingsUpdatePayload,
 } from "./types";
@@ -65,6 +67,75 @@ function normalizeOperationalOrderTag(resource: Partial<OperationalOrderTag>): O
   };
 }
 
+type BackendPreparationCapacity = {
+  slots?: Array<{
+    id?: number;
+    name?: string;
+    active?: boolean;
+    display_order?: number;
+  }>;
+  settings?: Array<{
+    id?: number;
+    operational_preparation_slot_id?: number;
+    product_id?: number;
+    batch_size?: number;
+    preparation_time_seconds?: number;
+  }>;
+  products?: Array<{
+    id?: number;
+    name?: string;
+  }>;
+};
+
+function normalizePreparationCapacityConfig(
+  resource: BackendPreparationCapacity | null,
+): OperationalPreparationCapacityConfig {
+  const slots = (resource?.slots ?? []).map((slot, index) => ({
+    id: typeof slot.id === "number" ? slot.id : undefined,
+    localId: typeof slot.id === "number" ? `slot-${slot.id}` : `slot-new-${index}`,
+    name: typeof slot.name === "string" ? slot.name : `Cuba ${index + 1}`,
+    active: typeof slot.active === "boolean" ? slot.active : Boolean(slot.active ?? true),
+    displayOrder: typeof slot.display_order === "number" ? slot.display_order : index,
+  }));
+  const localIdById = new Map(
+    slots
+      .filter((slot) => typeof slot.id === "number")
+      .map((slot) => [slot.id as number, slot.localId]),
+  );
+
+  return {
+    slots,
+    settings: (resource?.settings ?? [])
+      .filter(
+        (setting) =>
+          typeof setting.product_id === "number" &&
+          typeof setting.operational_preparation_slot_id === "number",
+      )
+      .map((setting) => ({
+        id: typeof setting.id === "number" ? setting.id : undefined,
+        operationalPreparationSlotId: setting.operational_preparation_slot_id,
+        slotLocalId:
+          localIdById.get(setting.operational_preparation_slot_id as number) ??
+          `slot-${setting.operational_preparation_slot_id}`,
+        productId: setting.product_id as number,
+        batchSize:
+          typeof setting.batch_size === "number" && setting.batch_size > 0
+            ? setting.batch_size
+            : 25,
+        preparationTimeSeconds:
+          typeof setting.preparation_time_seconds === "number"
+            ? setting.preparation_time_seconds
+            : 0,
+      })),
+    products: (resource?.products ?? [])
+      .filter((product) => typeof product.id === "number")
+      .map((product) => ({
+        id: product.id as number,
+        name: typeof product.name === "string" ? product.name : `Artigo ${product.id}`,
+      })),
+  };
+}
+
 export async function getUsers() {
   const response = await apiClient.get<ApiResponse<PanelSessionUser[]>>("/admin/users");
   return response.data;
@@ -93,6 +164,25 @@ export async function resetOperationalSettings(version: number) {
 export async function testWhatsAppConnection(number: string) {
   const response = await apiClient.post<{ success: boolean; message: string }>("/admin/settings/test-whatsapp", { number });
   return response.data;
+}
+
+export async function getPreparationCapacityConfig() {
+  const response = await apiClient.get<ResourceResponse<BackendPreparationCapacity>>(
+    "/admin/settings/operational/preparation-capacity",
+  );
+
+  return normalizePreparationCapacityConfig(readResourcePayload<BackendPreparationCapacity>(response.data));
+}
+
+export async function updatePreparationCapacityConfig(
+  payload: OperationalPreparationCapacityUpdatePayload,
+) {
+  const response = await apiClient.put<ResourceResponse<BackendPreparationCapacity>>(
+    "/admin/settings/operational/preparation-capacity",
+    payload,
+  );
+
+  return normalizePreparationCapacityConfig(readResourcePayload<BackendPreparationCapacity>(response.data));
 }
 
 export async function getOperationalOrderTags() {

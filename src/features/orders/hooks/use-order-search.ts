@@ -12,7 +12,6 @@ import {
 } from "@/features/orders/hooks/use-order-queries";
 import {
   ORDER_PAYMENT_STATUSES,
-  ORDER_SLOT_OPTIONS,
 } from "@/features/orders/types";
 import {
   addDaysToZonedDate,
@@ -83,9 +82,7 @@ export function normalizeOrderOperationalPaymentStatus(value?: string | null) {
 export function normalizeOrderOperationalSlot(value?: string | null) {
   const normalizedValue = value?.trim() ?? "";
 
-  return ORDER_SLOT_OPTIONS.some((s) => s === normalizedValue)
-    ? normalizedValue
-    : "";
+  return normalizedValue;
 }
 
 export function normalizeOrderOperationalTagIds(value?: string | null) {

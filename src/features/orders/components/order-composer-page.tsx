@@ -39,18 +39,12 @@ import {
 import {
   ORDER_PAYMENT_STATUS_LABELS,
   ORDER_PAYMENT_STATUSES,
-  ORDER_SLOT_LABELS,
-  ORDER_SLOT_OPTIONS,
   type Order,
   type OrderFlavorOption,
   type OrderProductOption,
   type OrderProductVariantOption,
   type OrderTag,
 } from "@/features/orders/types";
-import {
-  useSlotCapacities,
-} from "@/features/slots/hooks/use-slot-capacity";
-import { validateSlotSelection } from "@/features/slots/slot-validation";
 import {
   getDateInputValueInTimeZone,
   getTimeInputValueInTimeZone,
@@ -78,7 +72,7 @@ const defaultValues: OrderFormValues = {
   date: format(new Date(), "yyyy-MM-dd"),
   time: "",
   allowScheduleException: false,
-  slot: "manha",
+  allowPreparationCapacityOverflow: false,
   paymentStatus: "pending",
 };
 
@@ -106,7 +100,7 @@ function buildDefaultValues(
     date: getDateInputValueInTimeZone(order.scheduledAt, timeZone) || defaultValues.date,
     time: getTimeInputValueInTimeZone(order.scheduledAt, timeZone),
     allowScheduleException: false,
-    slot: order.slot ?? "manha",
+    allowPreparationCapacityOverflow: false,
     paymentStatus: order.paymentStatus ?? "pending",
   };
 }
@@ -569,12 +563,9 @@ export function OrderComposerPage({
   const items = watch("items");
   const storeId = watch("storeId");
   const tagIds = watch("tagIds");
-  const slot = watch("slot");
   const paymentStatus = watch("paymentStatus");
-  const date = watch("date");
   const allowScheduleException = watch("allowScheduleException");
-  const slotCapacitiesQuery = useSlotCapacities({ date, storeId });
-  const slotCapacities = slotCapacitiesQuery.data?.data.slots ?? [];
+  const allowPreparationCapacityOverflow = watch("allowPreparationCapacityOverflow");
   const selectedTags = React.useMemo(
     () =>
       availableTags.filter((tag) => tagIds.includes(tag.id)),
@@ -760,16 +751,6 @@ export function OrderComposerPage({
   }
 
   const submitOrder = handleSubmit((values) => {
-    const slotValidationError = validateSlotSelection(values.slot, slotCapacities);
-
-    if (slotValidationError) {
-      setError("slot", {
-        message: slotValidationError,
-        type: "manual",
-      });
-      return;
-    }
-
     const onError = (error: ApiError) => {
       mapBackendErrorsToForm(error, setError);
       toast(
@@ -1191,39 +1172,6 @@ export function OrderComposerPage({
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-950">Slot</label>
-                      <Select
-                        value={slot}
-                        onValueChange={(value) =>
-                          setValue("slot", value as OrderFormValues["slot"], {
-                            shouldDirty: true,
-                            shouldValidate: true,
-                          })
-                        }
-                      >
-                        <SelectTrigger aria-invalid={Boolean(errors.slot)}>
-                          <SelectValue placeholder="Selecionar slot" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ORDER_SLOT_OPTIONS.map((option) => {
-                            const capacity = slotCapacities.find((entry) => entry.slot === option);
-
-                            return (
-                              <SelectItem
-                                key={option}
-                                value={option}
-                                disabled={capacity?.state === "bloqueado"}
-                              >
-                                {ORDER_SLOT_LABELS[option]}
-                              </SelectItem>
-                            );
-                          })}
-                        </SelectContent>
-                      </Select>
-                      <FieldMessage message={errors.slot?.message} />
-                    </div>
-
-                    <div className="space-y-2">
                       <label className="text-sm font-medium text-slate-950">
                         Estado de pagamento
                       </label>
@@ -1251,7 +1199,7 @@ export function OrderComposerPage({
                     </div>
                   </div>
 
-                  <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
+                  <div className="mt-5 space-y-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
                     <label className="flex items-start gap-3">
                       <input
                         type="checkbox"
@@ -1270,6 +1218,27 @@ export function OrderComposerPage({
                         </span>
                         <p className="text-sm text-slate-600">
                           Use apenas para lançamentos retroativos ou retiradas alinhadas manualmente com a loja. Esta opção ignora horário de funcionamento e antecedência mínima.
+                        </p>
+                      </div>
+                    </label>
+                    <label className="flex items-start gap-3 border-t border-amber-200 pt-3">
+                      <input
+                        type="checkbox"
+                        className="mt-1 h-4 w-4 rounded border-slate-300"
+                        checked={allowPreparationCapacityOverflow}
+                        onChange={(event) =>
+                          setValue("allowPreparationCapacityOverflow", event.currentTarget.checked, {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          })
+                        }
+                      />
+                      <div className="space-y-1">
+                        <span className="text-sm font-medium text-slate-950">
+                          Permitir exceder capacidade de preparo
+                        </span>
+                        <p className="text-sm text-slate-600">
+                          Use quando a produção será antecipada manualmente, mantendo o registo da carga total nas cubas.
                         </p>
                       </div>
                     </label>

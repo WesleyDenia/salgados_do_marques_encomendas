@@ -57,7 +57,6 @@ test("createOrder maps the panel form to the backend contract", async () => {
       date: "2026-05-20",
       time: "10:30",
       allowScheduleException: true,
-      slot: "manha",
       paymentStatus: "pending",
     });
 
@@ -69,7 +68,6 @@ test("createOrder maps the panel form to the backend contract", async () => {
       tag_ids: [],
       allow_schedule_exception: true,
       payment_status: "pending",
-      slot: "manha",
       scheduled_at: "2026-05-20T09:30:00.000Z",
       notes: "Sem picante",
       items: [{ product_id: 12, quantity: 12, flavors: [] }],
@@ -114,7 +112,6 @@ test("createOrder respects the provided operational timezone", async () => {
       date: "2026-05-20",
       time: "10:30",
       allowScheduleException: false,
-      slot: "manha",
       paymentStatus: "pending",
       },
       "Atlantic/Azores",
@@ -308,7 +305,6 @@ test("updateOrder maps correction payloads to the admin backend contract", async
       date: "2026-05-20",
       time: "10:30",
       allowScheduleException: true,
-      slot: "manha",
       paymentStatus: "pending",
     });
 
@@ -320,7 +316,6 @@ test("updateOrder maps correction payloads to the admin backend contract", async
       tag_ids: [],
       allow_schedule_exception: true,
       payment_status: "pending",
-      slot: "manha",
       scheduled_at: "2026-05-20T09:30:00.000Z",
       notes: "Sem picante",
       items: [{ product_id: 12, quantity: 12, flavors: [] }],
