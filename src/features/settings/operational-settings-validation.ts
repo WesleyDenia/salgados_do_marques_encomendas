@@ -1,7 +1,8 @@
 import * as z from "zod";
 
 export const E164_PHONE_REGEX = /^\+[1-9]\d{7,14}$/;
-export const E164_PHONE_MESSAGE = "O número WhatsApp deve estar no formato E.164.";
+export const WHATSAPP_RECIPIENT_REGEX = /^(?:\+[1-9]\d{7,14}|[A-Za-z0-9._:-]+@g\.us)$/;
+export const WHATSAPP_RECIPIENT_MESSAGE = "O destino WhatsApp deve estar no formato E.164 ou terminar com @g.us.";
 
 export const operationalSettingsSchema = z
   .object({
@@ -13,7 +14,7 @@ export const operationalSettingsSchema = z
     WHATSAPP_ORDER_TO: z
       .string()
       .trim()
-      .refine((value) => value === "" || E164_PHONE_REGEX.test(value), E164_PHONE_MESSAGE)
+      .refine((value) => value === "" || WHATSAPP_RECIPIENT_REGEX.test(value), WHATSAPP_RECIPIENT_MESSAGE)
       .nullable()
       .optional(),
   })
@@ -37,19 +38,21 @@ export const operationalSettingsSchema = z
 
 export type OperationalSettingsFormValues = z.infer<typeof operationalSettingsSchema>;
 
-export function normalizeOperationalWhatsAppNumber(value: string | null | undefined): string {
+export function normalizeOperationalWhatsAppRecipient(value: string | null | undefined): string {
   return value?.trim() ?? "";
 }
 
+export const normalizeOperationalWhatsAppNumber = normalizeOperationalWhatsAppRecipient;
+
 export function requiresSuccessfulWhatsAppTest(
-  currentNumber: string | null | undefined,
-  testedNumber: string | null | undefined,
+  currentRecipient: string | null | undefined,
+  testedRecipient: string | null | undefined,
 ): boolean {
-  const normalizedCurrent = normalizeOperationalWhatsAppNumber(currentNumber);
+  const normalizedCurrent = normalizeOperationalWhatsAppRecipient(currentRecipient);
 
   if (normalizedCurrent === "") {
     return false;
   }
 
-  return normalizedCurrent !== normalizeOperationalWhatsAppNumber(testedNumber);
+  return normalizedCurrent !== normalizeOperationalWhatsAppRecipient(testedRecipient);
 }

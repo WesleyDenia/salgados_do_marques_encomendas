@@ -15,7 +15,7 @@ import {
   useTestWhatsAppConnection,
 } from "../hooks/use-operational-settings";
 import {
-  normalizeOperationalWhatsAppNumber,
+  normalizeOperationalWhatsAppRecipient,
   operationalSettingsSchema,
   type OperationalSettingsFormValues,
   requiresSuccessfulWhatsAppTest,
@@ -27,7 +27,7 @@ export function OperationalSettingsForm() {
   const updateMutation = useUpdateOperationalSettings();
   const resetMutation = useResetOperationalSettings();
   const testWhatsAppMutation = useTestWhatsAppConnection();
-  const [testedWhatsAppNumber, setTestedWhatsAppNumber] = React.useState<string | null>(null);
+  const [testedWhatsAppRecipient, setTestedWhatsAppRecipient] = React.useState<string | null>(null);
   const resolver = zodResolver(
     operationalSettingsSchema as never,
   ) as Resolver<OperationalSettingsFormValues>;
@@ -43,8 +43,8 @@ export function OperationalSettingsForm() {
       WHATSAPP_ORDER_TO: "",
     }
   });
-  const currentWhatsAppNumber = form.watch("WHATSAPP_ORDER_TO");
-  const whatsappNeedsRetest = requiresSuccessfulWhatsAppTest(currentWhatsAppNumber, testedWhatsAppNumber);
+  const currentWhatsAppRecipient = form.watch("WHATSAPP_ORDER_TO");
+  const whatsappNeedsRetest = requiresSuccessfulWhatsAppTest(currentWhatsAppRecipient, testedWhatsAppRecipient);
 
   React.useEffect(() => {
     if (query.data) {
@@ -56,21 +56,21 @@ export function OperationalSettingsForm() {
         ORDER_SCHEDULING_WINDOW_DAYS: Number(query.data.ORDER_SCHEDULING_WINDOW_DAYS),
         WHATSAPP_ORDER_TO: query.data.WHATSAPP_ORDER_TO || "",
       });
-      setTestedWhatsAppNumber(normalizeOperationalWhatsAppNumber(query.data.WHATSAPP_ORDER_TO) || null);
+      setTestedWhatsAppRecipient(normalizeOperationalWhatsAppRecipient(query.data.WHATSAPP_ORDER_TO) || null);
     }
   }, [query.data, form]);
 
   async function onSubmit(data: OperationalSettingsFormValues) {
     if (!query.data) return;
     if (whatsappNeedsRetest) {
-      toast("Teste a ligação WhatsApp com o número actual antes de guardar.", "error");
+      toast("Teste a ligação WhatsApp com o destino actual antes de guardar.", "error");
       return;
     }
 
     try {
       await updateMutation.mutateAsync({
         ...data,
-        WHATSAPP_ORDER_TO: normalizeOperationalWhatsAppNumber(data.WHATSAPP_ORDER_TO),
+        WHATSAPP_ORDER_TO: normalizeOperationalWhatsAppRecipient(data.WHATSAPP_ORDER_TO),
         version: query.data.SETTINGS_VERSION,
       });
       toast("Configurações operacionais atualizadas com sucesso.", "success");
@@ -104,16 +104,16 @@ export function OperationalSettingsForm() {
   }
 
   async function handleTestWhatsApp() {
-    const number = normalizeOperationalWhatsAppNumber(form.getValues("WHATSAPP_ORDER_TO"));
-    if (!number) {
-      toast("Insira um número para testar.", "error");
+    const recipient = normalizeOperationalWhatsAppRecipient(form.getValues("WHATSAPP_ORDER_TO"));
+    if (!recipient) {
+      toast("Insira um destino WhatsApp para testar.", "error");
       return;
     }
 
     try {
-      const result = await testWhatsAppMutation.mutateAsync(number);
+      const result = await testWhatsAppMutation.mutateAsync(recipient);
       if (result.success) {
-        setTestedWhatsAppNumber(number);
+        setTestedWhatsAppRecipient(recipient);
         toast(result.message, "success");
       } else {
         toast(result.message, "error");
@@ -186,11 +186,11 @@ export function OperationalSettingsForm() {
           <h2 className="text-base font-semibold text-foreground">Notificações WhatsApp</h2>
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Número para Receção de Pedidos (E.164)</label>
+          <label className="text-sm font-medium">Destino para Receção de Pedidos</label>
           <div className="flex gap-2">
             <Input
               {...form.register("WHATSAPP_ORDER_TO")}
-              placeholder="+351..."
+              placeholder="+351... ou id-do-grupo@g.us"
               className="max-w-md"
             />
             <Button
@@ -207,7 +207,7 @@ export function OperationalSettingsForm() {
           )}
           {whatsappNeedsRetest && (
             <p className="text-xs text-amber-600">
-              Teste a ligação com o número actual antes de guardar as alterações.
+              Teste a ligação com o destino actual antes de guardar as alterações.
             </p>
           )}
         </div>
