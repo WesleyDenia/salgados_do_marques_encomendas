@@ -66,7 +66,7 @@ test("OrdersOperationalRecordContent renders the persisted operational record", 
   assert.ok(markup.indexOf("Página 1 de 3") > markup.indexOf("Abrir"));
 });
 
-test("OrdersOperationalRecordContent shows withdrawal action only for eligible parent orders", () => {
+test("OrdersOperationalRecordContent marks withdrawal action only for eligible parent orders", () => {
   const markup = renderToStaticMarkup(
     <OrdersOperationalRecordContent
       orders={[
@@ -129,7 +129,8 @@ test("OrdersOperationalRecordContent shows withdrawal action only for eligible p
     />,
   );
 
-  assert.equal((markup.match(/Retirada<\/button>/g) ?? []).length, 1);
+  assert.equal((markup.match(/Abrir ações da encomenda/g) ?? []).length, 2);
+  assert.equal((markup.match(/inclui retirada/g) ?? []).length, 1);
 });
 
 test("OrdersOperationalRecordContent adapts copy for investigation mode", () => {

@@ -1,12 +1,23 @@
 "use client";
 
 import * as React from "react";
+import { Menu } from "@base-ui/react/menu";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Filter, LayoutGrid, List, Printer, RefreshCcw, X } from "lucide-react";
+import {
+  EllipsisVertical,
+  ExternalLink,
+  Filter,
+  LayoutGrid,
+  List,
+  PackageOpen,
+  Printer,
+  RefreshCcw,
+  X,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/feedback/empty-state";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
@@ -1553,6 +1564,73 @@ function PartialWithdrawalModal({
   );
 }
 
+function OrderRecordActionsMenu({
+  order,
+  showWithdrawalAction,
+  onOpenOrder,
+  onOpenWithdrawal,
+  onPrintOrder,
+}: Readonly<{
+  order: Order;
+  showWithdrawalAction: boolean;
+  onOpenOrder?: (order: Order) => void;
+  onOpenWithdrawal?: (order: Order) => void;
+  onPrintOrder?: (order: Order) => void;
+}>) {
+  const triggerLabel = showWithdrawalAction
+    ? `Abrir ações da encomenda #${order.id}, inclui retirada`
+    : `Abrir ações da encomenda #${order.id}`;
+  const menuItemClassName =
+    "flex min-h-9 cursor-pointer items-center gap-2 px-3 py-2 text-sm text-popover-foreground outline-none data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50 data-[highlighted]:bg-muted data-[highlighted]:text-foreground";
+
+  return (
+    <Menu.Root>
+      <Menu.Trigger
+        aria-label={triggerLabel}
+        title="Ações"
+        className={cn(buttonVariants({ variant: "outline", size: "icon-sm" }))}
+      >
+        <EllipsisVertical className="size-4" />
+      </Menu.Trigger>
+      <Menu.Portal>
+        <Menu.Positioner sideOffset={6} align="end" className="z-50">
+          <Menu.Popup className="min-w-40 overflow-hidden rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-lg outline-none">
+            {showWithdrawalAction ? (
+              <Menu.Item
+                aria-label={`Retirada da encomenda #${order.id}`}
+                className={menuItemClassName}
+                disabled={!onOpenWithdrawal}
+                onClick={() => onOpenWithdrawal?.(order)}
+              >
+                <PackageOpen className="size-4 text-muted-foreground" />
+                Retirada
+              </Menu.Item>
+            ) : null}
+            <Menu.Item
+              aria-label={`Imprimir encomenda #${order.id}`}
+              className={menuItemClassName}
+              disabled={!onPrintOrder}
+              onClick={() => onPrintOrder?.(order)}
+            >
+              <Printer className="size-4 text-muted-foreground" />
+              Imprimir
+            </Menu.Item>
+            <Menu.Item
+              aria-label={`Abrir encomenda #${order.id}`}
+              className={menuItemClassName}
+              disabled={!onOpenOrder}
+              onClick={() => onOpenOrder?.(order)}
+            >
+              <ExternalLink className="size-4 text-muted-foreground" />
+              Abrir
+            </Menu.Item>
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
+  );
+}
+
 export function OrdersOperationalRecordContent({
   orders,
   meta,
@@ -1634,34 +1712,16 @@ export function OrdersOperationalRecordContent({
                   <TableCell>{buildItemsQuantity(order)}</TableCell>
                   <TableCell>{formatTotal(order.total)}</TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      {allowWithdrawalActions && canOrderRegisterPartialWithdrawal(order) ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onOpenWithdrawal?.(order)}
-                        >
-                          Retirada
-                        </Button>
-                      ) : null}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onPrintOrder?.(order)}
-                      >
-                        <Printer className="size-4" />
-                        Imprimir
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onOpenOrder?.(order)}
-                      >
-                        Abrir
-                      </Button>
+                    <div className="flex justify-end">
+                      <OrderRecordActionsMenu
+                        order={order}
+                        showWithdrawalAction={
+                          allowWithdrawalActions && canOrderRegisterPartialWithdrawal(order)
+                        }
+                        onOpenWithdrawal={onOpenWithdrawal}
+                        onPrintOrder={onPrintOrder}
+                        onOpenOrder={onOpenOrder}
+                      />
                     </div>
                   </TableCell>
                 </TableRow>
@@ -1704,35 +1764,15 @@ export function OrdersOperationalRecordContent({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  {allowWithdrawalActions && canOrderRegisterPartialWithdrawal(order) ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onOpenWithdrawal?.(order)}
-                    >
-                      Retirada
-                    </Button>
-                  ) : null}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onPrintOrder?.(order)}
-                  >
-                    <Printer className="size-4" />
-                    Imprimir
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onOpenOrder?.(order)}
-                  >
-                    Abrir
-                  </Button>
-                </div>
+                <OrderRecordActionsMenu
+                  order={order}
+                  showWithdrawalAction={
+                    allowWithdrawalActions && canOrderRegisterPartialWithdrawal(order)
+                  }
+                  onOpenWithdrawal={onOpenWithdrawal}
+                  onPrintOrder={onPrintOrder}
+                  onOpenOrder={onOpenOrder}
+                />
               </div>
 
               <div className="mt-4 space-y-4">
