@@ -645,7 +645,13 @@ export function OrderComposerPage({
     container.addEventListener("scroll", handleScroll, { passive: true });
     window.addEventListener("resize", handleScroll);
 
+    const resizeObserver =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(handleScroll);
+
+    resizeObserver?.observe(container);
+
     return () => {
+      resizeObserver?.disconnect();
       container.removeEventListener("scroll", handleScroll);
       window.removeEventListener("resize", handleScroll);
     };
@@ -846,10 +852,10 @@ export function OrderComposerPage({
   return (
     <>
       <form onSubmit={submitOrder} className="space-y-6">
-        <section className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,1fr)]">
-          <div className="space-y-6">
+        <section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,1fr)]">
+          <div className="min-w-0 space-y-6">
             {currentStep === 1 ? (
-              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <section className="min-w-0 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="flex justify-end">
                   <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1">
                     <Button
@@ -872,8 +878,8 @@ export function OrderComposerPage({
                   </div>
                 </div>
 
-                <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-slate-950/95">
-                  <div className="flex items-stretch">
+                <div className="mt-5 min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-950/95">
+                  <div className="flex min-w-0 max-w-full items-stretch">
                     <div
                       ref={categoryTabsRef}
                       className="flex min-w-0 flex-1 overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -923,19 +929,21 @@ export function OrderComposerPage({
                   </div>
                 </div>
 
-                <div className="mt-6 rounded-3xl border border-slate-300 bg-slate-200/70 p-4 shadow-inner shadow-slate-300/40">
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <div className="mt-6 min-w-0 rounded-3xl border border-slate-300 bg-slate-200/70 p-4 shadow-inner shadow-slate-300/40">
+                  <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
                     {filteredProducts.map((product) => {
                       const hasVariants = getActiveVariants(product).length > 0;
 
                       return (
                         <article
                           key={product.id}
-                          className="flex flex-col justify-between rounded-2xl border border-slate-300 bg-white p-4 shadow-[0_16px_35px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-[0_22px_45px_rgba(15,23,42,0.12)]"
+                          className="flex min-w-0 flex-col justify-between rounded-2xl border border-slate-300 bg-white p-4 shadow-[0_16px_35px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-[0_22px_45px_rgba(15,23,42,0.12)]"
                         >
-                          <div>
-                            <p className="font-semibold text-slate-950">{product.name}</p>
-                            <p className="mt-1 text-sm text-slate-600">
+                          <div className="min-w-0">
+                            <p className="break-words font-semibold text-slate-950 [overflow-wrap:anywhere]">
+                              {product.name}
+                            </p>
+                            <p className="mt-1 break-words text-sm text-slate-600 [overflow-wrap:anywhere]">
                               {product.description?.trim() || "Sem descrição disponível."}
                             </p>
                             <p className="mt-2 text-sm font-medium text-slate-950">
@@ -947,7 +955,7 @@ export function OrderComposerPage({
 
                           <Button
                             type="button"
-                            className="mt-4 bg-slate-950 text-white hover:bg-slate-800"
+                            className="mt-4 whitespace-normal bg-slate-950 text-center leading-snug text-white hover:bg-slate-800"
                             onClick={() => openCreateItem(product)}
                           >
                             {hasVariants ? "Escolher pack e sabores" : "Configurar item"}
@@ -983,11 +991,11 @@ export function OrderComposerPage({
                       return (
                         <article
                           key={field.id}
-                          className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+                          className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
                         >
-                          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                            <div className="space-y-1">
-                              <p className="font-semibold text-slate-950">
+                          <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <p className="break-words font-semibold text-slate-950 [overflow-wrap:anywhere]">
                                 {buildItemTitle(item, product, variant)}
                               </p>
                               <p className="text-sm text-slate-600">
@@ -995,11 +1003,13 @@ export function OrderComposerPage({
                                 {variant ? ` • ${variant.unitCount} unidades por pack` : ""}
                               </p>
                               {flavorSummary ? (
-                                <p className="text-sm text-slate-600">Sabores: {flavorSummary}</p>
+                                <p className="break-words text-sm text-slate-600 [overflow-wrap:anywhere]">
+                                  Sabores: {flavorSummary}
+                                </p>
                               ) : null}
                             </div>
 
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 md:shrink-0">
                               <Button
                                 type="button"
                                 variant="outline"
@@ -1030,7 +1040,7 @@ export function OrderComposerPage({
               </section>
             ) : (
               <>
-                <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <section className="min-w-0 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="flex justify-end">
                     <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1">
                       <Button
@@ -1116,7 +1126,7 @@ export function OrderComposerPage({
                               type="button"
                               onClick={() => toggleTagSelection(tag)}
                               disabled={!isSelectable}
-                              className="inline-flex min-h-10 items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
+                              className="inline-flex min-h-10 max-w-full items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
                               style={{
                                 backgroundColor: isSelected ? tag.color : "#FFFFFF",
                                 borderColor: tag.color,
@@ -1130,8 +1140,10 @@ export function OrderComposerPage({
                                 }}
                                 aria-hidden
                               />
-                              {tag.name}
-                              {!tag.active ? " · inativa" : ""}
+                              <span className="min-w-0 break-words text-left [overflow-wrap:anywhere]">
+                                {tag.name}
+                                {!tag.active ? " · inativa" : ""}
+                              </span>
                             </button>
                           );
                         })}
@@ -1144,7 +1156,7 @@ export function OrderComposerPage({
                   </div>
                 </section>
 
-                <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <section className="min-w-0 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="space-y-1">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                       Agendamento
@@ -1255,8 +1267,8 @@ export function OrderComposerPage({
             )}
           </div>
 
-          <aside className="space-y-6">
-            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <aside className="min-w-0 space-y-6">
+            <section className="min-w-0 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="space-y-1">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                   Resumo da encomenda
@@ -1269,19 +1281,19 @@ export function OrderComposerPage({
               <dl className="mt-5 space-y-4 text-sm">
                 <div>
                   <dt className="text-slate-500">Loja</dt>
-                  <dd className="font-medium text-slate-950">
+                  <dd className="break-words font-medium text-slate-950 [overflow-wrap:anywhere]">
                     {stores.find((store) => store.id === storeId)?.name ?? "Por definir"}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-slate-500">Cliente</dt>
-                  <dd className="font-medium text-slate-950">
+                  <dd className="break-words font-medium text-slate-950 [overflow-wrap:anywhere]">
                     {watch("customerName") || "Por definir"}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-slate-500">Contacto</dt>
-                  <dd className="font-medium text-slate-950">
+                  <dd className="break-words font-medium text-slate-950 [overflow-wrap:anywhere]">
                     {watch("customerContact") || "Por definir"}
                   </dd>
                 </div>
@@ -1291,7 +1303,7 @@ export function OrderComposerPage({
                 </div>
                 <div>
                   <dt className="text-slate-500">Tags</dt>
-                  <dd className="font-medium text-slate-950">
+                  <dd className="break-words font-medium text-slate-950 [overflow-wrap:anywhere]">
                     {selectedTags.length > 0
                       ? selectedTags.map((tag) => tag.name).join(", ")
                       : "Sem tags"}
@@ -1299,7 +1311,7 @@ export function OrderComposerPage({
                 </div>
                 <div>
                   <dt className="text-slate-500">Agendamento</dt>
-                  <dd className="font-medium text-slate-950">
+                  <dd className="break-words font-medium text-slate-950 [overflow-wrap:anywhere]">
                     {watch("date") && watch("time")
                       ? `${watch("date")} às ${watch("time")}`
                       : "Por definir"}
