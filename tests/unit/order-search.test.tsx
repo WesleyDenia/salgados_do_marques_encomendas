@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { OrdersOperationalRecordEmptyState } from "@/features/orders/components/orders-operational-record";
 import { createDebouncedCallback } from "@/features/orders/hooks/use-debounced-value";
+import { getOrderRecordModeConfig } from "@/features/orders/order-record-mode";
 import {
   buildOperationalPeriodDateRange,
   buildOrderSearchFilters,
@@ -38,16 +39,43 @@ test("createDebouncedCallback only emits the latest search term", async () => {
 test("OrdersOperationalRecordEmptyState guides the user when search returns no results", () => {
   const markup = renderToStaticMarkup(
     <OrdersOperationalRecordEmptyState
-      searchTerm="Maria"
+      searchTerm="912345678"
       periodLabel="Hoje"
       onClear={() => undefined}
     />,
   );
 
   assert.match(markup, /Nenhuma encomenda encontrada/);
-  assert.match(markup, /Maria/);
-  assert.match(markup, /Ajuste o número, nome do cliente ou contacto/);
+  assert.match(markup, /912345678/);
+  assert.match(markup, /Ajuste o nome ou telefone do cliente/);
   assert.match(markup, /Limpar pesquisa/);
+});
+
+test("order record modes expose search as name or phone", () => {
+  const operationalConfig = getOrderRecordModeConfig("operational");
+  const investigationConfig = getOrderRecordModeConfig("investigation");
+
+  assert.equal(operationalConfig.searchLabel, "Nome ou telefone do cliente");
+  assert.equal(operationalConfig.searchPlaceholder, "Buscar por nome ou telefone");
+  assert.match(operationalConfig.searchHelpIdle, /nome ou telefone/);
+  assert.match(
+    operationalConfig.emptyStateDescription({
+      filterSummary: "Hoje",
+      searchTerm: "912345678",
+    }),
+    /Ajuste o nome ou telefone do cliente/,
+  );
+
+  assert.equal(investigationConfig.searchLabel, "Nome ou telefone do cliente");
+  assert.equal(investigationConfig.searchPlaceholder, "Buscar por nome ou telefone");
+  assert.match(investigationConfig.searchHelpIdle, /nome ou telefone/);
+  assert.match(
+    investigationConfig.emptyStateDescription({
+      filterSummary: "Todos",
+      searchTerm: "912345678",
+    }),
+    /Ajuste o nome ou telefone do cliente/,
+  );
 });
 
 test("OrdersOperationalRecordEmptyState uses investigation copy for empty searches", () => {
@@ -70,6 +98,8 @@ test("buildOperationalPeriodDateRange converts today to operational timezone bou
   const range = buildOperationalPeriodDateRange(
     "today",
     "Europe/Lisbon",
+    undefined,
+    undefined,
     new Date("2026-05-16T10:15:00.000Z"),
   );
 
@@ -83,6 +113,8 @@ test("buildOperationalPeriodDateRange converts next 7 days with full day lower b
   const range = buildOperationalPeriodDateRange(
     "next-7-days",
     "Europe/Lisbon",
+    undefined,
+    undefined,
     new Date("2026-05-16T10:15:00.000Z"),
   );
 
@@ -113,9 +145,24 @@ test("buildOrderSearchFilters keeps all-period requests without date filters", (
     status: "accepted",
     paymentStatus: undefined,
     slot: undefined,
+    tagIds: undefined,
     scheduledFrom: undefined,
     scheduledTo: undefined,
   });
+});
+
+test("buildOrderSearchFilters preserves phone-like searches as the free search term", () => {
+  const filters = buildOrderSearchFilters(
+    {
+      search: "912345678",
+      period: "all",
+      page: 1,
+    },
+    "Europe/Lisbon",
+    new Date("2026-05-16T10:15:00.000Z"),
+  );
+
+  assert.equal(filters.search, "912345678");
 });
 
 test("normalizers restore valid URL values and fall back safely", () => {

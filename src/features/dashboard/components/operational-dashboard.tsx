@@ -461,6 +461,8 @@ function DashboardContent({
   statusLabels?: Record<string, string>;
   role: string;
 }>) {
+  const fullSearchTerm = search.trim() || appliedSearch;
+
   return (
     <div className="space-y-6">
       <section className="rounded-3xl border border-border/70 bg-card/90 p-6">
@@ -567,7 +569,7 @@ function DashboardContent({
           title="Pesquisa rápida"
           description="Localize uma encomenda específica sem sair do dashboard."
           action={
-            <Link href={buildOrdersHref("today", appliedSearch)}>
+            <Link href={buildOrdersHref("today", fullSearchTerm)}>
               <Button variant="outline">Abrir pesquisa completa</Button>
             </Link>
           }
@@ -579,15 +581,15 @@ function DashboardContent({
               onSubmit={onSearchSubmit}
               onClear={onSearchClear}
               loading={isSearching}
-              label="Nome do cliente"
-              placeholder="Buscar por nome do cliente"
-              helpTextIdle="Digite o nome do cliente e clique em Buscar para abrir a fila já filtrada."
+              label="Nome ou telefone do cliente"
+              placeholder="Buscar por nome ou telefone"
+              helpTextIdle="Digite o nome ou telefone do cliente e clique em Buscar para abrir a fila já filtrada."
             />
 
             <OrderList
               orders={searchedOrders}
               emptyTitle="Nenhuma encomenda encontrada"
-              emptyDescription="Ajuste o termo pesquisado ou abra a pesquisa completa para ver mais resultados."
+              emptyDescription="Ajuste o nome ou telefone pesquisado ou abra a pesquisa completa para ver mais resultados."
               timeZone={timeZone}
               statusLabels={statusLabels}
             />
