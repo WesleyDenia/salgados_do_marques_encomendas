@@ -14,7 +14,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { OrderComposerLauncher } from "@/features/orders/components/order-composer-launcher";
 import { OrderSearch } from "@/features/orders/components/order-search";
 import {
   buildProductDemandSummary,
@@ -444,7 +443,6 @@ function DashboardContent({
   onSearchClear,
   isSearching,
   statusLabels,
-  role,
 }: Readonly<{
   timeZone: string;
   summary: PlanningSummary | null;
@@ -459,40 +457,11 @@ function DashboardContent({
   onSearchClear: () => void;
   isSearching: boolean;
   statusLabels?: Record<string, string>;
-  role: string;
 }>) {
   const fullSearchTerm = search.trim() || appliedSearch;
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-border/70 bg-card/90 p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl space-y-2">
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              Operação do dia
-            </p>
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-              Acompanhe as encomendas em andamento e avance para a próxima ação.
-            </h2>
-            <p className="text-sm leading-6 text-muted-foreground">
-              O dashboard agora resume o trabalho operacional: volume do dia,
-              prioridades imediatas, capacidade por slot e acesso rápido à fila
-              completa.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <OrderComposerLauncher role={role} />
-            <Link href="/orders?period=today">
-              <Button variant="outline">Ver encomendas de hoje</Button>
-            </Link>
-            <Link href={`/planning?view=day&day=${buildOperationalDay(timeZone)}`}>
-              <Button variant="outline">Abrir planeamento de hoje</Button>
-            </Link>
-          </div>
-        </div>
-      </section>
-
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <SummaryCard
           title="Encomendas de hoje"
@@ -515,6 +484,8 @@ function DashboardContent({
           description="Encomendas que ainda exigem validação ou acompanhamento."
         />
       </section>
+
+      <ProductDemandSection timeZone={timeZone} />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <OperationalSection
@@ -596,17 +567,11 @@ function DashboardContent({
           </div>
         </OperationalSection>
       </div>
-
-      <ProductDemandSection timeZone={timeZone} />
     </div>
   );
 }
 
-export function OperationalDashboard({
-  role,
-}: Readonly<{
-  role: string;
-}>) {
+export function OperationalDashboard() {
   const [search, setSearch] = React.useState("");
   const [appliedSearch, setAppliedSearch] = React.useState("");
   const settingsQuery = useOrderSettings();
@@ -661,7 +626,6 @@ export function OperationalDashboard({
 
   return (
     <DashboardContent
-      role={role}
       timeZone={timeZone}
       summary={planningData?.summary ?? null}
       slotOccupancy={planningData?.slotOccupancy ?? {}}

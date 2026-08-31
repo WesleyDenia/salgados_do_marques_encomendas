@@ -13,7 +13,7 @@ export default async function DashboardPage() {
 
   return (
     <ProtectedAreaPage routeKey="dashboard" sessionUser={currentUser}>
-      <OperationalDashboard role={currentUser.role} />
+      <OperationalDashboard />
     </ProtectedAreaPage>
   );
 }
