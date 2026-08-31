@@ -90,3 +90,38 @@ test("buildProductDemandSummary expands pack demand into flavors while ignoring 
     },
   ]);
 });
+
+test("buildProductDemandSummary counts partial withdrawal pack children as packs instead of loose units", () => {
+  const orders: Order[] = [
+    {
+      id: 10,
+      parentOrderId: 1,
+      status: "placed",
+      items: [
+        {
+          productId: 10,
+          productName: "Pack 25",
+          quantity: 1,
+          variantId: 25,
+          variantName: "Pack 25 Unidades",
+          variantUnitCount: 25,
+          originalUnits: 25,
+          parentOrderItemId: 100,
+          flavorNames: ["Bolinhas de queijo"],
+        },
+      ],
+      tags: [],
+    },
+  ];
+
+  const summary = buildProductDemandSummary(orders);
+
+  assert.equal(summary.totalQuantity, 1);
+  assert.deepEqual(summary.rows, [
+    {
+      key: "flavor:Bolinhas de queijo",
+      label: "Bolinhas de queijo",
+      quantity: 1,
+    },
+  ]);
+});

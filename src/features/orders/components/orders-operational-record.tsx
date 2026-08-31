@@ -1201,14 +1201,12 @@ function PartialWithdrawalModal({
   open,
   onOpenChange,
   productCatalog,
-  timeZone,
   onSubmit,
 }: Readonly<{
   order: Order | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   productCatalog?: OrderProductOption[];
-  timeZone?: string;
   onSubmit: (
     order: Order,
     input: {
@@ -1285,14 +1283,14 @@ function PartialWithdrawalModal({
 
     setWithdrawalItemId(firstItem?.id != null ? String(firstItem.id) : "");
     setWithdrawalUnits("25");
-    setWithdrawalDate(getDateInputValue(order.scheduledAt, timeZone));
-    setWithdrawalTime(getTimeInputValue(order.scheduledAt, timeZone));
+    setWithdrawalDate("");
+    setWithdrawalTime("");
     setWithdrawalNotes("");
     setWithdrawalFlavorCounts({});
     setAllowScheduleException(false);
     setGenerateChildOrder(true);
     setWithdrawalError(null);
-  }, [eligibleWithdrawalItems, open, order, timeZone]);
+  }, [eligibleWithdrawalItems, open, order]);
 
   React.useEffect(() => {
     setWithdrawalFlavorCounts({});
@@ -2902,7 +2900,6 @@ export function OrdersOperationalRecord({
           }
         }}
         productCatalog={productsQuery.data?.data ?? []}
-        timeZone={settings?.timezone}
         onSubmit={handleCreatePartialWithdrawal}
       />
     </>
