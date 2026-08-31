@@ -377,6 +377,31 @@ function renderOrderTagBadge(tag: OrderTag) {
   );
 }
 
+function renderOrderPaymentBadge(order: Order) {
+  const label = buildPaymentLabel(order);
+  const classNameByStatus = {
+    paid: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    partial: "border-amber-200 bg-amber-50 text-amber-800",
+    pending: "border-rose-200 bg-rose-50 text-rose-700",
+  } satisfies Record<string, string>;
+  const statusClassName = order.paymentStatus
+    ? classNameByStatus[order.paymentStatus] ?? "border-slate-200 bg-slate-50 text-slate-700"
+    : "border-slate-200 bg-slate-50 text-slate-700";
+
+  return (
+    <span
+      aria-label={`Pagamento: ${label}`}
+      title={`Pagamento: ${label}`}
+      className={cn(
+        "inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold",
+        statusClassName,
+      )}
+    >
+      {label}
+    </span>
+  );
+}
+
 function formatCustomerContact(value?: string | null) {
   if (!value) {
     return "Por definir";
@@ -1707,7 +1732,7 @@ export function OrdersOperationalRecordContent({
                       <span className="text-xs text-slate-500">Sem tags</span>
                     )}
                   </TableCell>
-                  <TableCell>{buildPaymentLabel(order)}</TableCell>
+                  <TableCell>{renderOrderPaymentBadge(order)}</TableCell>
                   <TableCell>{buildOperationalStatusLabel(order, statusLabels)}</TableCell>
                   <TableCell>{buildItemsQuantity(order)}</TableCell>
                   <TableCell>{formatTotal(order.total)}</TableCell>
@@ -1738,9 +1763,12 @@ export function OrdersOperationalRecordContent({
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2">
-                  <p className="text-sm font-semibold text-slate-950">
-                    Encomenda #{order.id} ·
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-slate-950">
+                      Encomenda #{order.id}
+                    </p>
+                    {renderOrderPaymentBadge(order)}
+                  </div>
                   <div className="space-y-1 text-sm text-slate-700">
                     <p>
                       <span className="font-medium text-slate-950">Nome:</span>{" "}

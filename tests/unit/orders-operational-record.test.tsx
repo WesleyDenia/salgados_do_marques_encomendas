@@ -51,7 +51,8 @@ test("OrdersOperationalRecordContent renders the persisted operational record", 
   assert.match(markup, /Loja Centro/);
   assert.match(markup, /Realizado/);
   assert.match(markup, />12</);
-  assert.match(markup, /Pendente/);
+  assert.match(markup, /Pagamento: Pendente/);
+  assert.match(markup, /bg-rose-50/);
   assert.match(markup, /Manhã/);
   assert.match(markup, /20\/05\/2026, 10:30/);
   assert.match(markup, /Página 1 de 3/);
@@ -225,6 +226,7 @@ test("OrdersOperationalRecordContent renders full operational cards in blocks mo
 
   assert.match(markup, /Encomenda #36/);
   assert.match(markup, /md:grid-cols-2 lg:grid-cols-3/);
+  assert.match(markup, /Pagamento: Pendente/);
   assert.match(markup, /Nome:<\/span> WESLEY SILVA/);
   assert.match(markup, /Tel:<\/span> 911 928 481/);
   assert.match(markup, /13\/06\/2026 às 17:00/);
