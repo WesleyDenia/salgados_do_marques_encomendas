@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import {
   getDailyPlanning,
@@ -44,6 +44,7 @@ export function usePeriodPlanning(
     queryKey: planningKeys.period(startDate, endDate),
     queryFn: () => getPeriodPlanning(startDate, endDate),
     enabled,
+    placeholderData: keepPreviousData,
     refetchInterval: 30_000,
   });
 }

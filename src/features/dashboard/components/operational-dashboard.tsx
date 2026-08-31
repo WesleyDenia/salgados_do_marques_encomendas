@@ -7,6 +7,13 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -19,6 +26,15 @@ import {
   buildProductDemandSummary,
   type ProductDemandSummary,
 } from "@/features/dashboard/utils/product-demand";
+import {
+  buildProductDemandDateRange,
+  formatDateInputValue,
+  isValidDateInputValue,
+  normalizeProductDemandPeriod,
+  PRODUCT_DEMAND_PERIOD_LABELS,
+  PRODUCT_DEMAND_PERIODS,
+  type ProductDemandPeriod,
+} from "@/features/dashboard/utils/product-demand-period";
 import { useOrderSearch, type OrderOperationalPeriod } from "@/features/orders/hooks/use-order-search";
 import { useOrderSettings } from "@/features/orders/hooks/use-order-queries";
 import {
@@ -41,10 +57,8 @@ import type {
 } from "@/features/planning/types";
 import { cn } from "@/lib/utils";
 
-function buildOperationalDay(timeZone: string) {
-  const now = getZonedParts(new Date(), timeZone);
-
-  return `${String(now.year).padStart(4, "0")}-${String(now.month).padStart(2, "0")}-${String(now.day).padStart(2, "0")}`;
+function buildOperationalDay(timeZone: string, now = new Date()) {
+  return formatDateInputValue(getZonedParts(now, timeZone));
 }
 
 function buildOrderStatusLabel(order: Order, statusLabels?: Record<string, string>) {
@@ -275,18 +289,36 @@ function ProductDemandSection({
 }: Readonly<{
   timeZone: string;
 }>) {
-  const today = React.useMemo(() => buildOperationalDay(timeZone), [timeZone]);
-  const [startDate, setStartDate] = React.useState(today);
-  const [endDate, setEndDate] = React.useState(today);
+  const [dateAnchor, setDateAnchor] = React.useState(() => new Date());
+  const today = React.useMemo(() => buildOperationalDay(timeZone, dateAnchor), [dateAnchor, timeZone]);
+  const [period, setPeriod] = React.useState<ProductDemandPeriod>("today");
+  const [customStartDate, setCustomStartDate] = React.useState(today);
+  const [customEndDate, setCustomEndDate] = React.useState(today);
+  const customRangeTouchedRef = React.useRef(false);
 
   React.useEffect(() => {
-    setStartDate((current) => current || today);
-    setEndDate((current) => current || today);
+    const intervalId = window.setInterval(() => setDateAnchor(new Date()), 60_000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  React.useEffect(() => {
+    if (!customRangeTouchedRef.current) {
+      setCustomStartDate(today);
+      setCustomEndDate(today);
+    }
   }, [today]);
 
+  const { startDate, endDate } = React.useMemo(
+    () => buildProductDemandDateRange(period, timeZone, customStartDate, customEndDate, dateAnchor),
+    [customEndDate, customStartDate, dateAnchor, period, timeZone],
+  );
   const isRangeIncomplete = startDate.trim() === "" || endDate.trim() === "";
-  const isRangeInvalid = !isRangeIncomplete && endDate < startDate;
-  const shouldFetch = !isRangeIncomplete && !isRangeInvalid;
+  const isRangeMalformed =
+    !isRangeIncomplete &&
+    (!isValidDateInputValue(startDate) || !isValidDateInputValue(endDate));
+  const isRangeInvalid = !isRangeIncomplete && !isRangeMalformed && endDate < startDate;
+  const shouldFetch = !isRangeIncomplete && !isRangeMalformed && !isRangeInvalid;
   const planningQuery = usePeriodPlanning(startDate, endDate, shouldFetch);
   const demandSummary = React.useMemo<ProductDemandSummary | null>(
     () =>
@@ -303,6 +335,14 @@ function ProductDemandSection({
       <EmptyState
         title="Período incompleto"
         description="Defina data inicial e data final para calcular o quantitativo necessário por produto."
+        className="p-5"
+      />
+    );
+  } else if (isRangeMalformed) {
+    content = (
+      <EmptyState
+        title="Período inválido"
+        description="Use datas válidas no formato ano-mês-dia para calcular o quantitativo necessário."
         className="p-5"
       />
     );
@@ -380,43 +420,81 @@ function ProductDemandSection({
     );
   }
 
+  const planningAction = shouldFetch ? (
+    <Link href={buildPlanningPeriodHref(startDate, endDate)}>
+      <Button variant="outline">Abrir no planeamento</Button>
+    </Link>
+  ) : (
+    <Button type="button" variant="outline" disabled>
+      Abrir no planeamento
+    </Button>
+  );
+
   return (
     <OperationalSection
       title="Necessidade de stock por produto"
       description="Consolida os itens das encomendas ativas do período para indicar quanto precisa produzir ou separar."
-      action={
-        <Link href={buildPlanningPeriodHref(startDate, endDate)}>
-          <Button variant="outline">Abrir no planeamento</Button>
-        </Link>
-      }
+      action={planningAction}
     >
       <div className="space-y-5">
-        <div className="grid gap-4 rounded-2xl border border-border/70 bg-background/80 p-4 md:grid-cols-[minmax(0,16rem)_minmax(0,16rem)_auto] md:items-end">
+        <div className="grid gap-4 rounded-2xl border border-border/70 bg-background/80 p-4 md:grid-cols-[minmax(0,16rem)_minmax(0,16rem)_minmax(0,16rem)] md:items-end">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="dashboard-stock-start">
-              Data inicial
+            <label className="text-sm font-medium text-foreground" htmlFor="dashboard-stock-period">
+              Período
             </label>
-            <Input
-              id="dashboard-stock-start"
-              type="date"
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-            />
+            <Select
+              value={period}
+              onValueChange={(value) => setPeriod(normalizeProductDemandPeriod(value))}
+            >
+              <SelectTrigger id="dashboard-stock-period">
+                <SelectValue placeholder="Selecionar período" />
+              </SelectTrigger>
+              <SelectContent>
+                {PRODUCT_DEMAND_PERIODS.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {PRODUCT_DEMAND_PERIOD_LABELS[value]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="dashboard-stock-end">
-              Data final
-            </label>
-            <Input
-              id="dashboard-stock-end"
-              type="date"
-              value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
-            />
-          </div>
+          {period === "custom" ? (
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground" htmlFor="dashboard-stock-start">
+                  Data inicial
+                </label>
+                <Input
+                  id="dashboard-stock-start"
+                  type="date"
+                  value={customStartDate}
+                  onChange={(event) => {
+                    customRangeTouchedRef.current = true;
+                    setCustomStartDate(event.target.value);
+                  }}
+                />
+              </div>
 
-          <p className="text-sm text-muted-foreground">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground" htmlFor="dashboard-stock-end">
+                  Data final
+                </label>
+                <Input
+                  id="dashboard-stock-end"
+                  type="date"
+                  min={customStartDate || undefined}
+                  value={customEndDate}
+                  onChange={(event) => {
+                    customRangeTouchedRef.current = true;
+                    setCustomEndDate(event.target.value);
+                  }}
+                />
+              </div>
+            </>
+          ) : null}
+
+          <p className="text-sm text-muted-foreground md:col-span-full">
             {planningQuery.isFetching && shouldFetch
               ? "A atualizar o quantitativo do período..."
               : "O cálculo considera apenas encomendas ativas, excluindo canceladas, rejeitadas e concluídas."}
