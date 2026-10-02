@@ -74,6 +74,11 @@ import {
   ORDER_PAYMENT_STATUS_LABELS,
   ORDER_SLOT_LABELS,
 } from "@/features/orders/types";
+import {
+  buildPartialWithdrawalGroups,
+  hasPartialWithdrawalGroupBalance,
+  type PartialWithdrawalGroup,
+} from "@/features/orders/partial-withdrawal-groups";
 import type { Order, OrderProductOption, OrderTag } from "@/features/orders/types";
 import { formatOperationalDateTime } from "@/features/orders/utils/operational-timezone";
 import {
@@ -236,11 +241,12 @@ function buildItemsQuantity(order: Order) {
   return order.items.reduce((total, item) => total + item.quantity, 0);
 }
 
-function buildPartialWithdrawalItemLabel(item: Order["items"][number]) {
-  const remainingUnits = item.remainingUnits ?? item.originalUnits ?? item.quantity;
-  const baseLabel = item.variantName?.trim() || item.productName;
+function buildPartialWithdrawalItemLabel(group: PartialWithdrawalGroup) {
+  const baseLabel =
+    group.referenceItem.variantName?.trim() ||
+    group.referenceItem.productName;
 
-  return `${baseLabel} · saldo ${remainingUnits} unid.`;
+  return `${baseLabel} · saldo ${group.remainingUnits} unid.`;
 }
 
 function buildFlavorSummary(item: Order["items"][number]) {
@@ -1221,14 +1227,11 @@ function PartialWithdrawalModal({
     },
   ) => Promise<void>;
 }>) {
-  const eligibleWithdrawalItems = React.useMemo(
-    () =>
-      (order?.items ?? []).filter(
-        (item) => item.canWithdrawPartially && (item.remainingUnits ?? 0) >= 25,
-      ),
+  const withdrawalGroups = React.useMemo(
+    () => buildPartialWithdrawalGroups(order?.items ?? []),
     [order?.items],
   );
-  const [withdrawalItemId, setWithdrawalItemId] = React.useState<string>("");
+  const [withdrawalGroupKey, setWithdrawalGroupKey] = React.useState<string>("");
   const [withdrawalUnits, setWithdrawalUnits] = React.useState("25");
   const [withdrawalDate, setWithdrawalDate] = React.useState("");
   const [withdrawalTime, setWithdrawalTime] = React.useState("");
@@ -1238,10 +1241,11 @@ function PartialWithdrawalModal({
   const [generateChildOrder, setGenerateChildOrder] = React.useState(true);
   const [isSubmittingWithdrawal, setIsSubmittingWithdrawal] = React.useState(false);
   const [withdrawalError, setWithdrawalError] = React.useState<string | null>(null);
-  const selectedWithdrawalItem = React.useMemo(
-    () => eligibleWithdrawalItems.find((item) => String(item.id) === withdrawalItemId) ?? null,
-    [eligibleWithdrawalItems, withdrawalItemId],
+  const selectedWithdrawalGroup = React.useMemo(
+    () => withdrawalGroups.find((group) => group.key === withdrawalGroupKey) ?? null,
+    [withdrawalGroupKey, withdrawalGroups],
   );
+  const selectedWithdrawalItem = selectedWithdrawalGroup?.referenceItem ?? null;
   const selectedWithdrawalProduct = React.useMemo(
     () =>
       productCatalog?.find(
@@ -1267,7 +1271,7 @@ function PartialWithdrawalModal({
 
   React.useEffect(() => {
     if (!open || !order) {
-      setWithdrawalItemId("");
+      setWithdrawalGroupKey("");
       setWithdrawalUnits("25");
       setWithdrawalDate("");
       setWithdrawalTime("");
@@ -1279,9 +1283,9 @@ function PartialWithdrawalModal({
       return;
     }
 
-    const firstItem = eligibleWithdrawalItems[0];
+    const firstGroup = withdrawalGroups[0];
 
-    setWithdrawalItemId(firstItem?.id != null ? String(firstItem.id) : "");
+    setWithdrawalGroupKey(firstGroup?.key ?? "");
     setWithdrawalUnits("25");
     setWithdrawalDate("");
     setWithdrawalTime("");
@@ -1290,7 +1294,7 @@ function PartialWithdrawalModal({
     setAllowScheduleException(false);
     setGenerateChildOrder(true);
     setWithdrawalError(null);
-  }, [eligibleWithdrawalItems, open, order]);
+  }, [open, order, withdrawalGroups]);
 
   React.useEffect(() => {
     setWithdrawalFlavorCounts({});
@@ -1337,16 +1341,16 @@ function PartialWithdrawalModal({
             <div className="space-y-2 md:col-span-2">
               <label className="text-sm font-medium">Item da encomenda mãe</label>
               <Select
-                value={withdrawalItemId || undefined}
-                onValueChange={(value) => setWithdrawalItemId(value ?? "")}
+                value={withdrawalGroupKey || undefined}
+                onValueChange={(value) => setWithdrawalGroupKey(value ?? "")}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecionar item" />
                 </SelectTrigger>
                 <SelectContent>
-                  {eligibleWithdrawalItems.map((item) => (
-                    <SelectItem key={String(item.id)} value={String(item.id)}>
-                      {buildPartialWithdrawalItemLabel(item)}
+                  {withdrawalGroups.map((group) => (
+                    <SelectItem key={group.key} value={group.key}>
+                      {buildPartialWithdrawalItemLabel(group)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1533,8 +1537,14 @@ function PartialWithdrawalModal({
                 return;
               }
 
-              if ((selectedWithdrawalItem.remainingUnits ?? 0) < parsedWithdrawalUnits) {
-                setWithdrawalError("A quantidade pedida excede o saldo disponível para este item.");
+              if (
+                !selectedWithdrawalGroup ||
+                !hasPartialWithdrawalGroupBalance(
+                  selectedWithdrawalGroup,
+                  parsedWithdrawalUnits,
+                )
+              ) {
+                setWithdrawalError("A quantidade pedida excede o saldo disponível para este grupo.");
                 return;
               }
 
