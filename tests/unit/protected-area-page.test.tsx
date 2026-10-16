@@ -24,7 +24,8 @@ test("ProtectedAreaPage renders an operational dashboard frame instead of techni
 
   assert.match(markup, /Dashboard de encomendas/);
   assert.match(markup, /Resumo operacional do dia/);
-  assert.match(markup, /criação, atendimento e planeamento/i);
+  assert.doesNotMatch(markup, /Painel operacional/i);
+  assert.doesNotMatch(markup, /criação, atendimento e planeamento/i);
   assert.doesNotMatch(markup, /Capacidades carregadas/);
   assert.doesNotMatch(markup, /Áreas fora do âmbito deste perfil/);
   assert.doesNotMatch(markup, /Destinos principais/);

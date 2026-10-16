@@ -100,7 +100,7 @@ export const PANEL_ROUTE_DEFINITIONS: readonly PanelRouteDefinition[] = [
   {
     key: "dashboard",
     href: "/dashboard",
-    label: "Painel base",
+    label: "Dashboard",
     description: "Resumo operacional e ponto de entrada da shell protegida.",
     runtime: "live",
     allowedRoles: PANEL_ROLES,

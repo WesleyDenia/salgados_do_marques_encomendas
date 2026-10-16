@@ -74,20 +74,10 @@ export function ProtectedAreaPage({
   if (routeKey === "dashboard") {
     return (
       <section className="space-y-6">
-        <header className="space-y-3">
-          <div className="space-y-2">
-            <p className="text-sm font-medium uppercase tracking-[0.24em] text-muted-foreground">
-              Painel operacional
-            </p>
-            <h1 className="text-3xl font-semibold tracking-tight">
-              Dashboard de encomendas
-            </h1>
-            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-              Use esta área para acompanhar o dia operacional, encontrar
-              rapidamente encomendas em andamento e avançar para criação,
-              atendimento e planeamento sem depender de conteúdo técnico.
-            </p>
-          </div>
+        <header>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Dashboard de encomendas
+          </h1>
         </header>
 
         {children}

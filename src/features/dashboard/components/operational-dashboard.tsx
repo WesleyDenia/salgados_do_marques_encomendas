@@ -48,7 +48,6 @@ import {
   formatOperationalDateTime,
   getZonedParts,
 } from "@/features/orders/utils/operational-timezone";
-import { useDailyPlanning } from "@/features/planning/hooks/use-daily-planning";
 import { usePeriodPlanning } from "@/features/planning/hooks/use-period-planning";
 import type {
   PlanningSlotOccupancy,
@@ -116,10 +115,25 @@ function getAttentionOrders(orders: Order[]) {
     .slice(0, 5);
 }
 
-function buildOrdersHref(period: OrderOperationalPeriod, search?: string) {
+function buildOrdersHref(
+  period: OrderOperationalPeriod,
+  search?: string,
+  customStartDate?: string,
+  customEndDate?: string,
+) {
   const params = new URLSearchParams();
 
   params.set("period", period);
+
+  if (period === "custom") {
+    if (customStartDate?.trim()) {
+      params.set("start_date", customStartDate.trim());
+    }
+
+    if (customEndDate?.trim()) {
+      params.set("end_date", customEndDate.trim());
+    }
+  }
 
   if (search?.trim()) {
     params.set("search", search.trim());
@@ -285,49 +299,26 @@ function SlotOccupancyCard({
 }
 
 function ProductDemandSection({
-  timeZone,
+  startDate,
+  endDate,
+  isRangeIncomplete,
+  isRangeMalformed,
+  isRangeInvalid,
+  isLoading,
+  error,
+  demandSummary,
+  onRetry,
 }: Readonly<{
-  timeZone: string;
+  startDate: string;
+  endDate: string;
+  isRangeIncomplete: boolean;
+  isRangeMalformed: boolean;
+  isRangeInvalid: boolean;
+  isLoading: boolean;
+  error: unknown;
+  demandSummary: ProductDemandSummary | null;
+  onRetry: () => void;
 }>) {
-  const [dateAnchor, setDateAnchor] = React.useState(() => new Date());
-  const today = React.useMemo(() => buildOperationalDay(timeZone, dateAnchor), [dateAnchor, timeZone]);
-  const [period, setPeriod] = React.useState<ProductDemandPeriod>("today");
-  const [customStartDate, setCustomStartDate] = React.useState(today);
-  const [customEndDate, setCustomEndDate] = React.useState(today);
-  const customRangeTouchedRef = React.useRef(false);
-
-  React.useEffect(() => {
-    const intervalId = window.setInterval(() => setDateAnchor(new Date()), 60_000);
-
-    return () => window.clearInterval(intervalId);
-  }, []);
-
-  React.useEffect(() => {
-    if (!customRangeTouchedRef.current) {
-      setCustomStartDate(today);
-      setCustomEndDate(today);
-    }
-  }, [today]);
-
-  const { startDate, endDate } = React.useMemo(
-    () => buildProductDemandDateRange(period, timeZone, customStartDate, customEndDate, dateAnchor),
-    [customEndDate, customStartDate, dateAnchor, period, timeZone],
-  );
-  const isRangeIncomplete = startDate.trim() === "" || endDate.trim() === "";
-  const isRangeMalformed =
-    !isRangeIncomplete &&
-    (!isValidDateInputValue(startDate) || !isValidDateInputValue(endDate));
-  const isRangeInvalid = !isRangeIncomplete && !isRangeMalformed && endDate < startDate;
-  const shouldFetch = !isRangeIncomplete && !isRangeMalformed && !isRangeInvalid;
-  const planningQuery = usePeriodPlanning(startDate, endDate, shouldFetch);
-  const demandSummary = React.useMemo<ProductDemandSummary | null>(
-    () =>
-      planningQuery.data
-        ? buildProductDemandSummary(planningQuery.data.orders)
-        : null,
-    [planningQuery.data],
-  );
-
   let content: React.ReactNode;
 
   if (isRangeIncomplete) {
@@ -354,24 +345,24 @@ function ProductDemandSection({
         className="p-5"
       />
     );
-  } else if (planningQuery.isLoading) {
+  } else if (isLoading) {
     content = (
       <div className="rounded-2xl border border-border/70 bg-background/80 p-5 text-sm text-muted-foreground">
         A carregar o quantitativo de produtos para o período selecionado...
       </div>
     );
-  } else if (planningQuery.error || !demandSummary) {
+  } else if (error || !demandSummary) {
     content = (
       <EmptyState
         title="Erro ao calcular o quantitativo"
         description={
-          planningQuery.error instanceof Error
-            ? planningQuery.error.message
+          error instanceof Error
+            ? error.message
             : "Não foi possível calcular o quantitativo necessário para este período."
         }
         className="p-5"
         action={
-          <Button type="button" variant="outline" onClick={() => void planningQuery.refetch()}>
+          <Button type="button" variant="outline" onClick={onRetry}>
             Tentar novamente
           </Button>
         }
@@ -420,7 +411,7 @@ function ProductDemandSection({
     );
   }
 
-  const planningAction = shouldFetch ? (
+  const planningAction = !isRangeIncomplete && !isRangeMalformed && !isRangeInvalid ? (
     <Link href={buildPlanningPeriodHref(startDate, endDate)}>
       <Button variant="outline">Abrir no planeamento</Button>
     </Link>
@@ -437,73 +428,69 @@ function ProductDemandSection({
       action={planningAction}
     >
       <div className="space-y-5">
-        <div className="grid gap-4 rounded-2xl border border-border/70 bg-background/80 p-4 md:grid-cols-[minmax(0,16rem)_minmax(0,16rem)_minmax(0,16rem)] md:items-end">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="dashboard-stock-period">
-              Período
-            </label>
-            <Select
-              value={period}
-              onValueChange={(value) => setPeriod(normalizeProductDemandPeriod(value))}
-            >
-              <SelectTrigger id="dashboard-stock-period">
-                <SelectValue placeholder="Selecionar período" />
-              </SelectTrigger>
-              <SelectContent>
-                {PRODUCT_DEMAND_PERIODS.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {PRODUCT_DEMAND_PERIOD_LABELS[value]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {period === "custom" ? (
-            <>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground" htmlFor="dashboard-stock-start">
-                  Data inicial
-                </label>
-                <Input
-                  id="dashboard-stock-start"
-                  type="date"
-                  value={customStartDate}
-                  onChange={(event) => {
-                    customRangeTouchedRef.current = true;
-                    setCustomStartDate(event.target.value);
-                  }}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground" htmlFor="dashboard-stock-end">
-                  Data final
-                </label>
-                <Input
-                  id="dashboard-stock-end"
-                  type="date"
-                  min={customStartDate || undefined}
-                  value={customEndDate}
-                  onChange={(event) => {
-                    customRangeTouchedRef.current = true;
-                    setCustomEndDate(event.target.value);
-                  }}
-                />
-              </div>
-            </>
-          ) : null}
-
-          <p className="text-sm text-muted-foreground md:col-span-full">
-            {planningQuery.isFetching && shouldFetch
-              ? "A atualizar o quantitativo do período..."
-              : "O cálculo considera apenas encomendas ativas, excluindo canceladas, rejeitadas e concluídas."}
-          </p>
-        </div>
-
+        <p className="text-sm text-muted-foreground">
+          O cálculo considera apenas encomendas ativas, excluindo canceladas, rejeitadas e concluídas.
+        </p>
         {content}
       </div>
     </OperationalSection>
+  );
+}
+
+function DashboardDateFilter({
+  period,
+  customStartDate,
+  customEndDate,
+  onPeriodChange,
+  onStartDateChange,
+  onEndDateChange,
+}: Readonly<{
+  period: ProductDemandPeriod;
+  customStartDate: string;
+  customEndDate: string;
+  onPeriodChange: (value: ProductDemandPeriod) => void;
+  onStartDateChange: (value: string) => void;
+  onEndDateChange: (value: string) => void;
+}>) {
+  return (
+    <section className="rounded-3xl border border-border/70 bg-card/90 p-5" aria-label="Filtro do dashboard">
+      <div className="grid gap-4 md:grid-cols-[minmax(0,16rem)_minmax(0,16rem)_minmax(0,16rem)] md:items-end">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground" htmlFor="dashboard-period">
+            Período do dashboard
+          </label>
+          <Select value={period} onValueChange={(value) => onPeriodChange(normalizeProductDemandPeriod(value))}>
+            <SelectTrigger id="dashboard-period">
+              <SelectValue placeholder="Selecionar período" />
+            </SelectTrigger>
+            <SelectContent>
+              {PRODUCT_DEMAND_PERIODS.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {PRODUCT_DEMAND_PERIOD_LABELS[value]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {period === "custom" ? (
+          <>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="dashboard-start">
+                Data inicial
+              </label>
+              <Input id="dashboard-start" type="date" value={customStartDate} onChange={(event) => onStartDateChange(event.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="dashboard-end">
+                Data final
+              </label>
+              <Input id="dashboard-end" type="date" min={customStartDate || undefined} value={customEndDate} onChange={(event) => onEndDateChange(event.target.value)} />
+            </div>
+          </>
+        ) : null}
+      </div>
+    </section>
   );
 }
 
@@ -511,9 +498,25 @@ function DashboardContent({
   timeZone,
   summary,
   slotOccupancy,
+  orders,
   upcomingOrders,
   attentionOrders,
   searchedOrders,
+  period,
+  customStartDate,
+  customEndDate,
+  startDate,
+  endDate,
+  isRangeIncomplete,
+  isRangeMalformed,
+  isRangeInvalid,
+  isPlanningLoading,
+  planningError,
+  demandSummary,
+  onPlanningRetry,
+  onPeriodChange,
+  onStartDateChange,
+  onEndDateChange,
   search,
   appliedSearch,
   onSearchChange,
@@ -525,9 +528,25 @@ function DashboardContent({
   timeZone: string;
   summary: PlanningSummary | null;
   slotOccupancy: PlanningSlotOccupancy;
+  orders: Order[];
   upcomingOrders: Order[];
   attentionOrders: Order[];
   searchedOrders: Order[];
+  period: ProductDemandPeriod;
+  customStartDate: string;
+  customEndDate: string;
+  startDate: string;
+  endDate: string;
+  isRangeIncomplete: boolean;
+  isRangeMalformed: boolean;
+  isRangeInvalid: boolean;
+  isPlanningLoading: boolean;
+  planningError: unknown;
+  demandSummary: ProductDemandSummary | null;
+  onPlanningRetry: () => void;
+  onPeriodChange: (value: ProductDemandPeriod) => void;
+  onStartDateChange: (value: string) => void;
+  onEndDateChange: (value: string) => void;
   search: string;
   appliedSearch: string;
   onSearchChange: (value: string) => void;
@@ -537,19 +556,31 @@ function DashboardContent({
   statusLabels?: Record<string, string>;
 }>) {
   const fullSearchTerm = search.trim() || appliedSearch;
+  const expectedRevenue = orders.reduce((total, order) => total + (order.total ?? 0), 0);
+  const unpaidOrders = orders.filter((order) => order.paymentStatus !== "paid").length;
+  const ordersHref = buildOrdersHref(period, fullSearchTerm, customStartDate, customEndDate);
 
   return (
     <div className="space-y-6">
+      <DashboardDateFilter
+        period={period}
+        customStartDate={customStartDate}
+        customEndDate={customEndDate}
+        onPeriodChange={onPeriodChange}
+        onStartDateChange={onStartDateChange}
+        onEndDateChange={onEndDateChange}
+      />
+
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <SummaryCard
           title="Encomendas de hoje"
           value={summary?.orderCount ?? 0}
-          description="Total previsto para o dia operacional corrente."
+          description="Total de encomendas no período selecionado."
         />
         <SummaryCard
-          title="Itens a produzir"
-          value={summary?.itemQuantity ?? 0}
-          description="Volume agregado de itens nas encomendas previstas."
+          title="Previsão de entradas €"
+          value={formatCurrency(expectedRevenue)}
+          description="Valor previsto das encomendas no período selecionado."
         />
         <SummaryCard
           title="Pagamentos confirmados"
@@ -557,28 +588,38 @@ function DashboardContent({
           description="Encomendas já marcadas como pagas no dataset oficial."
         />
         <SummaryCard
-          title="Pedem atenção"
-          value={summary?.attentionCount ?? attentionOrders.length}
-          description="Encomendas que ainda exigem validação ou acompanhamento."
+          title="Encomendas não pagas"
+          value={unpaidOrders}
+          description="Encomendas ainda sem pagamento confirmado."
         />
       </section>
 
-      <ProductDemandSection timeZone={timeZone} />
+      <ProductDemandSection
+        startDate={startDate}
+        endDate={endDate}
+        isRangeIncomplete={isRangeIncomplete}
+        isRangeMalformed={isRangeMalformed}
+        isRangeInvalid={isRangeInvalid}
+        isLoading={isPlanningLoading}
+        error={planningError}
+        demandSummary={demandSummary}
+        onRetry={onPlanningRetry}
+      />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <OperationalSection
           title="Próximas retiradas"
-          description="Encomendas de hoje ordenadas por agendamento para ajudar a priorizar atendimento e produção."
+          description="Encomendas do período selecionado, ordenadas por agendamento para ajudar a priorizar atendimento e produção."
           action={
-            <Link href="/orders?period=today">
+            <Link href={ordersHref}>
               <Button variant="outline">Abrir fila completa</Button>
             </Link>
           }
         >
           <OrderList
             orders={upcomingOrders}
-            emptyTitle="Sem retiradas pendentes para hoje"
-            emptyDescription="Quando houver encomendas agendadas para hoje, elas aparecerão aqui em ordem operacional."
+            emptyTitle="Sem retiradas pendentes no período"
+            emptyDescription="Quando houver encomendas agendadas no período selecionado, elas aparecerão aqui em ordem operacional."
             timeZone={timeZone}
             statusLabels={statusLabels}
           />
@@ -586,7 +627,7 @@ function DashboardContent({
 
         <OperationalSection
           title="Capacidade por slot"
-          description="Leitura rápida do volume previsto em cada janela operacional do dia."
+          description="Leitura rápida do volume previsto em cada janela operacional do período selecionado."
         >
           <div className="grid gap-3">
             {(["manha", "tarde", "noite"] as const).map((slotKey) => (
@@ -603,12 +644,12 @@ function DashboardContent({
       <div className="grid gap-6 xl:grid-cols-2">
         <OperationalSection
           title="Fila prioritária"
-          description="Recorte das encomendas que mais tendem a exigir ação imediata no painel."
+          description="Recorte das encomendas do período que mais tendem a exigir ação imediata no painel."
         >
           <OrderList
             orders={attentionOrders}
             emptyTitle="Nenhuma prioridade crítica agora"
-            emptyDescription="As encomendas do dia estão num estado estável neste momento."
+            emptyDescription="As encomendas do período estão num estado estável neste momento."
             timeZone={timeZone}
             statusLabels={statusLabels}
           />
@@ -618,7 +659,7 @@ function DashboardContent({
           title="Pesquisa rápida"
           description="Localize uma encomenda específica sem sair do dashboard."
           action={
-            <Link href={buildOrdersHref("today", fullSearchTerm)}>
+            <Link href={ordersHref}>
               <Button variant="outline">Abrir pesquisa completa</Button>
             </Link>
           }
@@ -652,17 +693,62 @@ function DashboardContent({
 export function OperationalDashboard() {
   const [search, setSearch] = React.useState("");
   const [appliedSearch, setAppliedSearch] = React.useState("");
+  const [dateAnchor, setDateAnchor] = React.useState(() => new Date());
   const settingsQuery = useOrderSettings();
   const timeZone = settingsQuery.data?.timezone ?? "Europe/Lisbon";
-  const day = React.useMemo(() => buildOperationalDay(timeZone), [timeZone]);
-  const planningQuery = useDailyPlanning(day, true);
+  const today = React.useMemo(
+    () => buildOperationalDay(timeZone, dateAnchor),
+    [dateAnchor, timeZone],
+  );
+  const [period, setPeriod] = React.useState<ProductDemandPeriod>("today");
+  const [customStartDate, setCustomStartDate] = React.useState(today);
+  const [customEndDate, setCustomEndDate] = React.useState(today);
+  const customRangeTouchedRef = React.useRef(false);
+
+  React.useEffect(() => {
+    const intervalId = window.setInterval(() => setDateAnchor(new Date()), 60_000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  React.useEffect(() => {
+    if (!customRangeTouchedRef.current) {
+      setCustomStartDate(today);
+      setCustomEndDate(today);
+    }
+  }, [today]);
+
+  const { startDate, endDate } = React.useMemo(
+    () => buildProductDemandDateRange(period, timeZone, customStartDate, customEndDate, dateAnchor),
+    [customEndDate, customStartDate, dateAnchor, period, timeZone],
+  );
+  const isRangeIncomplete = startDate.trim() === "" || endDate.trim() === "";
+  const isRangeMalformed =
+    !isRangeIncomplete &&
+    (!isValidDateInputValue(startDate) || !isValidDateInputValue(endDate));
+  const isRangeInvalid = !isRangeIncomplete && !isRangeMalformed && endDate < startDate;
+  const shouldFetch = !isRangeIncomplete && !isRangeMalformed && !isRangeInvalid;
+  const planningQuery = usePeriodPlanning(startDate, endDate, shouldFetch);
   const searchQuery = useOrderSearch({
     search: appliedSearch,
-    period: "today",
+    period,
+    customStartDate,
+    customEndDate,
     page: 1,
+    enabled: shouldFetch,
   });
+  const demandSummary = React.useMemo<ProductDemandSummary | null>(
+    () =>
+      planningQuery.data
+        ? buildProductDemandSummary(planningQuery.data.orders)
+        : null,
+    [planningQuery.data],
+  );
 
-  const dashboardError = settingsQuery.error ?? planningQuery.error ?? searchQuery.error;
+  const dashboardError =
+    settingsQuery.error ??
+    (shouldFetch ? planningQuery.error : null) ??
+    (shouldFetch ? searchQuery.error : null);
 
   if (dashboardError) {
     return (
@@ -671,10 +757,10 @@ export function OperationalDashboard() {
         description="Tente novamente em instantes ou avance para a fila de encomendas para continuar a operação."
         action={
           <div className="flex flex-wrap gap-3">
-            <Link href="/orders?period=today">
+            <Link href={buildOrdersHref(period, undefined, customStartDate, customEndDate)}>
               <Button>Ir para encomendas</Button>
             </Link>
-            <Link href={`/planning?view=day&day=${day}`}>
+            <Link href={buildPlanningPeriodHref(startDate, endDate)}>
               <Button variant="outline">Ir para planeamento</Button>
             </Link>
           </div>
@@ -683,7 +769,7 @@ export function OperationalDashboard() {
     );
   }
 
-  if (settingsQuery.isLoading || planningQuery.isLoading || searchQuery.isLoading) {
+  if (settingsQuery.isLoading || (shouldFetch && (planningQuery.isLoading || searchQuery.isLoading))) {
     return (
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
@@ -696,8 +782,9 @@ export function OperationalDashboard() {
     );
   }
 
-  const planningData = planningQuery.data;
-  const searchData = searchQuery.data?.data ?? [];
+  const planningData = shouldFetch ? planningQuery.data : undefined;
+  const searchData = shouldFetch ? searchQuery.data?.data ?? [] : [];
+  const orders = planningData?.orders ?? [];
   const upcomingOrders = getUpcomingOrders(planningData?.orders ?? []);
   const attentionOrders = getAttentionOrders(planningData?.orders ?? []);
   const searchedOrders = (appliedSearch.trim() ? searchData : upcomingOrders).slice(0, 5);
@@ -707,9 +794,31 @@ export function OperationalDashboard() {
       timeZone={timeZone}
       summary={planningData?.summary ?? null}
       slotOccupancy={planningData?.slotOccupancy ?? {}}
+      orders={orders}
       upcomingOrders={upcomingOrders}
       attentionOrders={attentionOrders}
       searchedOrders={searchedOrders}
+      period={period}
+      customStartDate={customStartDate}
+      customEndDate={customEndDate}
+      startDate={startDate}
+      endDate={endDate}
+      isRangeIncomplete={isRangeIncomplete}
+      isRangeMalformed={isRangeMalformed}
+      isRangeInvalid={isRangeInvalid}
+      isPlanningLoading={planningQuery.isLoading}
+      planningError={planningQuery.error}
+      demandSummary={demandSummary}
+      onPlanningRetry={() => void planningQuery.refetch()}
+      onPeriodChange={setPeriod}
+      onStartDateChange={(value) => {
+        customRangeTouchedRef.current = true;
+        setCustomStartDate(value);
+      }}
+      onEndDateChange={(value) => {
+        customRangeTouchedRef.current = true;
+        setCustomEndDate(value);
+      }}
       search={search}
       appliedSearch={appliedSearch}
       onSearchChange={setSearch}

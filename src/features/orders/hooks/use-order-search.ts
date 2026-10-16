@@ -39,6 +39,7 @@ export type OrderSearchState = {
   customStartDate?: string;
   customEndDate?: string;
   page: number;
+  enabled?: boolean;
 };
 
 export function normalizeOrderOperationalPeriod(
@@ -284,7 +285,7 @@ export function useOrderSearch(state: OrderSearchState) {
       timeZone,
     }),
     queryFn: () => getOrders(filters),
-    enabled: settingsQuery.isSuccess,
+    enabled: settingsQuery.isSuccess && state.enabled !== false,
     placeholderData: keepPreviousData,
     refetchInterval: 30_000,
   });
