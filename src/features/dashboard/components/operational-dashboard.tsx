@@ -556,7 +556,12 @@ function DashboardContent({
   statusLabels?: Record<string, string>;
 }>) {
   const fullSearchTerm = search.trim() || appliedSearch;
-  const expectedRevenue = orders.reduce((total, order) => total + (order.total ?? 0), 0);
+  const expectedRevenue = orders
+    .filter((order) => order.paymentStatus === "pending")
+    .reduce((total, order) => total + (order.total ?? 0), 0);
+  const receivedRevenue = orders
+    .filter((order) => order.paymentStatus === "paid")
+    .reduce((total, order) => total + (order.total ?? 0), 0);
   const unpaidOrders = orders.filter((order) => order.paymentStatus !== "paid").length;
   const ordersHref = buildOrdersHref(period, fullSearchTerm, customStartDate, customEndDate);
 
@@ -580,7 +585,12 @@ function DashboardContent({
         <SummaryCard
           title="Previsão de entradas €"
           value={formatCurrency(expectedRevenue)}
-          description="Valor previsto das encomendas no período selecionado."
+          description="Somatório das encomendas com pagamento pendente."
+        />
+        <SummaryCard
+          title="Valores recebidos"
+          value={formatCurrency(receivedRevenue)}
+          description="Somatório das encomendas com pagamento confirmado."
         />
         <SummaryCard
           title="Pagamentos confirmados"
