@@ -26,6 +26,7 @@ import {
   useUpdateOrder,
 } from "@/features/orders/hooks/use-order-mutations";
 import {
+  useOrderCategories,
   useOrderDetail,
   useOrderProducts,
   useOrderProductDetail,
@@ -215,6 +216,7 @@ function ItemConfigModal({
 }>) {
   const productQuery = useOrderProductDetail(state.product.id);
   const product = productQuery.data ?? state.product;
+  const isProductConfigurationLoading = productQuery.isLoading && !productQuery.data;
   const [quantity, setQuantity] = React.useState(state.quantity);
   const [variantId, setVariantId] = React.useState<number | null>(state.variantId);
   const [flavorCounts, setFlavorCounts] = React.useState<Record<number, number>>(
@@ -283,6 +285,12 @@ function ItemConfigModal({
         </div>
 
         <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-6">
+          {productQuery.isError ? (
+            <p className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+              Não foi possível confirmar a configuração atual deste artigo.
+            </p>
+          ) : null}
+
           <section className="space-y-2">
             <label className="text-sm font-medium text-slate-950" htmlFor="item-quantity">
               Quantidade
@@ -428,7 +436,12 @@ function ItemConfigModal({
           </Button>
           <Button
             type="button"
-            disabled={!flavorSelectionReady || quantity < 1}
+            disabled={
+              isProductConfigurationLoading ||
+              productQuery.isError ||
+              !flavorSelectionReady ||
+              quantity < 1
+            }
             onClick={() =>
               onConfirm({
                 ...state,
@@ -459,17 +472,19 @@ export function OrderComposerPage({
   const router = useRouter();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = React.useState<1 | 2>(1);
+  const [loadedProducts, setLoadedProducts] = React.useState<OrderProductOption[]>([]);
   const [itemConfigState, setItemConfigState] = React.useState<ItemConfigState | null>(
     null,
   );
-  const [selectedCategoryId, setSelectedCategoryId] = React.useState<string | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = React.useState<number | null>(null);
   const [canScrollCategoriesLeft, setCanScrollCategoriesLeft] = React.useState(false);
   const [canScrollCategoriesRight, setCanScrollCategoriesRight] = React.useState(false);
   const categoryTabsRef = React.useRef<HTMLDivElement | null>(null);
 
   const createOrderMutation = useCreateOrder();
   const updateOrderMutation = useUpdateOrder();
-  const productsQuery = useOrderProducts();
+  const categoriesQuery = useOrderCategories();
+  const productsQuery = useOrderProducts(selectedCategoryId);
   const settingsQuery = useOrderSettings();
   const storesQuery = useOrderStores();
   const operationalTimeZone = settingsQuery.data?.timezone ?? "Europe/Lisbon";
@@ -506,60 +521,35 @@ export function OrderComposerPage({
     [productsQuery.data?.data],
   );
   const productCategories = React.useMemo(() => {
-    const categories = new Map<
-      string,
-      {
-        id: string;
-        label: string;
-        order: number;
-        count: number;
-      }
-    >();
+    return (categoriesQuery.data?.data ?? [])
+      .filter((category) => category.active)
+      .map((category) => ({
+        id: category.id,
+        label: category.name,
+        order: category.displayOrder ?? Number.MAX_SAFE_INTEGER,
+      }))
+      .sort((left, right) => {
+        if (left.order !== right.order) {
+          return left.order - right.order;
+        }
 
-    products.forEach((product) => {
-      const id = product.category?.id != null ? String(product.category.id) : "uncategorized";
-      const label = product.category?.name?.trim() || "Sem categoria";
-      const order = product.category?.order ?? Number.MAX_SAFE_INTEGER;
-      const current = categories.get(id);
-
-      if (current) {
-        current.count += 1;
-        return;
-      }
-
-      categories.set(id, {
-        id,
-        label,
-        order,
-        count: 1,
+        return left.label.localeCompare(right.label, "pt-PT");
       });
-    });
+  }, [categoriesQuery.data?.data]);
+  const productCatalog = React.useMemo(() => {
+    const productsById = new Map<number, OrderProductOption>();
 
-    return [...categories.values()].sort((left, right) => {
-      if (left.order !== right.order) {
-        return left.order - right.order;
-      }
+    loadedProducts.forEach((product) => productsById.set(product.id, product));
+    products.forEach((product) => productsById.set(product.id, product));
 
-      return left.label.localeCompare(right.label, "pt-PT");
-    });
-  }, [products]);
+    return [...productsById.values()];
+  }, [loadedProducts, products]);
   const stores = React.useMemo(() => storesQuery.data?.data ?? [], [storesQuery.data?.data]);
   const availableTags = React.useMemo(
     () => settingsQuery.data?.availableTags ?? [],
     [settingsQuery.data?.availableTags],
   );
-  const filteredProducts = React.useMemo(() => {
-    if (!selectedCategoryId) {
-      return [];
-    }
-
-    return products.filter((product) => {
-      const productCategoryId =
-        product.category?.id != null ? String(product.category.id) : "uncategorized";
-
-      return productCategoryId === selectedCategoryId;
-    });
-  }, [products, selectedCategoryId]);
+  const filteredProducts = products;
   const items = watch("items");
   const storeId = watch("storeId");
   const tagIds = watch("tagIds");
@@ -606,12 +596,36 @@ export function OrderComposerPage({
   }, [setValue, storeId, stores]);
 
   React.useEffect(() => {
-    if (selectedCategoryId || productCategories.length === 0) {
+    if (productCategories.length === 0) {
+      return;
+    }
+
+    if (selectedCategoryId && productCategories.some((category) => category.id === selectedCategoryId)) {
       return;
     }
 
     setSelectedCategoryId(productCategories[0]?.id ?? null);
   }, [productCategories, selectedCategoryId]);
+
+  React.useEffect(() => {
+    const responseProducts = productsQuery.data?.data;
+
+    if (!responseProducts) {
+      return;
+    }
+
+    setLoadedProducts((current) => {
+      const productsById = new Map(
+        current
+          .filter((product) => product.category?.id !== selectedCategoryId)
+          .map((product) => [product.id, product]),
+      );
+
+      responseProducts.forEach((product) => productsById.set(product.id, product));
+
+      return [...productsById.values()];
+    });
+  }, [productsQuery.data?.data, selectedCategoryId]);
 
   const updateCategoryScrollState = React.useCallback(() => {
     const container = categoryTabsRef.current;
@@ -709,16 +723,19 @@ export function OrderComposerPage({
       return;
     }
 
-    const product = products.find((entry) => entry.id === existingItem.productId);
-
-    if (!product) {
-      return;
-    }
+    const product = productCatalog.find((entry) => entry.id === existingItem.productId);
 
     setItemConfigState({
       flavorCounts: buildFlavorCountsFromIds(existingItem.flavorIds),
       itemIndex: index,
-      product,
+      product: product ?? {
+        id: existingItem.productId,
+        name: `Artigo #${existingItem.productId}`,
+        active: true,
+        category: null,
+        allowedFlavors: [],
+        variants: [],
+      },
       quantity: existingItem.quantity,
       variantId: existingItem.variantId ?? null,
     });
@@ -930,42 +947,63 @@ export function OrderComposerPage({
                 </div>
 
                 <div className="mt-6 min-w-0 rounded-3xl border border-slate-300 bg-slate-200/70 p-4 shadow-inner shadow-slate-300/40">
-                  <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    {filteredProducts.map((product) => {
-                      const hasVariants = getActiveVariants(product).length > 0;
+                  {categoriesQuery.isLoading ? (
+                    <p className="text-sm text-slate-600">A carregar categorias...</p>
+                  ) : categoriesQuery.error ? (
+                    <p className="text-sm text-destructive">
+                      Não foi possível carregar as categorias do catálogo.
+                    </p>
+                  ) : productCategories.length === 0 ? (
+                    <p className="text-sm text-slate-600">
+                      Não há categorias ativas disponíveis para novas encomendas.
+                    </p>
+                  ) : productsQuery.isLoading ? (
+                    <p className="text-sm text-slate-600">A carregar artigos...</p>
+                  ) : productsQuery.error ? (
+                    <p className="text-sm text-destructive">
+                      Não foi possível carregar os artigos desta categoria.
+                    </p>
+                  ) : (
+                    <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      {filteredProducts.map((product) => {
+                        const hasVariants = getActiveVariants(product).length > 0;
 
-                      return (
-                        <article
-                          key={product.id}
-                          className="flex min-w-0 flex-col justify-between rounded-2xl border border-slate-300 bg-white p-4 shadow-[0_16px_35px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-[0_22px_45px_rgba(15,23,42,0.12)]"
-                        >
-                          <div className="min-w-0">
-                            <p className="break-words font-semibold text-slate-950 [overflow-wrap:anywhere]">
-                              {product.name}
-                            </p>
-                            <p className="mt-1 break-words text-sm text-slate-600 [overflow-wrap:anywhere]">
-                              {product.description?.trim() || "Sem descrição disponível."}
-                            </p>
-                            <p className="mt-2 text-sm font-medium text-slate-950">
-                              {hasVariants
-                                ? "Disponível em packs configuráveis"
-                                : formatCurrency(product.price)}
-                            </p>
-                          </div>
-
-                          <Button
-                            type="button"
-                            className="mt-4 whitespace-normal bg-slate-950 text-center leading-snug text-white hover:bg-slate-800"
-                            onClick={() => openCreateItem(product)}
+                        return (
+                          <article
+                            key={product.id}
+                            className="flex min-w-0 flex-col justify-between rounded-2xl border border-slate-300 bg-white p-4 shadow-[0_16px_35px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-[0_22px_45px_rgba(15,23,42,0.12)]"
                           >
-                            {hasVariants ? "Escolher pack e sabores" : "Configurar item"}
-                          </Button>
-                        </article>
-                      );
-                    })}
-                  </div>
+                            <div className="min-w-0">
+                              <p className="break-words font-semibold text-slate-950 [overflow-wrap:anywhere]">
+                                {product.name}
+                              </p>
+                              <p className="mt-1 break-words text-sm text-slate-600 [overflow-wrap:anywhere]">
+                                {product.description?.trim() || "Sem descrição disponível."}
+                              </p>
+                              <p className="mt-2 text-sm font-medium text-slate-950">
+                                {hasVariants
+                                  ? "Disponível em packs configuráveis"
+                                  : formatCurrency(product.price)}
+                              </p>
+                            </div>
 
-                  {selectedCategoryId && filteredProducts.length === 0 ? (
+                            <Button
+                              type="button"
+                              className="mt-4 whitespace-normal bg-slate-950 text-center leading-snug text-white hover:bg-slate-800"
+                              onClick={() => openCreateItem(product)}
+                            >
+                              {hasVariants ? "Escolher pack e sabores" : "Configurar item"}
+                            </Button>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {selectedCategoryId &&
+                  !productsQuery.isLoading &&
+                  !productsQuery.error &&
+                  filteredProducts.length === 0 ? (
                     <div className="mt-5 rounded-2xl border border-dashed border-slate-400 bg-white/95 p-5 text-sm text-slate-600">
                       Não há artigos disponíveis nesta categoria.
                     </div>
@@ -980,7 +1018,7 @@ export function OrderComposerPage({
                   ) : (
                     fields.map((field, index) => {
                       const item = items[index];
-                      const product = products.find((entry) => entry.id === item.productId);
+                      const product = productCatalog.find((entry) => entry.id === item.productId);
                       const variant =
                         product?.variants?.find((entry) => entry.id === item.variantId) ?? null;
                       const flavorSummary = buildFlavorSummary(
@@ -1319,13 +1357,13 @@ export function OrderComposerPage({
                 </div>
               </dl>
 
-              {(productsQuery.isLoading || storesQuery.isLoading || settingsQuery.isLoading) ? (
+              {(categoriesQuery.isLoading || productsQuery.isLoading || storesQuery.isLoading || settingsQuery.isLoading) ? (
                 <p className="mt-5 text-sm text-slate-600">
                   A carregar catálogo, lojas e configurações operacionais...
                 </p>
               ) : null}
 
-              {(productsQuery.error || storesQuery.error || settingsQuery.error) ? (
+              {(categoriesQuery.error || productsQuery.error || storesQuery.error || settingsQuery.error) ? (
                 <p className="mt-5 text-sm text-destructive">
                   Não foi possível carregar todos os dados necessários do backend.
                 </p>

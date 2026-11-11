@@ -28,6 +28,13 @@ export type OrderProductVariantOption = {
   displayOrder: number;
 };
 
+export type OrderCategoryOption = {
+  id: number;
+  name: string;
+  active: boolean;
+  displayOrder: number | null;
+};
+
 export const ORDER_PAYMENT_STATUS_LABELS: Record<OrderPaymentStatus, string> = {
   pending: "Pendente",
   partial: "Parcial",

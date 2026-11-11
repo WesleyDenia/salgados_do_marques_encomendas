@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   createOrder,
+  getOrderCategories,
   getOrderProducts,
   getOrderSettings,
   getOrders,
@@ -252,6 +253,85 @@ test("order queries normalize backend collections for the panel", async () => {
     assert.equal(settingsRequested, true);
     assert.equal(settings.timezone, "Europe/Lisbon");
     assert.equal(settings.statusLabels.accepted, "Aceito");
+  } finally {
+    apiClient.get = originalGet;
+  }
+});
+
+test("product catalog requests include pagination and an optional category", async () => {
+  const originalGet = apiClient.get;
+  const productRequestParams: Array<Record<string, unknown> | undefined> = [];
+
+  apiClient.get = (async (url, config) => {
+    if (url === "/categories") {
+      assert.deepEqual(config?.params, { per_page: 100 });
+
+      return {
+        data: {
+          data: [
+            {
+              id: 4,
+              name: "Mini porções",
+              active: true,
+              display_order: 3,
+            },
+            {
+              id: 8,
+              name: "Descontinuada",
+              active: false,
+              display_order: 4,
+            },
+          ],
+        },
+      };
+    }
+
+    if (url === "/products") {
+      productRequestParams.push(config?.params as Record<string, unknown> | undefined);
+
+      return {
+        data: {
+          data: [
+            {
+              id: 17,
+              name: "Mini Coxinha",
+              active: true,
+            },
+          ],
+        },
+      };
+    }
+
+    throw new Error(`Unexpected request to ${String(url)}`);
+  }) as typeof apiClient.get;
+
+  try {
+    const [globalProducts, categoryProducts, categories] = await Promise.all([
+      getOrderProducts(),
+      getOrderProducts(4),
+      getOrderCategories(),
+    ]);
+
+    assert.deepEqual(productRequestParams, [
+      { per_page: 100 },
+      { per_page: 100, category_id: 4 },
+    ]);
+    assert.equal(globalProducts.data[0]?.name, "Mini Coxinha");
+    assert.equal(categoryProducts.data[0]?.name, "Mini Coxinha");
+    assert.deepEqual(categories.data, [
+      {
+        id: 4,
+        name: "Mini porções",
+        active: true,
+        displayOrder: 3,
+      },
+      {
+        id: 8,
+        name: "Descontinuada",
+        active: false,
+        displayOrder: 4,
+      },
+    ]);
   } finally {
     apiClient.get = originalGet;
   }

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import {
   getOrder,
+  getOrderCategories,
   getOrderProduct,
   getOrderSettings,
   getOrderProducts,
@@ -32,7 +33,9 @@ export const orderKeys = {
   productDetail: (productId: number | string) =>
     [...orderKeys.all, "product-detail", String(productId)] as const,
   settings: () => [...orderKeys.all, "settings"] as const,
-  products: () => [...orderKeys.all, "products"] as const,
+  categories: () => [...orderKeys.all, "categories"] as const,
+  products: (categoryId?: number | string | null) =>
+    [...orderKeys.all, "products", categoryId ?? "all"] as const,
   stores: () => [...orderKeys.all, "stores"] as const,
 };
 
@@ -60,10 +63,18 @@ export function useOrderSettings() {
   });
 }
 
-export function useOrderProducts() {
+export function useOrderCategories() {
   return useQuery({
-    queryKey: orderKeys.products(),
-    queryFn: getOrderProducts,
+    queryKey: orderKeys.categories(),
+    queryFn: getOrderCategories,
+  });
+}
+
+export function useOrderProducts(categoryId?: number | string | null) {
+  return useQuery({
+    queryKey: orderKeys.products(categoryId),
+    queryFn: () => getOrderProducts(categoryId),
+    enabled: categoryId !== null,
   });
 }
 

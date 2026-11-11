@@ -11,6 +11,7 @@ import type {
   OrderHistoryEntry,
   OrderPartialWithdrawal,
   OrderPaymentStatus,
+  OrderCategoryOption,
   OrderProductOption,
   OrderProductVariantOption,
   OrderStoreOption,
@@ -193,6 +194,13 @@ type BackendProduct = {
   }>;
 };
 
+type BackendCategory = {
+  id: number;
+  name: string;
+  active: boolean;
+  display_order?: number | null;
+};
+
 type BackendStore = {
   id: number;
   name: string;
@@ -365,6 +373,15 @@ function normalizeProductResource(resource: BackendProduct): OrderProductOption 
   };
 }
 
+function normalizeCategoryResource(resource: BackendCategory): OrderCategoryOption {
+  return {
+    id: resource.id,
+    name: resource.name,
+    active: resource.active,
+    displayOrder: resource.display_order ?? null,
+  };
+}
+
 function normalizeStoreResource(resource: BackendStore): OrderStoreOption {
   return {
     id: resource.id,
@@ -493,9 +510,29 @@ export async function getOrderSettings(): Promise<OrderSettings> {
   };
 }
 
-export async function getOrderProducts() {
+export async function getOrderCategories() {
+  const response = await apiClient.get<ResourceCollectionResponse<BackendCategory>>(
+    "/categories",
+    { params: { per_page: 100 } },
+  );
+  const payload = readCollectionPayload<BackendCategory>(response.data);
+
+  return {
+    data: payload.data.map(normalizeCategoryResource),
+    meta: payload.meta,
+  };
+}
+
+export async function getOrderProducts(categoryId?: number | string | null) {
+  const params: Record<string, number | string> = { per_page: 100 };
+
+  if (categoryId !== undefined && categoryId !== null) {
+    params.category_id = categoryId;
+  }
+
   const response = await apiClient.get<ResourceCollectionResponse<BackendProduct>>(
     "/products",
+    { params },
   );
   const payload = readCollectionPayload<BackendProduct>(response.data);
 
