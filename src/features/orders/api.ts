@@ -108,6 +108,8 @@ type BackendOrder = {
   customer_name?: string | null;
   customer_contact?: string | null;
   scheduled_at?: string | null;
+  pickup_date?: string | null;
+  pickup_time?: string | null;
   total?: number;
   notes?: string | null;
   tags?: BackendOrderTag[];
@@ -321,6 +323,8 @@ export function normalizeOrderResource(resource: BackendOrder): Order {
     })),
     notes: resource.notes ?? null,
     scheduledAt: normalizeOperationalApiDateTime(resource.scheduled_at ?? null),
+    pickupDate: resource.pickup_date ?? null,
+    pickupTime: resource.pickup_time ?? null,
     cancelledAt: normalizeOperationalApiDateTime(resource.cancelled_at ?? null),
     total: resource.total,
     store: resource.store ?? null,
@@ -398,14 +402,7 @@ function buildScheduledAt(date: string, time: string, timeZone = "Europe/Lisbon"
   const [hour, minute] = time.split(":").map(Number);
 
   return zonedDateTimeToUtcDate(
-    {
-      year,
-      month,
-      day,
-      hour,
-      minute,
-      second: 0,
-    },
+    { year, month, day, hour, minute, second: 0 },
     timeZone,
   ).toISOString();
 }
@@ -688,10 +685,9 @@ export async function updateOrderStatus(
 }
 
 
-function buildOrderWritePayload(
-  payload: NormalizedOrderCreateInput,
-  timeZone?: string,
-) {
+function buildOrderWritePayload(payload: NormalizedOrderCreateInput, timeZone?: string) {
+  void timeZone;
+
   return {
     store_id: payload.storeId,
     customer_name: payload.customerName,
@@ -702,7 +698,8 @@ function buildOrderWritePayload(
       ? { allow_preparation_capacity_overflow: true }
       : {}),
     payment_status: payload.paymentStatus,
-    scheduled_at: buildScheduledAt(payload.date, payload.time, timeZone),
+    pickup_date: payload.date || null,
+    pickup_time: payload.time || null,
     notes: buildOperationalNotes(payload),
     items: payload.items.map((item) => ({
       ...(item.parentOrderItemId != null

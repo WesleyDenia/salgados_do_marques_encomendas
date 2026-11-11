@@ -81,6 +81,7 @@ import {
 } from "@/features/orders/partial-withdrawal-groups";
 import type { Order, OrderProductOption, OrderTag } from "@/features/orders/types";
 import { formatOperationalDateTime } from "@/features/orders/utils/operational-timezone";
+import { formatOrderPickupSchedule } from "@/features/orders/utils/pickup-schedule";
 import {
   buildOrderPrintAttemptId,
   buildOrderPrintHref,
@@ -420,37 +421,6 @@ function formatCustomerContact(value?: string | null) {
   }
 
   return value;
-}
-
-function formatScheduledAtDetailed(value?: string | null, timeZone = "Europe/Lisbon") {
-  if (!value) {
-    return "Por agendar";
-  }
-
-  const parsed = new Date(value);
-
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
-  }
-
-  const weekday = new Intl.DateTimeFormat("pt-PT", {
-    timeZone,
-    weekday: "long",
-  }).format(parsed);
-  const date = new Intl.DateTimeFormat("pt-PT", {
-    timeZone,
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(parsed);
-  const time = new Intl.DateTimeFormat("pt-PT", {
-    timeZone,
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).format(parsed);
-
-  return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${date} às ${time}`;
 }
 
 function buildOrderCardItemTitle(item: Order["items"][number]) {
@@ -992,7 +962,7 @@ export function OrderDetailSheet({
                     {order.store?.name ?? "Loja não carregada"}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {buildSlotLabel(order)} · {formatOperationalDateTime(order.scheduledAt, timeZone)}
+                    {buildSlotLabel(order)} · {formatOrderPickupSchedule(order, timeZone)}
                   </p>
                 </div>
               </section>
@@ -1729,7 +1699,7 @@ export function OrdersOperationalRecordContent({
                   <TableCell className="font-medium">#{order.id}</TableCell>
                   <TableCell>{buildCustomerLabel(order)}</TableCell>
                   <TableCell>{order.store?.name ?? "Loja não carregada"}</TableCell>
-                  <TableCell>{formatOperationalDateTime(order.scheduledAt, timeZone)}</TableCell>
+                  <TableCell>{formatOrderPickupSchedule(order, timeZone)}</TableCell>
                   <TableCell>{buildSlotLabel(order)}</TableCell>
                   <TableCell>
                     {(order.tags ?? []).length > 0 ? (
@@ -1788,7 +1758,7 @@ export function OrdersOperationalRecordContent({
                     </p>
                     <p>
                       <span className="font-medium text-slate-950">Data/Hora:</span>{" "}
-                      {formatScheduledAtDetailed(order.scheduledAt, timeZone)}
+                      {formatOrderPickupSchedule(order, timeZone)}
                     </p>
                     <div className="flex flex-wrap gap-1.5 pt-1">
                       {(order.tags ?? []).length > 0 ? (
@@ -2371,17 +2341,14 @@ export function OrdersOperationalRecord({
         return;
       }
 
-      const date = getDateInputValue(currentOrder.scheduledAt, settings?.timezone);
-      const time = getTimeInputValue(currentOrder.scheduledAt, settings?.timezone);
+      const date = currentOrder.pickupDate ?? getDateInputValue(currentOrder.scheduledAt, settings?.timezone);
+      const time = currentOrder.pickupTime ?? getTimeInputValue(currentOrder.scheduledAt, settings?.timezone);
       const customerContact = currentOrder.customerContact?.trim() ?? "";
 
       if (
         !currentOrder.store?.id ||
         !currentOrder.customerName?.trim() ||
-        !customerContact ||
-        !date ||
-        !time ||
-        !currentOrder.slot
+        !customerContact
       ) {
         toast(
           "Esta encomenda não tem dados completos para atualizar apenas o pagamento por este atalho.",

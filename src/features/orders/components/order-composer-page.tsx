@@ -98,8 +98,8 @@ function buildDefaultValues(
       flavorIds: item.flavorIds ?? [],
     })),
     observations: order.notes ?? "",
-    date: getDateInputValueInTimeZone(order.scheduledAt, timeZone) || defaultValues.date,
-    time: getTimeInputValueInTimeZone(order.scheduledAt, timeZone),
+    date: order.pickupDate ?? getDateInputValueInTimeZone(order.scheduledAt, timeZone),
+    time: order.pickupTime ?? getTimeInputValueInTimeZone(order.scheduledAt, timeZone),
     allowScheduleException: false,
     allowPreparationCapacityOverflow: false,
     paymentStatus: order.paymentStatus ?? "pending",
@@ -556,6 +556,8 @@ export function OrderComposerPage({
   const paymentStatus = watch("paymentStatus");
   const allowScheduleException = watch("allowScheduleException");
   const allowPreparationCapacityOverflow = watch("allowPreparationCapacityOverflow");
+  const pickupDate = watch("date");
+  const pickupTime = watch("time");
   const selectedTags = React.useMemo(
     () =>
       availableTags.filter((tag) => tagIds.includes(tag.id)),
@@ -1209,7 +1211,21 @@ export function OrderComposerPage({
                       <label className="text-sm font-medium text-slate-950" htmlFor="date">
                         Data
                       </label>
-                      <Input id="date" type="date" {...register("date")} />
+                      <Input id="date" type="date" disabled={!pickupDate} {...register("date")} />
+                      <label className="flex items-center gap-2 text-sm text-slate-700" htmlFor="date-indefinido">
+                        <input
+                          id="date-indefinido"
+                          type="checkbox"
+                          checked={!pickupDate}
+                          onChange={(event) =>
+                            setValue("date", event.currentTarget.checked ? "" : getDateInputValueInTimeZone(new Date().toISOString(), operationalTimeZone), {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+                          }
+                        />
+                        Indefinido
+                      </label>
                       <FieldMessage message={errors.date?.message} />
                     </div>
 
@@ -1217,7 +1233,21 @@ export function OrderComposerPage({
                       <label className="text-sm font-medium text-slate-950" htmlFor="time">
                         Hora
                       </label>
-                      <Input id="time" type="time" {...register("time")} />
+                      <Input id="time" type="time" disabled={!pickupTime} {...register("time")} />
+                      <label className="flex items-center gap-2 text-sm text-slate-700" htmlFor="time-indefinido">
+                        <input
+                          id="time-indefinido"
+                          type="checkbox"
+                          checked={!pickupTime}
+                          onChange={(event) =>
+                            setValue("time", event.currentTarget.checked ? "" : getTimeInputValueInTimeZone(new Date().toISOString(), operationalTimeZone), {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+                          }
+                        />
+                        Indefinido
+                      </label>
                       <FieldMessage message={errors.time?.message} />
                     </div>
 

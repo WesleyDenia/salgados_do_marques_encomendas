@@ -45,13 +45,14 @@ import {
   type OrderSlot,
 } from "@/features/orders/types";
 import {
-  formatOperationalDateTime,
   getZonedParts,
 } from "@/features/orders/utils/operational-timezone";
+import { formatOrderPickupSchedule } from "@/features/orders/utils/pickup-schedule";
 import { usePeriodPlanning } from "@/features/planning/hooks/use-period-planning";
 import type {
   PlanningSlotOccupancy,
   PlanningSlotOccupancyEntry,
+  PlanningOperationalAttention,
   PlanningSummary,
 } from "@/features/planning/types";
 import { cn } from "@/lib/utils";
@@ -208,12 +209,14 @@ function OrderList({
   emptyDescription,
   timeZone,
   statusLabels,
+  compact = false,
 }: Readonly<{
   orders: Order[];
   emptyTitle: string;
   emptyDescription: string;
   timeZone: string;
   statusLabels?: Record<string, string>;
+  compact?: boolean;
 }>) {
   if (orders.length === 0) {
     return <EmptyState title={emptyTitle} description={emptyDescription} className="p-5" />;
@@ -232,24 +235,30 @@ function OrderList({
                 Encomenda #{order.id} · {buildCustomerLabel(order)}
               </p>
               <p className="text-sm text-muted-foreground">
-                {formatOperationalDateTime(order.scheduledAt, timeZone)}
+                {formatOrderPickupSchedule(order, timeZone)}
               </p>
-              <p className="text-sm text-muted-foreground">
-                {buildItemsCount(order)} itens · {formatCurrency(order.total)}
-              </p>
+              {!compact ? (
+                <p className="text-sm text-muted-foreground">
+                  {buildItemsCount(order)} itens · {formatCurrency(order.total)}
+                </p>
+              ) : null}
             </div>
 
             <div className="flex flex-wrap gap-2 text-xs font-medium">
               <span className="rounded-full border border-border/70 px-3 py-1 text-foreground">
                 {buildOrderStatusLabel(order, statusLabels)}
               </span>
-              <span className="rounded-full border border-border/70 px-3 py-1 text-foreground">
-                {ORDER_PAYMENT_STATUS_LABELS[(order.paymentStatus ?? "pending") as OrderPaymentStatus] ??
-                  "Pagamento pendente"}
-              </span>
-              <span className="rounded-full border border-border/70 px-3 py-1 text-foreground">
-                {ORDER_SLOT_LABELS[(order.slot ?? "manha") as OrderSlot] ?? "Sem slot"}
-              </span>
+              {!compact ? (
+                <>
+                  <span className="rounded-full border border-border/70 px-3 py-1 text-foreground">
+                    {ORDER_PAYMENT_STATUS_LABELS[(order.paymentStatus ?? "pending") as OrderPaymentStatus] ??
+                      "Pagamento pendente"}
+                  </span>
+                  <span className="rounded-full border border-border/70 px-3 py-1 text-foreground">
+                    {ORDER_SLOT_LABELS[(order.slot ?? "") as OrderSlot] ?? "Sem slot"}
+                  </span>
+                </>
+              ) : null}
             </div>
           </div>
         </article>
@@ -498,6 +507,7 @@ function DashboardContent({
   timeZone,
   summary,
   slotOccupancy,
+  operationalAttention,
   orders,
   upcomingOrders,
   attentionOrders,
@@ -528,6 +538,7 @@ function DashboardContent({
   timeZone: string;
   summary: PlanningSummary | null;
   slotOccupancy: PlanningSlotOccupancy;
+  operationalAttention: PlanningOperationalAttention;
   orders: Order[];
   upcomingOrders: Order[];
   attentionOrders: Order[];
@@ -603,6 +614,57 @@ function DashboardContent({
           description="Encomendas ainda sem pagamento confirmado."
         />
       </section>
+
+      <OperationalSection
+        title="Agendamentos a definir"
+        description="Pedidos com informação de retirada pendente. Estes alertas não entram na carga nem na ocupação de slots."
+      >
+        <div className="grid gap-4 xl:grid-cols-2">
+          <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="font-semibold text-foreground">Data indefinida</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {operationalAttention.undefinedPickupDate.count} encomenda(s) sem dia de retirada, em qualquer período.
+                </p>
+              </div>
+              <Link href="/orders">
+                <Button size="sm" variant="outline">Abrir fila</Button>
+              </Link>
+            </div>
+            <OrderList
+              orders={operationalAttention.undefinedPickupDate.orders.slice(0, 5)}
+              emptyTitle="Sem datas pendentes"
+              emptyDescription="Todas as encomendas têm um dia de retirada definido."
+              timeZone={timeZone}
+              statusLabels={statusLabels}
+              compact
+            />
+          </div>
+
+          <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="font-semibold text-foreground">Hora indefinida no período</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {operationalAttention.undefinedPickupTime.count} encomenda(s) com dia definido e sem hora neste período.
+                </p>
+              </div>
+              <Link href={ordersHref}>
+                <Button size="sm" variant="outline">Abrir fila</Button>
+              </Link>
+            </div>
+            <OrderList
+              orders={operationalAttention.undefinedPickupTime.orders.slice(0, 5)}
+              emptyTitle="Sem horários pendentes"
+              emptyDescription="Todas as encomendas deste período têm hora de retirada definida."
+              timeZone={timeZone}
+              statusLabels={statusLabels}
+              compact
+            />
+          </div>
+        </div>
+      </OperationalSection>
 
       <ProductDemandSection
         startDate={startDate}
@@ -804,6 +866,10 @@ export function OperationalDashboard() {
       timeZone={timeZone}
       summary={planningData?.summary ?? null}
       slotOccupancy={planningData?.slotOccupancy ?? {}}
+      operationalAttention={planningData?.operationalAttention ?? {
+        undefinedPickupDate: { count: 0, orders: [] },
+        undefinedPickupTime: { count: 0, orders: [] },
+      }}
       orders={orders}
       upcomingOrders={upcomingOrders}
       attentionOrders={attentionOrders}

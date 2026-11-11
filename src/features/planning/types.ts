@@ -52,6 +52,17 @@ export type PlanningDaySummary = PlanningSummary & {
   slotOccupancy: PlanningSlotOccupancy;
 };
 
+export type PlanningOperationalAttention = {
+  undefinedPickupDate: {
+    count: number;
+    orders: Order[];
+  };
+  undefinedPickupTime: {
+    count: number;
+    orders: Order[];
+  };
+};
+
 export type DailyPlanningFilters = {
   day: string;
 };
@@ -72,6 +83,7 @@ export type DailyPlanningResponse = {
   selectedDayLabel: string;
   summary: PlanningSummary | null;
   slotOccupancy: PlanningSlotOccupancy;
+  operationalAttention: PlanningOperationalAttention;
 };
 
 export type WeeklyPlanningResponse = {
@@ -82,6 +94,7 @@ export type WeeklyPlanningResponse = {
   summary: PlanningSummary | null;
   slotOccupancy: PlanningSlotOccupancy;
   daySummaries: Record<string, PlanningDaySummary>;
+  operationalAttention: PlanningOperationalAttention;
 };
 
 export type PeriodPlanningResponse = {
@@ -92,6 +105,7 @@ export type PeriodPlanningResponse = {
   summary: PlanningSummary | null;
   slotOccupancy: PlanningSlotOccupancy;
   daySummaries: Record<string, PlanningDaySummary>;
+  operationalAttention: PlanningOperationalAttention;
 };
 
 export type SlotCapacityConfigEntry = {

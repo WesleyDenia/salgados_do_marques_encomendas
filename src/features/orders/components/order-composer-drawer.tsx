@@ -107,8 +107,8 @@ function buildDefaultValues(
           }))
         : defaultValues.items,
     observations: order.notes ?? "",
-    date: getDateInputValueInTimeZone(order.scheduledAt, timeZone) || defaultValues.date,
-    time: getTimeInputValueInTimeZone(order.scheduledAt, timeZone),
+    date: order.pickupDate ?? getDateInputValueInTimeZone(order.scheduledAt, timeZone),
+    time: order.pickupTime ?? getTimeInputValueInTimeZone(order.scheduledAt, timeZone),
     allowScheduleException: false,
     allowPreparationCapacityOverflow: false,
     paymentStatus: order.paymentStatus ?? "pending",
@@ -288,6 +288,8 @@ export function OrderComposerDrawer({
   const paymentStatus = watch("paymentStatus");
   const allowScheduleException = watch("allowScheduleException");
   const allowPreparationCapacityOverflow = watch("allowPreparationCapacityOverflow");
+  const pickupDate = watch("date");
+  const pickupTime = watch("time");
 
   const submitMutation = mode === "edit" ? updateOrderMutation : createOrderMutation;
 
@@ -628,8 +630,23 @@ export function OrderComposerDrawer({
                   id="date"
                   type="date"
                   aria-invalid={Boolean(errors.date)}
+                  disabled={!pickupDate}
                   {...register("date")}
                 />
+                <label className="flex items-center gap-2 text-sm text-muted-foreground" htmlFor="drawer-date-indefinido">
+                  <input
+                    id="drawer-date-indefinido"
+                    type="checkbox"
+                    checked={!pickupDate}
+                    onChange={(event) =>
+                      setValue("date", event.currentTarget.checked ? "" : getDateInputValueInTimeZone(new Date().toISOString(), operationalTimeZone), {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      })
+                    }
+                  />
+                  Indefinido
+                </label>
                 <FieldMessage error={errors.date} />
               </div>
 
@@ -641,8 +658,23 @@ export function OrderComposerDrawer({
                   id="time"
                   type="time"
                   aria-invalid={Boolean(errors.time)}
+                  disabled={!pickupTime}
                   {...register("time")}
                 />
+                <label className="flex items-center gap-2 text-sm text-muted-foreground" htmlFor="drawer-time-indefinido">
+                  <input
+                    id="drawer-time-indefinido"
+                    type="checkbox"
+                    checked={!pickupTime}
+                    onChange={(event) =>
+                      setValue("time", event.currentTarget.checked ? "" : getTimeInputValueInTimeZone(new Date().toISOString(), operationalTimeZone), {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      })
+                    }
+                  />
+                  Indefinido
+                </label>
                 <FieldMessage error={errors.time} />
               </div>
 

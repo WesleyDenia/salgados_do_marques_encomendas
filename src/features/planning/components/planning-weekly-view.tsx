@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useOrderSettings } from "@/features/orders/hooks/use-order-queries";
-import { formatOperationalDateTime } from "@/features/orders/utils/operational-timezone";
+import { formatOrderPickupSchedule } from "@/features/orders/utils/pickup-schedule";
 import { PlanningSlotLoadSummary } from "@/features/planning/components/planning-slot-load-summary";
 import { PlanningSlotOccupancySummary } from "@/features/planning/components/planning-slot-occupancy-summary";
 import { useWeeklyPlanning } from "@/features/planning/hooks/use-weekly-planning";
@@ -261,7 +261,7 @@ export function PlanningWeeklyBoard({
                         {orders.map((order) => (
                           <TableRow key={order.id}>
                             <TableCell>
-                              {formatOperationalDateTime(order.scheduledAt, timeZone)}
+                              {formatOrderPickupSchedule(order, timeZone)}
                             </TableCell>
                             <TableCell>{buildPlanningCustomerLabel(order)}</TableCell>
                             <TableCell>{order.store?.name ?? "Loja não carregada"}</TableCell>
@@ -289,7 +289,7 @@ export function PlanningWeeklyBoard({
                               {buildPlanningCustomerLabel(order)}
                             </p>
                             <p className="mt-1 text-sm text-muted-foreground">
-                              {formatOperationalDateTime(order.scheduledAt, timeZone)}
+                              {formatOrderPickupSchedule(order, timeZone)}
                             </p>
                           </div>
                           <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">

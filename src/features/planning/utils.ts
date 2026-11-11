@@ -398,7 +398,7 @@ function buildPlanningOrderGroups(
   const groupedOrders = new Map<string, Order[]>();
 
   for (const order of orders) {
-    const dayKey = getDateInputValueInTimeZone(order.scheduledAt, timeZone) || "sem-data";
+    const dayKey = order.pickupDate ?? (getDateInputValueInTimeZone(order.scheduledAt, timeZone) || "sem-data");
     const currentOrders = groupedOrders.get(dayKey) ?? [];
 
     currentOrders.push(order);

@@ -229,7 +229,7 @@ test("OrdersOperationalRecordContent renders full operational cards in blocks mo
   assert.match(markup, /Pagamento: Pendente/);
   assert.match(markup, /Nome:<\/span> WESLEY SILVA/);
   assert.match(markup, /Tel:<\/span> 911 928 481/);
-  assert.match(markup, /13\/06\/2026 às 17:00/);
+  assert.match(markup, /13\/06\/2026, 17:00/);
   assert.match(markup, /Pack 100 Unidades/);
   assert.match(markup, /\* Pack Mix/);
   assert.match(markup, /\* Coxinha de Frango/);

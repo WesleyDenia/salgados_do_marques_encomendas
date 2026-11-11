@@ -69,7 +69,8 @@ test("createOrder maps the panel form to the backend contract", async () => {
       tag_ids: [],
       allow_schedule_exception: true,
       payment_status: "pending",
-      scheduled_at: "2026-05-20T09:30:00.000Z",
+      pickup_date: "2026-05-20",
+      pickup_time: "10:30",
       notes: "Sem picante",
       items: [{ product_id: 12, quantity: 12, flavors: [] }],
     });
@@ -81,7 +82,7 @@ test("createOrder maps the panel form to the backend contract", async () => {
   }
 });
 
-test("createOrder respects the provided operational timezone", async () => {
+test("createOrder keeps independent pickup parts without converting timezone", async () => {
   const originalPost = apiClient.post;
   let capturedPayload: Record<string, unknown> | null = null;
 
@@ -118,7 +119,9 @@ test("createOrder respects the provided operational timezone", async () => {
       "Atlantic/Azores",
     );
 
-    assert.equal(capturedPayload?.scheduled_at, "2026-05-20T10:30:00.000Z");
+    assert.equal(capturedPayload?.pickup_date, "2026-05-20");
+    assert.equal(capturedPayload?.pickup_time, "10:30");
+    assert.equal(capturedPayload?.scheduled_at, undefined);
   } finally {
     apiClient.post = originalPost;
   }
@@ -396,7 +399,8 @@ test("updateOrder maps correction payloads to the admin backend contract", async
       tag_ids: [],
       allow_schedule_exception: true,
       payment_status: "pending",
-      scheduled_at: "2026-05-20T09:30:00.000Z",
+      pickup_date: "2026-05-20",
+      pickup_time: "10:30",
       notes: "Sem picante",
       items: [{ product_id: 12, quantity: 12, flavors: [] }],
     });

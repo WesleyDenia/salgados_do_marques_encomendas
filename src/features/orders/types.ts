@@ -128,6 +128,8 @@ export type Order = {
   items: OrderItem[];
   notes?: string | null;
   scheduledAt?: string | null;
+  pickupDate?: string | null;
+  pickupTime?: string | null;
   cancelledAt?: string | null;
   total?: number;
   tags: OrderTag[];

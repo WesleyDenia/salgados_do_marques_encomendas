@@ -7,6 +7,7 @@ import type {
   PlanningSlotOccupancyContextStatus,
   PlanningSlotOccupancyState,
   PlanningPreparationSummary,
+  PlanningOperationalAttention,
   PeriodPlanningResponse,
   SlotCapacityConfigInput,
   SlotCapacityConfigResponse,
@@ -25,6 +26,8 @@ type BackendPlanningOrder = {
   customer_name?: string | null;
   customer_contact?: string | null;
   scheduled_at?: string | null;
+  pickup_date?: string | null;
+  pickup_time?: string | null;
   total?: number;
   notes?: string | null;
   items?: Array<{
@@ -64,6 +67,7 @@ type BackendDailyPlanningResponse = {
   selected_day_label?: string;
   summary?: Partial<PlanningSummary> | null;
   slot_occupancy?: Record<string, Partial<BackendPlanningSlotOccupancyEntry>> | null;
+  operational_attention?: BackendOperationalAttention | null;
 };
 
 type BackendPlanningSlotOccupancyEntry = {
@@ -99,6 +103,7 @@ type BackendWeeklyPlanningResponse = {
   summary?: Partial<PlanningSummary> | null;
   slot_occupancy?: Record<string, Partial<BackendPlanningSlotOccupancyEntry>> | null;
   day_summaries?: Record<string, Partial<BackendPlanningDaySummaryEntry> | null>;
+  operational_attention?: BackendOperationalAttention | null;
 };
 
 type BackendPeriodPlanningResponse = {
@@ -112,6 +117,18 @@ type BackendPeriodPlanningResponse = {
   summary?: Partial<PlanningSummary> | null;
   slot_occupancy?: Record<string, Partial<BackendPlanningSlotOccupancyEntry>> | null;
   day_summaries?: Record<string, Partial<BackendPlanningDaySummaryEntry> | null>;
+  operational_attention?: BackendOperationalAttention | null;
+};
+
+type BackendOperationalAttention = {
+  undefined_pickup_date?: {
+    count?: number;
+    orders?: BackendPlanningOrder[];
+  };
+  undefined_pickup_time?: {
+    count?: number;
+    orders?: BackendPlanningOrder[];
+  };
 };
 
 type BackendPlanningDaySummaryEntry = {
@@ -319,6 +336,20 @@ function normalizePlanningDaySummaries(
   );
 }
 
+function normalizeOperationalAttention(
+  attention: BackendOperationalAttention | null | undefined,
+): PlanningOperationalAttention {
+  const normalizeEntry = (entry: BackendOperationalAttention[keyof BackendOperationalAttention]) => ({
+    count: normalizeSummaryCount(entry?.count),
+    orders: Array.isArray(entry?.orders) ? entry.orders.map(normalizeOrderResource) : [],
+  });
+
+  return {
+    undefinedPickupDate: normalizeEntry(attention?.undefined_pickup_date),
+    undefinedPickupTime: normalizeEntry(attention?.undefined_pickup_time),
+  };
+}
+
 function normalizeSlotCapacityEntries(
   entries: BackendSlotCapacityConfigEntry[] | undefined,
 ): SlotCapacityConfigResponse["slotCapacities"] {
@@ -399,6 +430,7 @@ export async function getDailyPlanning(day: string): Promise<DailyPlanningRespon
     selectedDayLabel: response.data.selected_day_label ?? day,
     summary: normalizePlanningSummary(response.data.summary),
     slotOccupancy: normalizePlanningSlotOccupancy(response.data.slot_occupancy),
+    operationalAttention: normalizeOperationalAttention(response.data.operational_attention),
   };
 }
 
@@ -425,6 +457,7 @@ export async function getWeeklyPlanning(
     summary: normalizePlanningSummary(response.data.summary),
     slotOccupancy: normalizePlanningSlotOccupancy(response.data.slot_occupancy),
     daySummaries: normalizePlanningDaySummaries(response.data.day_summaries),
+    operationalAttention: normalizeOperationalAttention(response.data.operational_attention),
   };
 }
 
@@ -515,5 +548,6 @@ export async function getPeriodPlanning(
     summary: normalizePlanningSummary(response.data.summary),
     slotOccupancy: normalizePlanningSlotOccupancy(response.data.slot_occupancy),
     daySummaries: normalizePlanningDaySummaries(response.data.day_summaries),
+    operationalAttention: normalizeOperationalAttention(response.data.operational_attention),
   };
 }

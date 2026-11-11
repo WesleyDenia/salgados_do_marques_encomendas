@@ -38,7 +38,7 @@ function mergeConfirmedOrder(existingOrder: Order | undefined, updatedOrder: Ord
     tags: updatedTags ?? existingOrder.tags,
     items: updatedItems && updatedItems.length > 0 ? updatedItems : existingOrder.items,
     notes: updatedOrder.notes ?? existingOrder.notes,
-    scheduledAt: updatedOrder.scheduledAt ?? existingOrder.scheduledAt,
+    scheduledAt: updatedOrder.scheduledAt,
     total: updatedOrder.total ?? existingOrder.total,
     partialWithdrawals: updatedPartialWithdrawals ?? existingOrder.partialWithdrawals,
     parentOrder: updatedOrder.parentOrder ?? existingOrder.parentOrder,
