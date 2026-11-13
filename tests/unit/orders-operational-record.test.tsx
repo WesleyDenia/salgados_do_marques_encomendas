@@ -18,6 +18,7 @@ test("OrdersOperationalRecordContent renders the persisted operational record", 
           id: 42,
           status: "placed",
           paymentStatus: "pending",
+          paidAmount: 5,
           slot: "manha",
           customerName: "Maria Silva",
           customerContact: "912345678",
@@ -52,6 +53,8 @@ test("OrdersOperationalRecordContent renders the persisted operational record", 
   assert.match(markup, /Realizado/);
   assert.match(markup, />12</);
   assert.match(markup, /Pagamento: Pendente/);
+  assert.match(markup, /Valor pago/);
+  assert.match(markup, /Falta pagar/);
   assert.match(markup, /bg-rose-50/);
   assert.match(markup, /Manhã/);
   assert.match(markup, /20\/05\/2026, 10:30/);

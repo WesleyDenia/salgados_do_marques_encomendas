@@ -13,6 +13,7 @@ test("OrderThermalContent renders the full operational document for 80mm printin
     id: 555,
     status: "ready",
     paymentStatus: "paid",
+    paidAmount: 60,
     customerName: "Joana Silva",
     customerContact: "912000111",
     scheduledAt: "2026-06-13T16:00:00Z",
@@ -67,6 +68,8 @@ test("OrderThermalContent renders the full operational document for 80mm printin
   assert.match(markup, /Sem cebola/);
   assert.match(markup, /Separar para balcão/);
   assert.match(markup, /60,00/);
+  assert.match(markup, /Valor pago/);
+  assert.match(markup, /Falta pagar/);
   assert.match(markup, /PAGO/);
   assert.doesNotMatch(markup, /Data\/Hora/);
   assert.doesNotMatch(markup, /Criada em/);

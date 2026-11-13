@@ -122,6 +122,7 @@ export type Order = {
   status: string;
   canEdit?: boolean;
   paymentStatus?: OrderPaymentStatus | null;
+  paidAmount?: number;
   slot?: OrderSlot | null;
   customerName?: string | null;
   customerContact?: string | null;

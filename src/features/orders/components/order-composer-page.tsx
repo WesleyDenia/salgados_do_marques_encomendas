@@ -75,6 +75,7 @@ const defaultValues: OrderFormValues = {
   allowScheduleException: false,
   allowPreparationCapacityOverflow: false,
   paymentStatus: "pending",
+  paidAmount: 0,
 };
 
 function buildDefaultValues(
@@ -103,6 +104,7 @@ function buildDefaultValues(
     allowScheduleException: false,
     allowPreparationCapacityOverflow: false,
     paymentStatus: order.paymentStatus ?? "pending",
+    paidAmount: order.paidAmount ?? 0,
   };
 }
 
@@ -1278,6 +1280,23 @@ export function OrderComposerPage({
                         </SelectContent>
                       </Select>
                       <FieldMessage message={errors.paymentStatus?.message} />
+                      {paymentStatus !== "paid" ? (
+                        <div className="space-y-2 pt-1">
+                          <label className="text-sm font-medium text-slate-950" htmlFor="paid-amount">
+                            Valor pago
+                          </label>
+                          <Input
+                            id="paid-amount"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            inputMode="decimal"
+                            aria-invalid={Boolean(errors.paidAmount)}
+                            {...register("paidAmount")}
+                          />
+                          <FieldMessage message={errors.paidAmount?.message} />
+                        </div>
+                      ) : null}
                     </div>
                   </div>
 

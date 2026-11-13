@@ -36,6 +36,8 @@ export type ThermalPrintOrder = {
   pickupStoreLabel: string;
   paymentLabel: string;
   totalLabel: string;
+  paidAmountLabel: string;
+  remainingAmountLabel: string;
   notesLabel: string;
   items: ThermalPrintItem[];
 };
@@ -305,6 +307,13 @@ function buildPrintNotesLabel(order: Order, timeZone: string) {
   ].join("\n");
 }
 
+function getPrintPaidAmount(order: Order) {
+  const total = Math.max(0, order.total ?? 0);
+  const paidAmount = order.paidAmount ?? (order.paymentStatus === "paid" ? total : 0);
+
+  return Math.min(total, Math.max(0, paidAmount));
+}
+
 export function toThermalPrintOrder(
   order: Order,
   options?: {
@@ -324,6 +333,10 @@ export function toThermalPrintOrder(
     pickupStoreLabel: formatPickupStoreLabel(order.store),
     paymentLabel: formatPaymentLabel(order.paymentStatus),
     totalLabel: formatPrintCurrency(order.total),
+    paidAmountLabel: formatPrintCurrency(getPrintPaidAmount(order)),
+    remainingAmountLabel: formatPrintCurrency(
+      Math.max(0, (order.total ?? 0) - getPrintPaidAmount(order)),
+    ),
     notesLabel: buildPrintNotesLabel(order, timeZone),
     items: order.items.map((item, index) => ({
       key: String(item.id ?? `${item.productId}-${index}`),

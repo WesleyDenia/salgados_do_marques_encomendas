@@ -113,6 +113,14 @@ export function OrderThermalContent({
               <span className={classes.label}>Valor</span>
               <span className={classes.value}>{order.totalLabel}</span>
             </div>
+            <div className={classes.row}>
+              <span className={classes.label}>Valor pago</span>
+              <span className={classes.value}>{order.paidAmountLabel}</span>
+            </div>
+            <div className={classes.row}>
+              <span className={classes.label}>Falta pagar</span>
+              <span className={classes.value}>{order.remainingAmountLabel}</span>
+            </div>
             <div className={classes.paymentStatusValue ?? classes.scheduledAtValue ?? classes.value}>
               {order.paymentLabel}
             </div>

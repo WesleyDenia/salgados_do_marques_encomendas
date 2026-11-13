@@ -71,6 +71,10 @@ export const OrderCreateSchema = z.object({
   paymentStatus: z.enum(ORDER_PAYMENT_STATUSES, {
     error: "Selecione o estado de pagamento.",
   }),
+  paidAmount: z.coerce
+    .number("Indique um valor pago válido.")
+    .min(0, "O valor pago não pode ser negativo.")
+    .default(0),
 });
 
 export type OrderCreateInput = z.input<typeof OrderCreateSchema>;

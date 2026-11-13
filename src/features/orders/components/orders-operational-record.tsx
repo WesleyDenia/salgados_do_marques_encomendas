@@ -211,6 +211,17 @@ function formatTotal(value?: number) {
   }).format(value);
 }
 
+function getPaidAmount(order: Order) {
+  const total = Math.max(0, order.total ?? 0);
+  const paidAmount = order.paidAmount ?? (order.paymentStatus === "paid" ? total : 0);
+
+  return Math.min(total, Math.max(0, paidAmount));
+}
+
+function getRemainingAmount(order: Order) {
+  return Math.max(0, (order.total ?? 0) - getPaidAmount(order));
+}
+
 function buildCustomerLabel(order: Order) {
   return order.customerName ?? order.user?.name ?? "Cliente não identificado";
 }
@@ -1022,6 +1033,12 @@ export function OrderDetailSheet({
                     {formatTotal(order.total)}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
+                    Valor pago: {formatTotal(getPaidAmount(order))}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Falta pagar: {formatTotal(getRemainingAmount(order))}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
                     Pagamento: {buildPaymentLabel(order)}
                   </p>
                 </section>
@@ -1690,6 +1707,8 @@ export function OrdersOperationalRecordContent({
                 <TableHead>Estado operacional</TableHead>
                 <TableHead>Quantidade total de itens</TableHead>
                 <TableHead>Total</TableHead>
+                <TableHead>Valor pago</TableHead>
+                <TableHead>Falta pagar</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -1714,6 +1733,8 @@ export function OrdersOperationalRecordContent({
                   <TableCell>{buildOperationalStatusLabel(order, statusLabels)}</TableCell>
                   <TableCell>{buildItemsQuantity(order)}</TableCell>
                   <TableCell>{formatTotal(order.total)}</TableCell>
+                  <TableCell>{formatTotal(getPaidAmount(order))}</TableCell>
+                  <TableCell>{formatTotal(getRemainingAmount(order))}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end">
                       <OrderRecordActionsMenu
@@ -1828,6 +1849,14 @@ export function OrdersOperationalRecordContent({
                 <p>
                   <span className="font-medium text-slate-950">Valor:</span>{" "}
                   {formatTotal(order.total)}
+                </p>
+                <p>
+                  <span className="font-medium text-slate-950">Valor pago:</span>{" "}
+                  {formatTotal(getPaidAmount(order))}
+                </p>
+                <p>
+                  <span className="font-medium text-slate-950">Falta pagar:</span>{" "}
+                  {formatTotal(getRemainingAmount(order))}
                 </p>
                 <p className="whitespace-pre-line text-slate-600">
                   {order.notes?.trim() || "Sem notas operacionais persistidas."}

@@ -81,6 +81,7 @@ const defaultValues: OrderFormInput = {
   allowScheduleException: false,
   allowPreparationCapacityOverflow: false,
   paymentStatus: "pending",
+  paidAmount: 0,
 };
 
 function buildDefaultValues(
@@ -112,6 +113,7 @@ function buildDefaultValues(
     allowScheduleException: false,
     allowPreparationCapacityOverflow: false,
     paymentStatus: order.paymentStatus ?? "pending",
+    paidAmount: order.paidAmount ?? 0,
   };
 }
 
@@ -214,6 +216,13 @@ export function mapBackendErrorsToForm(
     setError("paymentStatus", {
       type: "server",
       message: error.validationErrors.payment_status[0],
+    });
+  }
+
+  if (error.validationErrors?.paid_amount?.[0]) {
+    setError("paidAmount", {
+      type: "server",
+      message: error.validationErrors.paid_amount[0],
     });
   }
 
@@ -709,6 +718,23 @@ export function OrderComposerDrawer({
                   </SelectContent>
                 </Select>
                 <FieldMessage error={errors.paymentStatus} />
+                {paymentStatus !== "paid" ? (
+                  <div className="space-y-2 pt-1">
+                    <label className="text-sm font-medium" htmlFor="drawer-paid-amount">
+                      Valor pago
+                    </label>
+                    <Input
+                      id="drawer-paid-amount"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      inputMode="decimal"
+                      aria-invalid={Boolean(errors.paidAmount)}
+                      {...register("paidAmount")}
+                    />
+                    <FieldMessage error={errors.paidAmount} />
+                  </div>
+                ) : null}
               </div>
             </section>
 

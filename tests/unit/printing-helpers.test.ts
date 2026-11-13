@@ -14,6 +14,7 @@ const baseOrder: Order = {
   id: 321,
   status: "accepted",
   paymentStatus: "partial",
+  paidAmount: 20,
   slot: "tarde",
   customerName: "Maria Operacional",
   customerContact: null,
@@ -60,6 +61,8 @@ test("toThermalPrintOrder reuses normalized order data and applies operational f
   assert.equal(printable.pickupStoreLabel, 'RETIRADA NA LOJA "Loja Norte"');
   assert.equal(printable.notesLabel, "Sem notas operacionais");
   assert.equal(printable.paymentLabel, "PARCIAL");
+  assert.equal(printable.paidAmountLabel, "20,00 €");
+  assert.equal(printable.remainingAmountLabel, "28,00 €");
   assert.deepEqual(printable.items[0].flavorLines, ["Carne", "Frango"]);
   assert.deepEqual(printable.items[1].flavorLines, ["#3", "#9"]);
 });

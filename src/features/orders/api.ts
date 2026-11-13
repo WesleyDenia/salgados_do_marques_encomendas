@@ -104,6 +104,7 @@ type BackendOrder = {
   status: string;
   can_edit?: boolean;
   payment_status?: OrderPaymentStatus | null;
+  paid_amount?: number;
   slot?: string | null;
   customer_name?: string | null;
   customer_contact?: string | null;
@@ -298,6 +299,7 @@ export function normalizeOrderResource(resource: BackendOrder): Order {
     status: resource.status,
     canEdit: resource.can_edit,
     paymentStatus: resource.payment_status ?? null,
+    paidAmount: resource.paid_amount ?? 0,
     slot: resource.slot ?? null,
     customerName: resource.customer_name ?? null,
     customerContact: resource.customer_contact ?? null,
@@ -698,6 +700,7 @@ function buildOrderWritePayload(payload: NormalizedOrderCreateInput, timeZone?: 
       ? { allow_preparation_capacity_overflow: true }
       : {}),
     payment_status: payload.paymentStatus,
+    paid_amount: payload.paidAmount,
     pickup_date: payload.date || null,
     pickup_time: payload.time || null,
     notes: buildOperationalNotes(payload),

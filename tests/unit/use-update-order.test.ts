@@ -74,6 +74,7 @@ test("updateOrder maps the panel form to the backend PATCH contract", async () =
       tag_ids: [],
       allow_schedule_exception: true,
       payment_status: "paid",
+      paid_amount: 0,
       pickup_date: "2026-05-20",
       pickup_time: "10:30",
       notes: "Com mais picante",
