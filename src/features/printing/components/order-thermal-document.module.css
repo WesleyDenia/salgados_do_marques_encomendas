@@ -114,6 +114,11 @@
   text-align: right;
 }
 
+.pickupStoreValue {
+  font-weight: 400;
+  text-align: left;
+}
+
 .paymentStatusValue {
   font-size: 20px;
   font-weight: 400;

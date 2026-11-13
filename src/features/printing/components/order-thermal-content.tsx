@@ -26,6 +26,7 @@ type OrderThermalContentClasses = {
   sectionTitle?: string;
   row?: string;
   scheduledAtValue?: string;
+  pickupStoreValue?: string;
   paymentStatusValue?: string;
   item?: string;
   itemRow?: string;
@@ -85,7 +86,9 @@ export function OrderThermalContent({
               </span>
             </div>
             <div className={classes.row}>
-              <span className={classes.value}>{order.pickupStoreLabel}</span>
+              <span className={classes.pickupStoreValue ?? classes.value}>
+                {order.pickupStoreLabel}
+              </span>
             </div>
           </section>
 

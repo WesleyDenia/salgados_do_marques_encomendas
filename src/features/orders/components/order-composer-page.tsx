@@ -1116,7 +1116,9 @@ export function OrderComposerPage({
                         }
                       >
                         <SelectTrigger aria-invalid={Boolean(errors.storeId)}>
-                          <SelectValue placeholder="Selecionar loja" />
+                          <SelectValue placeholder="Selecionar loja">
+                            {stores.find((store) => store.id === storeId)?.name}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {stores.map((store) => (
