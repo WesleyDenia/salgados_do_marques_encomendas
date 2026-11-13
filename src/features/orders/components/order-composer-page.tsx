@@ -1280,7 +1280,7 @@ export function OrderComposerPage({
                         </SelectContent>
                       </Select>
                       <FieldMessage message={errors.paymentStatus?.message} />
-                      {paymentStatus !== "paid" ? (
+                      {paymentStatus === "partial" ? (
                         <div className="space-y-2 pt-1">
                           <label className="text-sm font-medium text-slate-950" htmlFor="paid-amount">
                             Valor pago

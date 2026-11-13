@@ -28,6 +28,7 @@ test("OrderComposerDrawer renders the essential creation fields", () => {
   assert.match(markup, /Produto/);
   assert.match(markup, /Quantidade/);
   assert.match(markup, /Estado de pagamento/);
+  assert.doesNotMatch(markup, /Valor pago/);
   assert.match(markup, /Permitir exceção fora do horário da loja/);
 
   queryClient.clear();
@@ -44,7 +45,8 @@ test("OrderComposerDrawer renders edit mode copy for corrections", () => {
           initialOrder={{
             id: 42,
             status: "placed",
-            paymentStatus: "pending",
+            paymentStatus: "partial",
+            paidAmount: 10,
             slot: "manha",
             customerName: "Maria Silva",
             customerContact: "912345678",
@@ -76,6 +78,7 @@ test("OrderComposerDrawer renders edit mode copy for corrections", () => {
   assert.match(markup, /Corrigir encomenda/);
   assert.match(markup, /Guardar correção/);
   assert.match(markup, /Permitir exceção fora do horário da loja/);
+  assert.match(markup, /Valor pago/);
 
   queryClient.clear();
 });
@@ -98,6 +101,7 @@ test("mapBackendErrorsToForm maps 422 errors to react-hook-form fields", () => {
       customer_contact: ["Contacto inválido"],
       slot: ["Slot indisponível"],
       payment_status: ["Estado inválido"],
+      paid_amount: ["Valor pago inválido"],
       "items.0.product_id": ["Produto inválido"],
       "items.1.quantity": ["Quantidade insuficiente"]
     }
@@ -108,11 +112,12 @@ test("mapBackendErrorsToForm maps 422 errors to react-hook-form fields", () => {
     mockSetError as Parameters<typeof mapBackendErrorsToForm>[1],
   );
 
-  assert.equal(capturedCalls.length, 6);
+  assert.equal(capturedCalls.length, 7);
   assert.equal(capturedCalls.find(c => c.field === "customerName")?.error.message, "O nome é obrigatório");
   assert.equal(capturedCalls.find(c => c.field === "customerContact")?.error.message, "Contacto inválido");
   assert.equal(capturedCalls.find(c => c.field === "time")?.error.message, "Slot indisponível");
   assert.equal(capturedCalls.find(c => c.field === "paymentStatus")?.error.message, "Estado inválido");
+  assert.equal(capturedCalls.find(c => c.field === "paidAmount")?.error.message, "Valor pago inválido");
   assert.equal(capturedCalls.find(c => c.field === "items.0.productId")?.error.message, "Produto inválido");
   assert.equal(capturedCalls.find(c => c.field === "items.1.quantity")?.error.message, "Quantidade insuficiente");
 });

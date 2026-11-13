@@ -718,7 +718,7 @@ export function OrderComposerDrawer({
                   </SelectContent>
                 </Select>
                 <FieldMessage error={errors.paymentStatus} />
-                {paymentStatus !== "paid" ? (
+                {paymentStatus === "partial" ? (
                   <div className="space-y-2 pt-1">
                     <label className="text-sm font-medium" htmlFor="drawer-paid-amount">
                       Valor pago
