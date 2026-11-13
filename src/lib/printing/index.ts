@@ -33,6 +33,7 @@ export type ThermalPrintOrder = {
   customerLabel: string;
   contactLabel: string;
   scheduledAtLabel: string;
+  pickupStoreLabel: string;
   paymentLabel: string;
   totalLabel: string;
   notesLabel: string;
@@ -184,6 +185,14 @@ function formatScheduledAtDetailed(value?: string | null, timeZone = "Europe/Lis
   return `${normalizedWeekday} ${date} às ${time}`;
 }
 
+function formatPickupStoreLabel(store?: Order["store"] | null) {
+  const storeName = store?.name?.trim();
+
+  return storeName
+    ? `RETIRADA NA LOJA "${storeName}"`
+    : "RETIRADA NA LOJA NÃO DEFINIDA";
+}
+
 function buildPrintItemTitle(item: Order["items"][number]) {
   if (item.variantName?.trim()) {
     return item.variantName.trim();
@@ -312,6 +321,7 @@ export function toThermalPrintOrder(
       order.customerName?.trim() || order.user?.name || "Cliente não identificado",
     contactLabel: formatCustomerContact(order.customerContact),
     scheduledAtLabel: formatScheduledAtDetailed(order.scheduledAt, timeZone),
+    pickupStoreLabel: formatPickupStoreLabel(order.store),
     paymentLabel: formatPaymentLabel(order.paymentStatus),
     totalLabel: formatPrintCurrency(order.total),
     notesLabel: buildPrintNotesLabel(order, timeZone),

@@ -84,6 +84,9 @@ export function OrderThermalContent({
                 {order.scheduledAtLabel}
               </span>
             </div>
+            <div className={classes.row}>
+              <span className={classes.value}>{order.pickupStoreLabel}</span>
+            </div>
           </section>
 
           <section className={classes.section}>

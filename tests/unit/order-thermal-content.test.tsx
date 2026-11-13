@@ -18,6 +18,10 @@ test("OrderThermalContent renders the full operational document for 80mm printin
     scheduledAt: "2026-06-13T16:00:00Z",
     total: 60,
     notes: "Sem cebola\nSeparar para balcão.",
+    store: {
+      id: 1,
+      name: "Loja Centro",
+    },
     items: [
       {
         id: 1,
@@ -55,6 +59,7 @@ test("OrderThermalContent renders the full operational document for 80mm printin
   assert.match(markup, /Joana Silva/);
   assert.match(markup, /912 000 111/);
   assert.match(markup, /Sáb 13\/06\/2026 às 17:00/);
+  assert.match(markup, /RETIRADA NA LOJA &quot;Loja Centro&quot;/);
   assert.match(markup, /Pack 100 Unidades/);
   assert.match(markup, /Sabores:/);
   assert.match(markup, /- Pack Mix/);
@@ -64,7 +69,6 @@ test("OrderThermalContent renders the full operational document for 80mm printin
   assert.match(markup, /60,00/);
   assert.match(markup, /PAGO/);
   assert.doesNotMatch(markup, /Data\/Hora/);
-  assert.doesNotMatch(markup, /Loja Centro/);
   assert.doesNotMatch(markup, /Criada em/);
   assert.doesNotMatch(markup, /Documento térmico operacional 80mm/);
 });

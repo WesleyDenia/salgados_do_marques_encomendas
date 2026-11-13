@@ -1682,7 +1682,7 @@ export function OrdersOperationalRecordContent({
               <TableRow className="bg-slate-50/80">
                 <TableHead>ID</TableHead>
                 <TableHead>Cliente</TableHead>
-                <TableHead>Loja</TableHead>
+                <TableHead>Retirada na loja</TableHead>
                 <TableHead>Data/Hora de agendamento</TableHead>
                 <TableHead>Slot</TableHead>
                 <TableHead>Tags</TableHead>
@@ -1759,6 +1759,10 @@ export function OrdersOperationalRecordContent({
                     <p>
                       <span className="font-medium text-slate-950">Data/Hora:</span>{" "}
                       {formatOrderPickupSchedule(order, timeZone)}
+                    </p>
+                    <p>
+                      <span className="font-medium text-slate-950">Retirada na loja:</span>{" "}
+                      {order.store?.name ?? "Loja não carregada"}
                     </p>
                     <div className="flex flex-wrap gap-1.5 pt-1">
                       {(order.tags ?? []).length > 0 ? (
