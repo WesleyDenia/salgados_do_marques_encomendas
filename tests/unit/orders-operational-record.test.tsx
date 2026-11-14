@@ -419,3 +419,21 @@ test("buildOrdersRecordUrl resets pagination when investigation filters change",
     "/audit/investigation?search=Ana",
   );
 });
+
+test("buildOrdersRecordUrl persists the undefined pickup date filter", () => {
+  assert.equal(
+    buildOrdersRecordUrl({
+      pathname: "/orders",
+      searchParams: new URLSearchParams("page=3"),
+      normalizedSearch: "",
+      effectivePage: 1,
+      period: "all",
+      defaultPeriod: "today",
+      status: "",
+      paymentStatus: "",
+      slot: "",
+      pickupDateUndefined: true,
+    }),
+    "/orders?period=all&pickup_date_undefined=1",
+  );
+});

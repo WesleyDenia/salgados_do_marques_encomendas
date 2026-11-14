@@ -122,6 +122,7 @@ type PersistedOrderRecordFilters = {
   paymentStatus: string;
   slot: string;
   tagIds: number[];
+  pickupDateUndefined: boolean;
   customStartDate: string;
   customEndDate: string;
 };
@@ -160,6 +161,7 @@ function hasExplicitOrderFilterParams(searchParams: OrderRecordSearchParams) {
     "payment_status",
     "slot",
     "tag_ids",
+    "pickup_date_undefined",
     "start_date",
     "end_date",
   ].some((key) => searchParams.get(key) != null);
@@ -190,6 +192,7 @@ function parsePersistedOrderRecordFilters(
       tagIds: Array.isArray(parsed.tagIds)
         ? parsed.tagIds.filter((tagId): tagId is number => Number.isInteger(tagId) && tagId > 0)
         : [],
+      pickupDateUndefined: parsed.pickupDateUndefined === true,
       customStartDate:
         typeof parsed.customStartDate === "string" ? parsed.customStartDate : "",
       customEndDate:
@@ -523,6 +526,7 @@ export function buildOrdersRecordUrl({
   paymentStatus,
   slot,
   tagIds = [],
+  pickupDateUndefined = false,
   statusLabels,
 }: Readonly<{
   pathname: string;
@@ -537,6 +541,7 @@ export function buildOrdersRecordUrl({
   paymentStatus: string;
   slot: string;
   tagIds?: number[];
+  pickupDateUndefined?: boolean;
   statusLabels?: Record<string, string>;
 }>) {
   const currentSearch = searchParams.get("search") ?? "";
@@ -547,6 +552,7 @@ export function buildOrdersRecordUrl({
   const rawPaymentStatusParam = searchParams.get("payment_status");
   const rawSlotParam = searchParams.get("slot");
   const rawTagIdsParam = searchParams.get("tag_ids");
+  const rawPickupDateUndefinedParam = searchParams.get("pickup_date_undefined");
   const rawStartDateParam = searchParams.get("start_date");
   const rawEndDateParam = searchParams.get("end_date");
   const currentUrlPeriod = normalizeOrderOperationalPeriod(
@@ -580,6 +586,9 @@ export function buildOrdersRecordUrl({
   const localTagIdsParam = tagIds.join(",");
   const tagIdsParamIsCanonical =
     localTagIdsParam === "" ? rawTagIdsParam == null : rawTagIdsParam === localTagIdsParam;
+  const pickupDateUndefinedParamIsCanonical = pickupDateUndefined
+    ? rawPickupDateUndefinedParam === "1"
+    : rawPickupDateUndefinedParam == null;
   const startDateParamIsCanonical =
     period === "custom"
       ? rawStartDateParam === customStartDate
@@ -601,6 +610,7 @@ export function buildOrdersRecordUrl({
     paymentStatusParamIsCanonical &&
     slotParamIsCanonical &&
     tagIdsParamIsCanonical &&
+    pickupDateUndefinedParamIsCanonical &&
     startDateParamIsCanonical &&
     endDateParamIsCanonical
   ) {
@@ -622,6 +632,7 @@ export function buildOrdersRecordUrl({
     paymentStatus !== currentUrlPaymentStatus ||
     slot !== currentUrlSlot ||
     localTagIdsParam !== normalizedTagIdsParam ||
+    pickupDateUndefined !== (rawPickupDateUndefinedParam === "1") ||
     (period === "custom" &&
       (customStartDate !== (rawStartDateParam ?? "") ||
         customEndDate !== (rawEndDateParam ?? "")))
@@ -661,6 +672,12 @@ export function buildOrdersRecordUrl({
     params.set("tag_ids", tagIds.join(","));
   } else {
     params.delete("tag_ids");
+  }
+
+  if (pickupDateUndefined) {
+    params.set("pickup_date_undefined", "1");
+  } else {
+    params.delete("pickup_date_undefined");
   }
 
   if (period === "custom" && customStartDate && customEndDate) {
@@ -1918,6 +1935,7 @@ export function OrdersOperationalRecord({
   const rawUrlPaymentStatus = searchParams.get("payment_status");
   const rawUrlSlot = searchParams.get("slot");
   const rawUrlTagIds = searchParams.get("tag_ids");
+  const rawUrlPickupDateUndefined = searchParams.get("pickup_date_undefined");
   const rawUrlStartDate = searchParams.get("start_date") ?? "";
   const rawUrlEndDate = searchParams.get("end_date") ?? "";
   const currentSearch = searchParams.get("search") ?? "";
@@ -1928,6 +1946,8 @@ export function OrdersOperationalRecord({
     () => normalizeOrderOperationalTagIds(rawUrlTagIds),
     [rawUrlTagIds],
   );
+  const currentPickupDateUndefined =
+    rawUrlPickupDateUndefined === "1" || rawUrlPickupDateUndefined === "true";
   const [searchInput, setSearchInput] = React.useState(urlSearchTerm);
   const [searchTerm, setSearchTerm] = React.useState(urlSearchTerm);
   const [period, setPeriod] = React.useState<OrderOperationalPeriod>(currentPeriod);
@@ -1935,6 +1955,9 @@ export function OrdersOperationalRecord({
   const [paymentStatus, setPaymentStatus] = React.useState(rawUrlPaymentStatus?.trim() ?? "");
   const [slot, setSlot] = React.useState(rawUrlSlot?.trim() ?? "");
   const [tagIds, setTagIds] = React.useState<number[]>(rawCurrentTagIds);
+  const [pickupDateUndefined, setPickupDateUndefined] = React.useState(
+    currentPickupDateUndefined,
+  );
   const [customStartDate, setCustomStartDate] = React.useState(rawUrlStartDate);
   const [customEndDate, setCustomEndDate] = React.useState(rawUrlEndDate);
   const [filtersOpen, setFiltersOpen] = React.useState(false);
@@ -1962,6 +1985,7 @@ export function OrdersOperationalRecord({
     paymentStatus !== rawCurrentPaymentStatus ||
     slot !== rawCurrentSlot ||
     tagIds.join(",") !== rawCurrentTagIds.join(",") ||
+    pickupDateUndefined !== currentPickupDateUndefined ||
     (period === "custom" &&
       (customStartDate !== rawUrlStartDate || customEndDate !== rawUrlEndDate));
   const effectivePage = optimisticFiltersChanged ? 1 : currentPage;
@@ -1973,6 +1997,7 @@ export function OrdersOperationalRecord({
       paymentStatus: paymentStatus || undefined,
       slot: slot || undefined,
       tagIds,
+      pickupDateUndefined,
       customStartDate: period === "custom" ? customStartDate : undefined,
       customEndDate: period === "custom" ? customEndDate : undefined,
       page: effectivePage,
@@ -2038,6 +2063,7 @@ export function OrdersOperationalRecord({
     setPaymentStatus(currentPaymentStatus);
     setSlot(currentSlot);
     setTagIds(currentTagIds);
+    setPickupDateUndefined(currentPickupDateUndefined);
     setCustomStartDate(rawUrlStartDate);
     setCustomEndDate(rawUrlEndDate);
   }, [
@@ -2046,6 +2072,7 @@ export function OrdersOperationalRecord({
     currentPaymentStatus,
     currentSlot,
     currentTagIds,
+    currentPickupDateUndefined,
     rawUrlEndDate,
     rawUrlStartDate,
     urlSearchTerm,
@@ -2083,6 +2110,7 @@ export function OrdersOperationalRecord({
       setPaymentStatus(persistedFilters.paymentStatus);
       setSlot(persistedFilters.slot);
       setTagIds(persistedFilters.tagIds);
+      setPickupDateUndefined(persistedFilters.pickupDateUndefined);
       setCustomStartDate(persistedFilters.customStartDate);
       setCustomEndDate(persistedFilters.customEndDate);
     }
@@ -2104,6 +2132,7 @@ export function OrdersOperationalRecord({
         paymentStatus,
         slot,
         tagIds,
+        pickupDateUndefined,
         customStartDate,
         customEndDate,
       } satisfies PersistedOrderRecordFilters),
@@ -2114,6 +2143,7 @@ export function OrdersOperationalRecord({
     filtersHydrated,
     mode,
     paymentStatus,
+    pickupDateUndefined,
     period,
     searchTerm,
     slot,
@@ -2169,6 +2199,7 @@ export function OrdersOperationalRecord({
       paymentStatus,
       slot,
       tagIds,
+      pickupDateUndefined,
       statusLabels,
     });
 
@@ -2190,6 +2221,7 @@ export function OrdersOperationalRecord({
     statusLabels,
     status,
     paymentStatus,
+    pickupDateUndefined,
     slot,
     tagIds,
     filtersHydrated,
@@ -2227,6 +2259,9 @@ export function OrdersOperationalRecord({
   const updatePeriod = React.useCallback(
     (nextPeriod: OrderOperationalPeriod) => {
       setPeriod(nextPeriod);
+      if (nextPeriod !== "all") {
+        setPickupDateUndefined(false);
+      }
 
       if (nextPeriod === "custom") {
         const today = new Intl.DateTimeFormat("en-CA", {
@@ -2268,6 +2303,16 @@ export function OrdersOperationalRecord({
     [],
   );
 
+  const updatePickupDateFilter = React.useCallback((value: string | null) => {
+    const isUndefinedDate = value === "undefined";
+
+    setPickupDateUndefined(isUndefinedDate);
+
+    if (isUndefinedDate) {
+      setPeriod("all");
+    }
+  }, []);
+
   const toggleTagFilter = React.useCallback((tagId: number) => {
     setTagIds((current) =>
       current.includes(tagId)
@@ -2279,11 +2324,13 @@ export function OrdersOperationalRecord({
   const updateCustomStartDate = React.useCallback((nextValue: string) => {
     setCustomStartDate(nextValue);
     setPeriod("custom");
+    setPickupDateUndefined(false);
   }, []);
 
   const updateCustomEndDate = React.useCallback((nextValue: string) => {
     setCustomEndDate(nextValue);
     setPeriod("custom");
+    setPickupDateUndefined(false);
   }, []);
 
   const clearFilters = React.useCallback(() => {
@@ -2294,6 +2341,7 @@ export function OrdersOperationalRecord({
     setPaymentStatus("");
     setSlot("");
     setTagIds([]);
+    setPickupDateUndefined(false);
     setCustomStartDate("");
     setCustomEndDate("");
 
@@ -2720,6 +2768,23 @@ export function OrdersOperationalRecord({
                       {label}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Data de retirada
+              </label>
+              <Select
+                value={pickupDateUndefined ? "undefined" : "all"}
+                onValueChange={updatePickupDateFilter}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Todas as datas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as datas</SelectItem>
+                  <SelectItem value="undefined">Data indefinida</SelectItem>
                 </SelectContent>
               </Select>
             </div>

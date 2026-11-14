@@ -36,6 +36,7 @@ export type OrderSearchState = {
   paymentStatus?: string;
   slot?: string;
   tagIds?: number[];
+  pickupDateUndefined?: boolean;
   customStartDate?: string;
   customEndDate?: string;
   page: number;
@@ -229,13 +230,15 @@ export function buildOrderSearchFilters(
   timeZone: string,
   now = new Date(),
 ): OrderSearchFilters {
-  const dateRange = buildOperationalPeriodDateRange(
-    state.period,
-    timeZone,
-    state.customStartDate,
-    state.customEndDate,
-    now,
-  );
+  const dateRange = state.pickupDateUndefined
+    ? {}
+    : buildOperationalPeriodDateRange(
+        state.period,
+        timeZone,
+        state.customStartDate,
+        state.customEndDate,
+        now,
+      );
 
   return {
     search: state.search,
@@ -244,6 +247,7 @@ export function buildOrderSearchFilters(
     paymentStatus: state.paymentStatus,
     slot: state.slot,
     tagIds: state.tagIds,
+    pickupDateUndefined: state.pickupDateUndefined,
     scheduledFrom: dateRange.scheduledFrom,
     scheduledTo: dateRange.scheduledTo,
   };
@@ -279,6 +283,7 @@ export function useOrderSearch(state: OrderSearchState) {
       paymentStatus: normalizedPaymentStatus ?? "",
       slot: normalizedSlot ?? "",
       tagIds: normalizedTagIds?.join(",") ?? "",
+      pickupDateUndefined: state.pickupDateUndefined ?? false,
       customStartDate: state.customStartDate ?? "",
       customEndDate: state.customEndDate ?? "",
       page: state.page,

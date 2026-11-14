@@ -18,6 +18,7 @@ type OrderSearchQueryKeyParams = {
   paymentStatus?: string;
   slot?: string;
   tagIds?: string;
+  pickupDateUndefined?: boolean;
   customStartDate?: string;
   customEndDate?: string;
   timeZone?: string;

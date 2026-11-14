@@ -146,9 +146,27 @@ test("buildOrderSearchFilters keeps all-period requests without date filters", (
     paymentStatus: undefined,
     slot: undefined,
     tagIds: undefined,
+    pickupDateUndefined: undefined,
     scheduledFrom: undefined,
     scheduledTo: undefined,
   });
+});
+
+test("buildOrderSearchFilters filters undefined pickup dates without a date range", () => {
+  const filters = buildOrderSearchFilters(
+    {
+      search: "",
+      period: "today",
+      pickupDateUndefined: true,
+      page: 1,
+    },
+    "Europe/Lisbon",
+    new Date("2026-05-16T10:15:00.000Z"),
+  );
+
+  assert.equal(filters.pickupDateUndefined, true);
+  assert.equal(filters.scheduledFrom, undefined);
+  assert.equal(filters.scheduledTo, undefined);
 });
 
 test("buildOrderSearchFilters preserves phone-like searches as the free search term", () => {

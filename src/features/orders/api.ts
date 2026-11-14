@@ -225,6 +225,7 @@ export type OrderSearchFilters = {
   paymentStatus?: string;
   slot?: string;
   tagIds?: number[];
+  pickupDateUndefined?: boolean;
   scheduledFrom?: string;
   scheduledTo?: string;
   timezone?: string;
@@ -429,6 +430,7 @@ export async function getOrders(
   if (Array.isArray(filters.tagIds) && filters.tagIds.length > 0) {
     params.tag_ids = filters.tagIds.join(",");
   }
+  if (filters.pickupDateUndefined) params.pickup_date_undefined = true;
   if (filters.scheduledFrom?.trim())
     params.scheduled_from = filters.scheduledFrom.trim();
   if (filters.scheduledTo?.trim()) params.scheduled_to = filters.scheduledTo.trim();
