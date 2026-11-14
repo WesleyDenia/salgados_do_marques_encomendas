@@ -474,6 +474,7 @@ export function OrderComposerPage({
   const router = useRouter();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = React.useState<1 | 2>(1);
+  const [isPickupTimeIndefinite, setIsPickupTimeIndefinite] = React.useState(false);
   const [loadedProducts, setLoadedProducts] = React.useState<OrderProductOption[]>([]);
   const [itemConfigState, setItemConfigState] = React.useState<ItemConfigState | null>(
     null,
@@ -559,7 +560,6 @@ export function OrderComposerPage({
   const allowScheduleException = watch("allowScheduleException");
   const allowPreparationCapacityOverflow = watch("allowPreparationCapacityOverflow");
   const pickupDate = watch("date");
-  const pickupTime = watch("time");
   const selectedTags = React.useMemo(
     () =>
       availableTags.filter((tag) => tagIds.includes(tag.id)),
@@ -575,7 +575,10 @@ export function OrderComposerPage({
       return;
     }
 
-    reset(buildDefaultValues(resolvedInitialOrder, operationalTimeZone));
+    const formValues = buildDefaultValues(resolvedInitialOrder, operationalTimeZone);
+
+    reset(formValues);
+    setIsPickupTimeIndefinite(!formValues.time);
   }, [
     initialOrderQuery.isLoading,
     mode,
@@ -1237,18 +1240,29 @@ export function OrderComposerPage({
                       <label className="text-sm font-medium text-slate-950" htmlFor="time">
                         Hora
                       </label>
-                      <Input id="time" type="time" disabled={!pickupTime} {...register("time")} />
+                      <Input
+                        id="time"
+                        type="time"
+                        disabled={isPickupTimeIndefinite}
+                        {...register("time")}
+                      />
                       <label className="flex items-center gap-2 text-sm text-slate-700" htmlFor="time-indefinido">
                         <input
                           id="time-indefinido"
                           type="checkbox"
-                          checked={!pickupTime}
-                          onChange={(event) =>
-                            setValue("time", event.currentTarget.checked ? "" : getTimeInputValueInTimeZone(new Date().toISOString(), operationalTimeZone), {
-                              shouldDirty: true,
-                              shouldValidate: true,
-                            })
-                          }
+                          checked={isPickupTimeIndefinite}
+                          onChange={(event) => {
+                            const isIndefinite = event.currentTarget.checked;
+
+                            setIsPickupTimeIndefinite(isIndefinite);
+
+                            if (isIndefinite) {
+                              setValue("time", "", {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              });
+                            }
+                          }}
                         />
                         Indefinido
                       </label>
@@ -1351,6 +1365,26 @@ export function OrderComposerPage({
                     </label>
                     <Textarea id="observations" className="min-h-28" {...register("observations")} />
                   </div>
+
+                  <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                    <Button type="button" variant="outline" onClick={() => router.push("/orders")}>
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={
+                        isSubmitting ||
+                        products.length === 0 ||
+                        storeId <= 0
+                      }
+                    >
+                      {isSubmitting
+                        ? "A guardar..."
+                        : mode === "edit"
+                          ? "Guardar correção"
+                          : "Guardar encomenda"}
+                    </Button>
+                  </div>
                 </section>
               </>
             )}
@@ -1426,29 +1460,15 @@ export function OrderComposerPage({
                     Continuar para Step 2
                   </Button>
                 ) : (
-                  <>
-                    <Button
-                      type="submit"
-                      disabled={
-                        isSubmitting ||
-                        products.length === 0 ||
-                        storeId <= 0
-                      }
-                    >
-                      {isSubmitting
-                        ? "A guardar..."
-                        : mode === "edit"
-                          ? "Guardar correção"
-                          : "Guardar encomenda"}
-                    </Button>
-                    <Button type="button" variant="outline" onClick={() => setCurrentStep(1)}>
-                      Voltar ao Step 1
-                    </Button>
-                  </>
+                  <Button type="button" variant="outline" onClick={() => setCurrentStep(1)}>
+                    Voltar ao Step 1
+                  </Button>
                 )}
-                <Button type="button" variant="outline" onClick={() => router.push("/orders")}>
-                  Cancelar
-                </Button>
+                {currentStep === 1 ? (
+                  <Button type="button" variant="outline" onClick={() => router.push("/orders")}>
+                    Cancelar
+                  </Button>
+                ) : null}
               </div>
             </section>
           </aside>
