@@ -48,6 +48,7 @@ import { OrderAuditContext } from "@/features/orders/components/order-audit-cont
 import { OrderHistoryList } from "@/features/orders/components/order-history-list";
 import {
   useCreateOrderPartialWithdrawal,
+  useResendOrderWhatsAppMessage,
   useUpdateOrder,
   useUpdateOrderStatus,
 } from "@/features/orders/hooks/use-order-mutations";
@@ -1604,15 +1605,23 @@ function PartialWithdrawalModal({
 function OrderRecordActionsMenu({
   order,
   showWithdrawalAction,
+  showResendMessageAction,
   onOpenOrder,
   onOpenWithdrawal,
   onPrintOrder,
+  onResendMessage,
+  isResendingMessage,
+  isResendMessagePending,
 }: Readonly<{
   order: Order;
   showWithdrawalAction: boolean;
+  showResendMessageAction: boolean;
   onOpenOrder?: (order: Order) => void;
   onOpenWithdrawal?: (order: Order) => void;
   onPrintOrder?: (order: Order) => void;
+  onResendMessage?: (order: Order) => void;
+  isResendingMessage?: boolean;
+  isResendMessagePending?: boolean;
 }>) {
   const triggerLabel = showWithdrawalAction
     ? `Abrir ações da encomenda #${order.id}, inclui retirada`
@@ -1652,6 +1661,17 @@ function OrderRecordActionsMenu({
               <Printer className="size-4 text-muted-foreground" />
               Imprimir
             </Menu.Item>
+            {showResendMessageAction ? (
+              <Menu.Item
+                aria-label={`Reenviar mensagem da encomenda #${order.id}`}
+                className={menuItemClassName}
+                disabled={!onResendMessage || isResendMessagePending}
+                onClick={() => onResendMessage?.(order)}
+              >
+                <RefreshCcw className="size-4 text-muted-foreground" />
+                {isResendingMessage ? "A reenviar mensagem..." : "Reenviar mensagem"}
+              </Menu.Item>
+            ) : null}
             <Menu.Item
               aria-label={`Abrir encomenda #${order.id}`}
               className={menuItemClassName}
@@ -1675,6 +1695,8 @@ export function OrdersOperationalRecordContent({
   onOpenOrder,
   onOpenWithdrawal,
   onPrintOrder,
+  onResendMessage,
+  resendingOrderId,
   onPageChange,
   statusLabels,
   timeZone,
@@ -1687,6 +1709,8 @@ export function OrdersOperationalRecordContent({
   onOpenOrder?: (order: Order) => void;
   onOpenWithdrawal?: (order: Order) => void;
   onPrintOrder?: (order: Order) => void;
+  onResendMessage?: (order: Order) => void;
+  resendingOrderId?: number | string | null;
   onPageChange?: (page: number) => void;
   statusLabels?: Record<string, string>;
   timeZone?: string;
@@ -1697,6 +1721,7 @@ export function OrdersOperationalRecordContent({
   const lastPage = meta?.last_page ?? 1;
   const totalRecords = meta?.total ?? orders.length;
   const allowWithdrawalActions = _mode === "operational";
+  const allowResendMessageActions = _mode === "operational";
 
   return (
     <section className="space-y-4">
@@ -1759,8 +1784,12 @@ export function OrdersOperationalRecordContent({
                         showWithdrawalAction={
                           allowWithdrawalActions && canOrderRegisterPartialWithdrawal(order)
                         }
+                        showResendMessageAction={allowResendMessageActions}
                         onOpenWithdrawal={onOpenWithdrawal}
                         onPrintOrder={onPrintOrder}
+                        onResendMessage={onResendMessage}
+                        isResendingMessage={String(resendingOrderId) === String(order.id)}
+                        isResendMessagePending={resendingOrderId !== null}
                         onOpenOrder={onOpenOrder}
                       />
                     </div>
@@ -1817,8 +1846,12 @@ export function OrdersOperationalRecordContent({
                   showWithdrawalAction={
                     allowWithdrawalActions && canOrderRegisterPartialWithdrawal(order)
                   }
+                  showResendMessageAction={allowResendMessageActions}
                   onOpenWithdrawal={onOpenWithdrawal}
                   onPrintOrder={onPrintOrder}
+                  onResendMessage={onResendMessage}
+                  isResendingMessage={String(resendingOrderId) === String(order.id)}
+                  isResendMessagePending={resendingOrderId !== null}
                   onOpenOrder={onOpenOrder}
                 />
               </div>
@@ -1964,6 +1997,7 @@ export function OrdersOperationalRecord({
   const [filtersHydrated, setFiltersHydrated] = React.useState(false);
   const [selectedOrder, setSelectedOrder] = React.useState<Order | null>(null);
   const [withdrawalOrder, setWithdrawalOrder] = React.useState<Order | null>(null);
+  const [resendingOrderId, setResendingOrderId] = React.useState<number | string | null>(null);
   const [printStateByOrderId, setPrintStateByOrderId] = React.useState<
     Record<string, PrintFlowState>
   >({});
@@ -1977,6 +2011,7 @@ export function OrdersOperationalRecord({
   const createPartialWithdrawalMutation = useCreateOrderPartialWithdrawal();
   const updateOrderStatusMutation = useUpdateOrderStatus();
   const updateOrderMutation = useUpdateOrder();
+  const resendOrderWhatsAppMessageMutation = useResendOrderWhatsAppMessage();
   const normalizedSearchTerm = searchTerm.trim();
   const optimisticFiltersChanged =
     normalizedSearchTerm !== currentSearch ||
@@ -2481,6 +2516,29 @@ export function OrdersOperationalRecord({
     setWithdrawalOrder(order);
   }, []);
 
+  const handleResendWhatsAppMessage = React.useCallback(
+    async (order: Order) => {
+      if (resendingOrderId !== null) return;
+
+      setResendingOrderId(order.id);
+
+      try {
+        await resendOrderWhatsAppMessageMutation.mutateAsync({ orderId: order.id });
+        toast("Mensagem reenviada para o WhatsApp.", "success");
+      } catch (error) {
+        toast(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível reenviar a mensagem para o WhatsApp.",
+          "error",
+        );
+      } finally {
+        setResendingOrderId(null);
+      }
+    },
+    [resendOrderWhatsAppMessageMutation, resendingOrderId, toast],
+  );
+
   const handleCreatePartialWithdrawal = React.useCallback(
     async (
       order: Order,
@@ -2918,6 +2976,8 @@ export function OrdersOperationalRecord({
         onOpenOrder={setSelectedOrder}
         onOpenWithdrawal={handleOpenWithdrawal}
         onPrintOrder={handlePrintOrder}
+        onResendMessage={handleResendWhatsAppMessage}
+        resendingOrderId={resendingOrderId}
         onPageChange={updatePage}
         statusLabels={settings?.statusLabels}
         timeZone={settings?.timezone}

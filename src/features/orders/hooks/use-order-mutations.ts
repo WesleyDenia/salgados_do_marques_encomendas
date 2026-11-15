@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   createOrderPartialWithdrawal,
   createOrder,
+  resendOrderWhatsAppMessage,
   type OrdersResponse,
   updateOrder,
   updateOrderStatus,
@@ -190,6 +191,13 @@ export function useUpdateOrderStatus() {
     onSuccess: (updatedOrder, { orderId }) => {
       handleConfirmedOrderStatusUpdate(queryClient, updatedOrder, orderId);
     },
+  });
+}
+
+export function useResendOrderWhatsAppMessage() {
+  return useMutation({
+    mutationFn: ({ orderId }: { orderId: number | string }) =>
+      resendOrderWhatsAppMessage(orderId),
   });
 }
 

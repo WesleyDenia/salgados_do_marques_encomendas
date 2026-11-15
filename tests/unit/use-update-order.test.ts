@@ -4,6 +4,7 @@ import { QueryClient } from "@tanstack/react-query";
 
 import {
   createOrderPartialWithdrawal,
+  resendOrderWhatsAppMessage,
   updateOrder,
   updateOrderStatus,
 } from "@/features/orders/api";
@@ -175,6 +176,33 @@ test("updateOrderStatus sends the status-only PATCH contract and normalizes the 
     assert.equal(order.canEdit, true);
   } finally {
     apiClient.patch = originalPatch;
+  }
+});
+
+test("resendOrderWhatsAppMessage sends the current-order WhatsApp request", async () => {
+  const originalPost = apiClient.post;
+  let capturedUrl = "";
+
+  apiClient.post = (async (url) => {
+    capturedUrl = String(url);
+
+    return {
+      data: {
+        data: {
+          queue_item_id: 55,
+          status: "queued",
+        },
+      },
+    };
+  }) as typeof apiClient.post;
+
+  try {
+    const result = await resendOrderWhatsAppMessage(91);
+
+    assert.equal(capturedUrl, "/admin/orders/91/whatsapp-message");
+    assert.deepEqual(result, { queueItemId: 55, status: "queued" });
+  } finally {
+    apiClient.post = originalPost;
   }
 });
 

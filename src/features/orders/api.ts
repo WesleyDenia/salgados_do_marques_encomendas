@@ -688,6 +688,28 @@ export async function updateOrderStatus(
   return normalizeOrderResource(resource);
 }
 
+export async function resendOrderWhatsAppMessage(orderId: number | string) {
+  const response = await apiClient.post<
+    ResourceResponse<{
+      queue_item_id: number;
+      status: string;
+    }>
+  >(`/admin/orders/${encodeURIComponent(orderId)}/whatsapp-message`);
+  const payload = readResourcePayload<{
+    queue_item_id: number;
+    status: string;
+  }>(response.data);
+
+  if (!payload) {
+    throw new Error("Resposta inválida ao reenviar a mensagem de WhatsApp.");
+  }
+
+  return {
+    queueItemId: payload.queue_item_id,
+    status: payload.status,
+  };
+}
+
 
 function buildOrderWritePayload(payload: NormalizedOrderCreateInput, timeZone?: string) {
   void timeZone;
