@@ -8,6 +8,7 @@ import {
   getOrderSettings,
   getOrders,
   getOrderStores,
+  normalizeCustomerWhatsAppRecipient,
   updateOrder,
 } from "@/features/orders/api";
 import { apiClient } from "@/lib/api/http";
@@ -123,6 +124,50 @@ test("createOrder keeps independent pickup parts without converting timezone", a
     assert.equal(capturedPayload?.pickup_date, "2026-05-20");
     assert.equal(capturedPayload?.pickup_time, "10:30");
     assert.equal(capturedPayload?.scheduled_at, undefined);
+  } finally {
+    apiClient.post = originalPost;
+  }
+});
+
+test("createOrder requests the customer WhatsApp message with a +351 recipient", async () => {
+  const originalPost = apiClient.post;
+  let capturedPayload: Record<string, unknown> | null = null;
+
+  apiClient.post = (async (_url, payload) => {
+    capturedPayload = payload as Record<string, unknown>;
+
+    return {
+      data: {
+        data: {
+          id: 93,
+          status: "placed",
+          total: 12,
+          items: [],
+        },
+      },
+    };
+  }) as typeof apiClient.post;
+
+  try {
+    await createOrder(
+      {
+        storeId: 3,
+        customerName: "Maria Silva",
+        customerContact: "912 345 678",
+        items: [{ productId: 12, quantity: 12 }],
+        observations: "",
+        date: "2026-05-20",
+        time: "10:30",
+        allowScheduleException: false,
+        paymentStatus: "pending",
+      },
+      undefined,
+      { sendCustomerMessage: true },
+    );
+
+    assert.equal(capturedPayload?.customer_contact, "+351912345678");
+    assert.equal(capturedPayload?.send_customer_message, true);
+    assert.equal(normalizeCustomerWhatsAppRecipient("+351 912 345 678"), "+351912345678");
   } finally {
     apiClient.post = originalPost;
   }

@@ -148,10 +148,12 @@ export function useCreateOrder() {
     mutationFn: ({
       input,
       timeZone,
+      sendCustomerMessage,
     }: {
       input: OrderCreateInput;
       timeZone?: string;
-    }) => createOrder(input, timeZone),
+      sendCustomerMessage?: boolean;
+    }) => createOrder(input, timeZone, { sendCustomerMessage }),
     onSuccess: async () => {
       await invalidateOrderWriteQueries(queryClient);
     },

@@ -582,11 +582,25 @@ export async function getOrderStores() {
   };
 }
 
-export async function createOrder(input: OrderCreateInput, timeZone?: string) {
+export type CreateOrderOptions = {
+  sendCustomerMessage?: boolean;
+};
+
+export function normalizeCustomerWhatsAppRecipient(contact: string) {
+  const digits = contact.replace(/\D/g, "");
+
+  return digits.startsWith("351") ? `+${digits}` : `+351${digits}`;
+}
+
+export async function createOrder(
+  input: OrderCreateInput,
+  timeZone?: string,
+  options?: CreateOrderOptions,
+) {
   const payload = normalizeOrderCreateInput(input);
   const response = await apiClient.post<ResourceResponse<BackendOrder>>(
     "/orders",
-    buildOrderWritePayload(payload, timeZone),
+    buildOrderWritePayload(payload, timeZone, options),
   );
   const resource = readResourcePayload<BackendOrder>(response.data);
 
@@ -711,13 +725,21 @@ export async function resendOrderWhatsAppMessage(orderId: number | string) {
 }
 
 
-function buildOrderWritePayload(payload: NormalizedOrderCreateInput, timeZone?: string) {
+function buildOrderWritePayload(
+  payload: NormalizedOrderCreateInput,
+  timeZone?: string,
+  options?: CreateOrderOptions,
+) {
   void timeZone;
+
+  const sendCustomerMessage = options?.sendCustomerMessage === true;
 
   return {
     store_id: payload.storeId,
     customer_name: payload.customerName,
-    customer_contact: payload.customerContact,
+    customer_contact: sendCustomerMessage
+      ? normalizeCustomerWhatsAppRecipient(payload.customerContact)
+      : payload.customerContact,
     tag_ids: payload.tagIds ?? [],
     allow_schedule_exception: payload.allowScheduleException,
     ...(payload.allowPreparationCapacityOverflow
@@ -725,6 +747,7 @@ function buildOrderWritePayload(payload: NormalizedOrderCreateInput, timeZone?: 
       : {}),
     payment_status: payload.paymentStatus,
     paid_amount: payload.paidAmount,
+    ...(sendCustomerMessage ? { send_customer_message: true } : {}),
     pickup_date: payload.date || null,
     pickup_time: payload.time || null,
     notes: buildOperationalNotes(payload),

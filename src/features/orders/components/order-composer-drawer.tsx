@@ -40,6 +40,10 @@ import {
   useUpdateOrder,
 } from "@/features/orders/hooks/use-order-mutations";
 import {
+  OrderSubmissionOptionsDialog,
+  type OrderSubmissionOptions,
+} from "@/features/orders/components/order-submission-options-dialog";
+import {
   OrderCreateSchema,
   type NormalizedOrderCreateInput,
 } from "@/features/orders/schemas/order-schemas";
@@ -55,6 +59,7 @@ import {
 } from "@/features/orders/utils/operational-timezone";
 import type { ApiError } from "@/types/api";
 import type { Path, UseFormSetError } from "react-hook-form";
+import { buildOrderPrintHref, openPrintPreviewWindow } from "@/lib/printing";
 
 type OrderFormInput = NormalizedOrderCreateInput;
 type OrderFormValues = NormalizedOrderCreateInput;
@@ -268,6 +273,7 @@ export function OrderComposerDrawer({
   const settingsQuery = useOrderSettings();
   const storesQuery = useOrderStores();
   const operationalTimeZone = settingsQuery.data?.timezone ?? "Europe/Lisbon";
+  const [pendingCreateValues, setPendingCreateValues] = React.useState<OrderFormValues | null>(null);
   
   const {
     control,
@@ -349,7 +355,58 @@ export function OrderComposerDrawer({
     }
   }, [setValue, storeId, stores]);
 
+  const createOrderWithOptions = React.useCallback(
+    (values: OrderFormValues, options: OrderSubmissionOptions) => {
+      const previewWindow = options.printOrder && typeof window !== "undefined"
+        ? openPrintPreviewWindow("about:blank", (href, target, features) => window.open(href, target, features))
+        : null;
+
+      createOrderMutation.mutate(
+        {
+          input: values,
+          timeZone: operationalTimeZone,
+          sendCustomerMessage: options.sendCustomerMessage,
+        },
+        {
+          onSuccess: (order) => {
+            if (options.printOrder) {
+              const printHref = buildOrderPrintHref(order.id);
+
+              if (previewWindow && !previewWindow.closed) {
+                previewWindow.location.replace(printHref);
+              } else if (typeof window !== "undefined") {
+                openPrintPreviewWindow(
+                  printHref,
+                  (href, target, features) => window.open(href, target, features),
+                );
+              }
+            }
+            toast("Encomenda criada e enviada para o registo operacional.", "success");
+            reset(defaultValues);
+            onOpenChange(false);
+            onSuccess?.();
+          },
+          onError: (error: ApiError) => {
+            previewWindow?.close();
+            const validationMessage = getFirstValidationMessage(error);
+            mapBackendErrorsToForm(error, setError);
+            toast(
+              validationMessage || error.message || "Não foi possível criar a encomenda.",
+              "error",
+            );
+          },
+        },
+      );
+    },
+    [createOrderMutation, onOpenChange, onSuccess, operationalTimeZone, reset, setError, toast],
+  );
+
   const submitOrder = handleSubmit((values) => {
+    if (mode === "create") {
+      setPendingCreateValues(values);
+      return;
+    }
+
     const mutationOptions = {
       onSuccess: () => {
         toast(
@@ -391,13 +448,6 @@ export function OrderComposerDrawer({
       return;
     }
 
-    createOrderMutation.mutate(
-      {
-        input: values,
-        timeZone: operationalTimeZone,
-      },
-      mutationOptions,
-    );
   });
 
   return (
@@ -822,6 +872,15 @@ export function OrderComposerDrawer({
           </div>
         </form>
       </SheetContent>
+      <OrderSubmissionOptionsDialog
+        open={pendingCreateValues !== null}
+        onClose={(options) => {
+          if (!pendingCreateValues) return;
+          const values = pendingCreateValues;
+          setPendingCreateValues(null);
+          createOrderWithOptions(values, options);
+        }}
+      />
     </Sheet>
   );
 }

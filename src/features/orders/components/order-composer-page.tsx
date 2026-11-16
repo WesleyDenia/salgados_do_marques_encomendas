@@ -22,6 +22,10 @@ import {
   mapBackendErrorsToForm,
 } from "@/features/orders/components/order-composer-drawer";
 import {
+  OrderSubmissionOptionsDialog,
+  type OrderSubmissionOptions,
+} from "@/features/orders/components/order-submission-options-dialog";
+import {
   useCreateOrder,
   useUpdateOrder,
 } from "@/features/orders/hooks/use-order-mutations";
@@ -51,6 +55,7 @@ import {
   getTimeInputValueInTimeZone,
 } from "@/features/orders/utils/operational-timezone";
 import type { ApiError } from "@/types/api";
+import { buildOrderPrintHref, openPrintPreviewWindow } from "@/lib/printing";
 
 type OrderFormInput = NormalizedOrderCreateInput;
 type OrderFormValues = NormalizedOrderCreateInput;
@@ -482,6 +487,7 @@ export function OrderComposerPage({
   const [selectedCategoryId, setSelectedCategoryId] = React.useState<number | null>(null);
   const [canScrollCategoriesLeft, setCanScrollCategoriesLeft] = React.useState(false);
   const [canScrollCategoriesRight, setCanScrollCategoriesRight] = React.useState(false);
+  const [pendingCreateValues, setPendingCreateValues] = React.useState<OrderFormValues | null>(null);
   const categoryTabsRef = React.useRef<HTMLDivElement | null>(null);
 
   const createOrderMutation = useCreateOrder();
@@ -780,7 +786,58 @@ export function OrderComposerPage({
     setCurrentStep(2);
   }
 
+  const createOrderWithOptions = React.useCallback(
+    (values: OrderFormValues, options: OrderSubmissionOptions) => {
+      const previewWindow = options.printOrder && typeof window !== "undefined"
+        ? openPrintPreviewWindow("about:blank", (href, target, features) => window.open(href, target, features))
+        : null;
+
+      createOrderMutation.mutate(
+        {
+          input: values,
+          timeZone: operationalTimeZone,
+          sendCustomerMessage: options.sendCustomerMessage,
+        },
+        {
+          onError: (error: ApiError) => {
+            previewWindow?.close();
+            mapBackendErrorsToForm(error, setError);
+            toast(
+              getFirstValidationMessage(error) ??
+                error.message ??
+                "Não foi possível criar a encomenda.",
+              "error",
+            );
+          },
+          onSuccess: (order) => {
+            if (options.printOrder) {
+              const printHref = buildOrderPrintHref(order.id);
+
+              if (previewWindow && !previewWindow.closed) {
+                previewWindow.location.replace(printHref);
+              } else if (typeof window !== "undefined") {
+                openPrintPreviewWindow(
+                  printHref,
+                  (href, target, features) => window.open(href, target, features),
+                );
+              }
+            }
+            toast("Encomenda criada e enviada para o registo operacional.", "success");
+            router.push("/orders");
+            router.refresh();
+          },
+        },
+      );
+    },
+    [createOrderMutation, operationalTimeZone, router, setError, toast],
+  );
+
   const submitOrder = handleSubmit((values) => {
+    if (mode === "create") {
+      setPendingCreateValues(values);
+      return;
+    }
+
     const onError = (error: ApiError) => {
       mapBackendErrorsToForm(error, setError);
       toast(
@@ -820,16 +877,6 @@ export function OrderComposerPage({
       return;
     }
 
-    createOrderMutation.mutate(
-      {
-        input: values,
-        timeZone: operationalTimeZone,
-      },
-      {
-        onError,
-        onSuccess,
-      },
-    );
   });
 
   const isSubmitting =
@@ -1482,6 +1529,15 @@ export function OrderComposerPage({
           onConfirm={handleConfirmItem}
         />
       ) : null}
+      <OrderSubmissionOptionsDialog
+        open={pendingCreateValues !== null}
+        onClose={(options) => {
+          if (!pendingCreateValues) return;
+          const values = pendingCreateValues;
+          setPendingCreateValues(null);
+          createOrderWithOptions(values, options);
+        }}
+      />
     </>
   );
 }
