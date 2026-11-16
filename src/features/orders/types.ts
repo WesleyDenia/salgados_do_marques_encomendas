@@ -85,6 +85,7 @@ export type OrderItem = {
   withdrawnUnits?: number;
   remainingUnits?: number | null;
   canWithdrawPartially?: boolean;
+  isFrozen?: boolean;
   flavorIds?: number[];
   flavorNames?: string[];
 };

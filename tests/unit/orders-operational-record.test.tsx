@@ -210,6 +210,7 @@ test("OrdersOperationalRecordContent renders full operational cards in blocks mo
               quantity: 1,
               total: 30,
               variantName: "Pack 100 Unidades",
+              isFrozen: true,
               flavorNames: [
                 "Pack Mix",
                 "Pack Mix",
@@ -234,8 +235,8 @@ test("OrdersOperationalRecordContent renders full operational cards in blocks mo
   assert.match(markup, /Tel:<\/span> 911 928 481/);
   assert.match(markup, /13\/06\/2026, 17:00/);
   assert.match(markup, /Pack 100 Unidades/);
-  assert.match(markup, /\* Pack Mix/);
-  assert.match(markup, /\* Coxinha de Frango/);
+  assert.match(markup, /\* Pack Mix - CONGELADO/);
+  assert.match(markup, /\* Coxinha de Frango - CONGELADO/);
   assert.match(markup, /Retirada parcial registada/);
   assert.match(markup, /25 unidades em 1 agendamento/);
   assert.match(markup, /Valor:<\/span> 30,00/);

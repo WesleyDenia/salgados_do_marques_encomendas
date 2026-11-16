@@ -230,25 +230,31 @@ function inferPackFlavorSlots(item: Order["items"][number]) {
 function buildFlavorLines(item: Order["items"][number]) {
   if (item.flavorNames && item.flavorNames.length > 0) {
     const inferredSlots = inferPackFlavorSlots(item);
+    const flavorNames = item.flavorNames.map((flavor) => formatPrintFlavor(flavor, item.isFrozen));
 
-    if (item.flavorNames.length === 1 && inferredSlots && inferredSlots > 1) {
-      return Array.from({ length: inferredSlots }, () => item.flavorNames![0]);
+    if (flavorNames.length === 1 && inferredSlots && inferredSlots > 1) {
+      return Array.from({ length: inferredSlots }, () => flavorNames[0]);
     }
 
-    return item.flavorNames;
+    return flavorNames;
   }
 
   if (item.flavorIds && item.flavorIds.length > 0) {
     const inferredSlots = inferPackFlavorSlots(item);
+    const flavorIds = item.flavorIds.map((id) => formatPrintFlavor(`#${id}`, item.isFrozen));
 
-    if (item.flavorIds.length === 1 && inferredSlots && inferredSlots > 1) {
-      return Array.from({ length: inferredSlots }, () => `#${item.flavorIds![0]}`);
+    if (flavorIds.length === 1 && inferredSlots && inferredSlots > 1) {
+      return Array.from({ length: inferredSlots }, () => flavorIds[0]);
     }
 
-    return item.flavorIds.map((id) => `#${id}`);
+    return flavorIds;
   }
 
   return [];
+}
+
+function formatPrintFlavor(flavor: string, isFrozen?: boolean) {
+  return isFrozen ? `${flavor} - CONGELADO` : flavor;
 }
 
 function buildWithdrawalLines(order: Order, timeZone: string) {

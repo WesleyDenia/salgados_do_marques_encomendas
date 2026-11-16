@@ -136,3 +136,30 @@ test("normalizeOrderResource keeps derivation and partial withdrawal metadata fo
   assert.equal(order.partialWithdrawals?.[0]?.generatedOrderId, 88);
   assert.deepEqual(order.partialWithdrawals?.[0]?.flavorNames, ["Frango"]);
 });
+
+test("normalizeOrderResource keeps the frozen pack flag for operational displays", () => {
+  const order = normalizeOrderResource({
+    id: 89,
+    status: "placed",
+    items: [
+      {
+        id: 10,
+        product_id: 3,
+        name: "Pack 50 Unidades",
+        quantity: 1,
+        total: 15,
+        options: {
+          flavors: [7],
+          flavor_names: ["Kibe"],
+          is_frozen: true,
+        },
+      },
+    ],
+    store: null,
+    user: null,
+    history: [],
+  });
+
+  assert.equal(order.items[0]?.isFrozen, true);
+  assert.deepEqual(order.items[0]?.flavorNames, ["Kibe"]);
+});

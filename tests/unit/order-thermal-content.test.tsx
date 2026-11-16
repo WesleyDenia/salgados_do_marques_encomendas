@@ -31,6 +31,7 @@ test("OrderThermalContent renders the full operational document for 80mm printin
         quantity: 100,
         total: 36,
         variantName: "Pack 100 Unidades",
+        isFrozen: true,
         flavorNames: ["Pack Mix", "Pack Mix", "Coxinha de Frango", "Coxinha de Frango"],
       },
       {
@@ -63,8 +64,8 @@ test("OrderThermalContent renders the full operational document for 80mm printin
   assert.match(markup, /LOJA CENTRO/);
   assert.match(markup, /Pack 100 Unidades/);
   assert.match(markup, /Sabores:/);
-  assert.match(markup, /- Pack Mix/);
-  assert.match(markup, /- Coxinha de Frango/);
+  assert.match(markup, /- Pack Mix - CONGELADO/);
+  assert.match(markup, /- Coxinha de Frango - CONGELADO/);
   assert.match(markup, /Sem cebola/);
   assert.match(markup, /Separar para balcão/);
   assert.match(markup, /60,00/);

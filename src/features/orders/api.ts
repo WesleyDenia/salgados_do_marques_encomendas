@@ -95,6 +95,7 @@ type BackendOrderItem = {
   options?: {
     flavors?: number[];
     flavor_names?: string[];
+    is_frozen?: boolean;
   } | null;
 };
 
@@ -321,6 +322,7 @@ export function normalizeOrderResource(resource: BackendOrder): Order {
       withdrawnUnits: item.withdrawn_units ?? 0,
       remainingUnits: item.remaining_units ?? null,
       canWithdrawPartially: item.can_withdraw_partially ?? false,
+      isFrozen: item.options?.is_frozen === true,
       flavorIds: item.options?.flavors ?? [],
       flavorNames: item.options?.flavor_names ?? [],
     })),

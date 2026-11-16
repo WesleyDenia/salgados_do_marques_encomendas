@@ -267,14 +267,22 @@ function buildPartialWithdrawalItemLabel(group: PartialWithdrawalGroup) {
 
 function buildFlavorSummary(item: Order["items"][number]) {
   if (item.flavorNames && item.flavorNames.length > 0) {
-    return item.flavorNames.join(", ");
+    return item.flavorNames
+      .map((flavor) => formatOrderItemFlavor(flavor, item.isFrozen))
+      .join(", ");
   }
 
   if (item.flavorIds && item.flavorIds.length > 0) {
-    return item.flavorIds.map((id) => `#${id}`).join(", ");
+    return item.flavorIds
+      .map((id) => formatOrderItemFlavor(`#${id}`, item.isFrozen))
+      .join(", ");
   }
 
   return null;
+}
+
+function formatOrderItemFlavor(flavor: string, isFrozen?: boolean) {
+  return isFrozen ? `${flavor} - CONGELADO` : flavor;
 }
 
 function flattenFlavorCounts(flavorCounts: Record<number, number>) {
