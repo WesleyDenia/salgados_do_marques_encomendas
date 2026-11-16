@@ -190,9 +190,7 @@ function formatScheduledAtDetailed(value?: string | null, timeZone = "Europe/Lis
 function formatPickupStoreLabel(store?: Order["store"] | null) {
   const storeName = store?.name?.trim();
 
-  return storeName
-    ? `RETIRADA NA LOJA "${storeName}"`
-    : "RETIRADA NA LOJA NÃO DEFINIDA";
+  return storeName ? storeName.toLocaleUpperCase("pt-PT") : "LOJA NÃO DEFINIDA";
 }
 
 function buildPrintItemTitle(item: Order["items"][number]) {

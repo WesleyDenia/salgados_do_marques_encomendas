@@ -58,7 +58,7 @@ test("toThermalPrintOrder reuses normalized order data and applies operational f
   assert.equal(printable.idLabel, "Encomenda #321 ·");
   assert.equal(printable.statusLabel, "Aceite");
   assert.equal(printable.contactLabel, "Sem contacto registado");
-  assert.equal(printable.pickupStoreLabel, 'RETIRADA NA LOJA "Loja Norte"');
+  assert.equal(printable.pickupStoreLabel, "LOJA NORTE");
   assert.equal(printable.notesLabel, "Sem notas operacionais");
   assert.equal(printable.paymentLabel, "PARCIAL");
   assert.equal(printable.paidAmountLabel, "20,00 €");
