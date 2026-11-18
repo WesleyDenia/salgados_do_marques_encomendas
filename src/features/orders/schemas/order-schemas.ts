@@ -55,10 +55,12 @@ export const OrderCreateSchema = z.object({
     .int("Selecione uma loja válida.")
     .positive("Selecione uma loja válida."),
   customerName: requiredText("Indique o nome do cliente."),
+  customerId: z.coerce.number().int().positive().nullable().optional().default(null),
   customerContact: requiredText("Indique o contacto do cliente.").regex(
     /^\+?(?:[0-9][\s-]*){9,15}$/,
     "Formato de contacto inválido. Use apenas números, espaços ou hífens."
   ),
+  saveCustomer: z.coerce.boolean().optional().default(false),
   tagIds: z.array(z.coerce.number().int().positive()).optional().default([]),
   items: z
     .array(OrderCreateItemSchema)

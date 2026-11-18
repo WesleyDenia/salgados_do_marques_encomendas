@@ -43,6 +43,7 @@ import {
   OrderSubmissionOptionsDialog,
   type OrderSubmissionOptions,
 } from "@/features/orders/components/order-submission-options-dialog";
+import { CustomerAutocomplete } from "@/features/orders/components/customer-autocomplete";
 import {
   OrderCreateSchema,
   type NormalizedOrderCreateInput,
@@ -72,7 +73,9 @@ const EMPTY_PRODUCTS: Array<{
 const defaultValues: OrderFormInput = {
   storeId: 0,
   customerName: "",
+  customerId: null,
   customerContact: "",
+  saveCustomer: false,
   tagIds: [],
   items: [
     {
@@ -100,7 +103,9 @@ function buildDefaultValues(
   return {
     storeId: order.store?.id ?? 0,
     customerName: order.customerName ?? order.user?.name ?? "",
+    customerId: null,
     customerContact: order.customerContact ?? "",
+    saveCustomer: false,
     tagIds: order.tags.map((tag) => tag.id),
     items:
       order.items.length > 0
@@ -366,6 +371,7 @@ export function OrderComposerDrawer({
           input: values,
           timeZone: operationalTimeZone,
           sendCustomerMessage: options.sendCustomerMessage,
+          saveCustomer: options.saveCustomer,
         },
         {
           onSuccess: (order) => {
@@ -501,11 +507,28 @@ export function OrderComposerDrawer({
                 <label className="text-sm font-medium" htmlFor="customerName">
                   Cliente
                 </label>
-                <Input
+                <CustomerAutocomplete
                   id="customerName"
-                  autoComplete="name"
-                  aria-invalid={Boolean(errors.customerName)}
-                  {...register("customerName")}
+                  invalid={Boolean(errors.customerName)}
+                  onChange={(customerName) => {
+                    setValue("customerName", customerName, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                    setValue("customerId", null, { shouldDirty: true });
+                  }}
+                  onSelect={(customer) => {
+                    setValue("customerId", customer.id, { shouldDirty: true });
+                    setValue("customerName", customer.name, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                    setValue("customerContact", customer.phone ?? "", {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                  }}
+                  value={watch("customerName")}
                 />
                 <FieldMessage error={errors.customerName} />
               </div>
@@ -874,6 +897,7 @@ export function OrderComposerDrawer({
       </SheetContent>
       <OrderSubmissionOptionsDialog
         open={pendingCreateValues !== null}
+        showSaveCustomer={pendingCreateValues?.customerId == null}
         onClose={(options) => {
           if (!pendingCreateValues) return;
           const values = pendingCreateValues;

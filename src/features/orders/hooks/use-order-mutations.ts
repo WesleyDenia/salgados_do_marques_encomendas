@@ -149,11 +149,13 @@ export function useCreateOrder() {
       input,
       timeZone,
       sendCustomerMessage,
+      saveCustomer,
     }: {
       input: OrderCreateInput;
       timeZone?: string;
       sendCustomerMessage?: boolean;
-    }) => createOrder(input, timeZone, { sendCustomerMessage }),
+      saveCustomer?: boolean;
+    }) => createOrder(input, timeZone, { sendCustomerMessage, saveCustomer }),
     onSuccess: async () => {
       await invalidateOrderWriteQueries(queryClient);
     },

@@ -214,6 +214,18 @@ type BackendStore = {
   default_store: boolean;
 };
 
+type BackendCustomer = {
+  id: number;
+  name: string;
+  phone?: string | null;
+};
+
+export type CustomerOption = {
+  id: number;
+  name: string;
+  phone: string | null;
+};
+
 export type OrdersResponse = {
   data: Order[];
   meta?: ApiMeta;
@@ -586,7 +598,24 @@ export async function getOrderStores() {
 
 export type CreateOrderOptions = {
   sendCustomerMessage?: boolean;
+  saveCustomer?: boolean;
 };
+
+export async function searchCustomers(query: string): Promise<CustomerOption[]> {
+  const response = await apiClient.get<ResourceCollectionResponse<BackendCustomer>>(
+    "/orders/customers/search",
+    { params: { query } },
+  );
+  const payload = readCollectionPayload<BackendCustomer>(response.data);
+
+  return payload.data
+    .filter((customer) => typeof customer.id === "number" && typeof customer.name === "string")
+    .map((customer) => ({
+      id: customer.id,
+      name: customer.name,
+      phone: customer.phone ?? null,
+    }));
+}
 
 export function normalizeCustomerWhatsAppRecipient(contact: string) {
   const digits = contact.replace(/\D/g, "");
@@ -735,9 +764,11 @@ function buildOrderWritePayload(
   void timeZone;
 
   const sendCustomerMessage = options?.sendCustomerMessage === true;
+  const saveCustomer = options?.saveCustomer === true;
 
   return {
     store_id: payload.storeId,
+    ...(payload.customerId != null ? { user_id: payload.customerId } : {}),
     customer_name: payload.customerName,
     customer_contact: sendCustomerMessage
       ? normalizeCustomerWhatsAppRecipient(payload.customerContact)
@@ -750,6 +781,7 @@ function buildOrderWritePayload(
     payment_status: payload.paymentStatus,
     paid_amount: payload.paidAmount,
     ...(sendCustomerMessage ? { send_customer_message: true } : {}),
+    ...(saveCustomer ? { save_customer: true } : {}),
     pickup_date: payload.date || null,
     pickup_time: payload.time || null,
     notes: buildOperationalNotes(payload),
