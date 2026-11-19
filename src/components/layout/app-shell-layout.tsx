@@ -14,6 +14,7 @@ import {
   Settings2,
   ShieldCheck,
   CalendarClock,
+  UsersRound,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ import { cn } from "@/lib/utils";
 const navigationIcons = {
   "/dashboard": LayoutDashboard,
   "/orders": ClipboardList,
+  "/customers": UsersRound,
   "/planning": CalendarClock,
   "/settings/operational": Settings2,
   "/settings/access": ShieldCheck,

@@ -9,6 +9,7 @@ export const PANEL_CAPABILITIES = [
   "orders:view",
   "orders:create",
   "orders:manage",
+  "customers:view",
   "planning:view",
   "planning:manage",
   "settings:access:view",
@@ -22,6 +23,7 @@ export type PanelCapability = (typeof PANEL_CAPABILITIES)[number];
 export const PANEL_ROUTE_KEYS = [
   "dashboard",
   "orders",
+  "customers",
   "planning",
   "settings-operational",
   "settings-access",
@@ -84,6 +86,7 @@ const PANEL_ROLE_DEFINITIONS: Record<PanelRole, PanelRoleDefinition> = {
       "orders:view",
       "orders:create",
       "orders:manage",
+      "customers:view",
       "planning:view",
       "planning:manage",
     ],
@@ -92,7 +95,7 @@ const PANEL_ROLE_DEFINITIONS: Record<PanelRole, PanelRoleDefinition> = {
     role: "atendimento",
     label: "Atendimento",
     runtime: "live",
-    capabilities: ["dashboard:view", "orders:view", "orders:create"],
+    capabilities: ["dashboard:view", "orders:view", "orders:create", "customers:view"],
   },
 };
 
@@ -117,6 +120,16 @@ export const PANEL_ROUTE_DEFINITIONS: readonly PanelRouteDefinition[] = [
     requiredCapability: "orders:view",
     primaryCapability: "orders:create",
     matcher: (pathname) => pathname === "/orders" || pathname.startsWith("/orders/"),
+  },
+  {
+    key: "customers",
+    href: "/customers",
+    label: "Clientes",
+    description: "Diretório operacional de clientes e respetivos pedidos.",
+    runtime: "live",
+    allowedRoles: PANEL_ROLES,
+    requiredCapability: "customers:view",
+    matcher: (pathname) => pathname === "/customers" || pathname.startsWith("/customers/"),
   },
   {
     key: "planning",

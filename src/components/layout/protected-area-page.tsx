@@ -23,6 +23,11 @@ const areaHighlights: Record<PanelRouteKey, readonly string[]> = {
     "Pesquisa e abertura de detalhe",
     "Ações alinhadas com permissões do perfil",
   ],
+  customers: [
+    "Diretório de clientes e contactos",
+    "Pesquisa por nome ou telefone",
+    "Consulta do número de pedidos",
+  ],
   planning: [
     "Visão diária e semanal de slots",
     "Carga prevista por período",
@@ -58,6 +63,7 @@ export function ProtectedAreaPage({
     {
       dashboard: "/dashboard",
       orders: "/orders",
+      customers: "/customers",
       planning: "/planning",
       "settings-operational": "/settings/operational",
       "settings-access": "/settings/access",
@@ -85,7 +91,7 @@ export function ProtectedAreaPage({
     );
   }
 
-  if (routeKey === "orders") {
+  if (routeKey === "orders" || routeKey === "customers") {
     return <section className="space-y-6">{children}</section>;
   }
 
