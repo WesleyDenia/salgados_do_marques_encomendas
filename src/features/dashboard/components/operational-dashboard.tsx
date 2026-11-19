@@ -21,7 +21,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { OrderSearch } from "@/features/orders/components/order-search";
 import {
   buildProductDemandSummary,
   type ProductDemandSummary,
@@ -35,7 +34,7 @@ import {
   PRODUCT_DEMAND_PERIODS,
   type ProductDemandPeriod,
 } from "@/features/dashboard/utils/product-demand-period";
-import { useOrderSearch, type OrderOperationalPeriod } from "@/features/orders/hooks/use-order-search";
+import { type OrderOperationalPeriod } from "@/features/orders/hooks/use-order-search";
 import { useOrderSettings } from "@/features/orders/hooks/use-order-queries";
 import {
   ORDER_PAYMENT_STATUS_LABELS,
@@ -100,20 +99,25 @@ function getUpcomingOrders(orders: Order[]) {
     .slice(0, 5);
 }
 
-function getAttentionOrders(orders: Order[]) {
-  return [...orders]
-    .filter(
-      (order) =>
-        !isFinishedOrder(order) &&
-        (order.paymentStatus !== "paid" || order.status === "placed" || order.status === "accepted"),
-    )
-    .sort((a, b) => {
-      const aTime = a.scheduledAt ? new Date(a.scheduledAt).getTime() : Number.MAX_SAFE_INTEGER;
-      const bTime = b.scheduledAt ? new Date(b.scheduledAt).getTime() : Number.MAX_SAFE_INTEGER;
+function getCustomerCount(orders: Order[]) {
+  const customerIdentifiers = new Set<string>();
 
-      return aTime - bTime;
-    })
-    .slice(0, 5);
+  for (const order of orders) {
+    const contact = order.customerContact?.replace(/\D/g, "");
+    const name = order.customerName?.trim().toLocaleLowerCase("pt-PT");
+
+    if (contact) {
+      customerIdentifiers.add(`contact:${contact}`);
+    } else if (order.user?.id) {
+      customerIdentifiers.add(`user:${order.user.id}`);
+    } else if (name) {
+      customerIdentifiers.add(`name:${name}`);
+    } else {
+      customerIdentifiers.add(`order:${order.id}`);
+    }
+  }
+
+  return customerIdentifiers.size;
 }
 
 function buildOrdersHref(
@@ -502,8 +506,6 @@ function DashboardContent({
   operationalAttention,
   orders,
   upcomingOrders,
-  attentionOrders,
-  searchedOrders,
   period,
   customStartDate,
   customEndDate,
@@ -519,12 +521,6 @@ function DashboardContent({
   onPeriodChange,
   onStartDateChange,
   onEndDateChange,
-  search,
-  appliedSearch,
-  onSearchChange,
-  onSearchSubmit,
-  onSearchClear,
-  isSearching,
   statusLabels,
 }: Readonly<{
   timeZone: string;
@@ -533,8 +529,6 @@ function DashboardContent({
   operationalAttention: PlanningOperationalAttention;
   orders: Order[];
   upcomingOrders: Order[];
-  attentionOrders: Order[];
-  searchedOrders: Order[];
   period: ProductDemandPeriod;
   customStartDate: string;
   customEndDate: string;
@@ -550,15 +544,8 @@ function DashboardContent({
   onPeriodChange: (value: ProductDemandPeriod) => void;
   onStartDateChange: (value: string) => void;
   onEndDateChange: (value: string) => void;
-  search: string;
-  appliedSearch: string;
-  onSearchChange: (value: string) => void;
-  onSearchSubmit: () => void;
-  onSearchClear: () => void;
-  isSearching: boolean;
   statusLabels?: Record<string, string>;
 }>) {
-  const fullSearchTerm = search.trim() || appliedSearch;
   const expectedRevenue = orders
     .filter((order) => order.paymentStatus === "pending")
     .reduce((total, order) => total + (order.total ?? 0), 0);
@@ -566,7 +553,8 @@ function DashboardContent({
     .filter((order) => order.paymentStatus === "paid")
     .reduce((total, order) => total + (order.total ?? 0), 0);
   const unpaidOrders = orders.filter((order) => order.paymentStatus !== "paid").length;
-  const ordersHref = buildOrdersHref(period, fullSearchTerm, customStartDate, customEndDate);
+  const customerCount = getCustomerCount(orders);
+  const ordersHref = buildOrdersHref(period, undefined, customStartDate, customEndDate);
 
   return (
     <div className="space-y-6">
@@ -584,6 +572,11 @@ function DashboardContent({
           title="Encomendas de hoje"
           value={summary?.orderCount ?? 0}
           description="Total de encomendas no período selecionado."
+        />
+        <SummaryCard
+          title="Clientes"
+          value={customerCount}
+          description="Clientes únicos com encomendas no período selecionado."
         />
         <SummaryCard
           title="Previsão de entradas €"
@@ -664,58 +657,11 @@ function DashboardContent({
         </OperationalSection>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <OperationalSection
-          title="Fila prioritária"
-          description="Recorte das encomendas do período que mais tendem a exigir ação imediata no painel."
-        >
-          <OrderList
-            orders={attentionOrders}
-            emptyTitle="Nenhuma prioridade crítica agora"
-            emptyDescription="As encomendas do período estão num estado estável neste momento."
-            timeZone={timeZone}
-            statusLabels={statusLabels}
-          />
-        </OperationalSection>
-
-        <OperationalSection
-          title="Pesquisa rápida"
-          description="Localize uma encomenda específica sem sair do dashboard."
-          action={
-            <Link href={ordersHref}>
-              <Button variant="outline">Abrir pesquisa completa</Button>
-            </Link>
-          }
-        >
-          <div className="space-y-4">
-            <OrderSearch
-              value={search}
-              onChange={onSearchChange}
-              onSubmit={onSearchSubmit}
-              onClear={onSearchClear}
-              loading={isSearching}
-              label="Nome ou telefone do cliente"
-              placeholder="Buscar por nome ou telefone"
-              helpTextIdle="Digite o nome ou telefone do cliente e clique em Buscar para abrir a fila já filtrada."
-            />
-
-            <OrderList
-              orders={searchedOrders}
-              emptyTitle="Nenhuma encomenda encontrada"
-              emptyDescription="Ajuste o nome ou telefone pesquisado ou abra a pesquisa completa para ver mais resultados."
-              timeZone={timeZone}
-              statusLabels={statusLabels}
-            />
-          </div>
-        </OperationalSection>
-      </div>
     </div>
   );
 }
 
 export function OperationalDashboard() {
-  const [search, setSearch] = React.useState("");
-  const [appliedSearch, setAppliedSearch] = React.useState("");
   const [dateAnchor, setDateAnchor] = React.useState(() => new Date());
   const settingsQuery = useOrderSettings();
   const timeZone = settingsQuery.data?.timezone ?? "Europe/Lisbon";
@@ -752,14 +698,6 @@ export function OperationalDashboard() {
   const isRangeInvalid = !isRangeIncomplete && !isRangeMalformed && endDate < startDate;
   const shouldFetch = !isRangeIncomplete && !isRangeMalformed && !isRangeInvalid;
   const planningQuery = usePeriodPlanning(startDate, endDate, shouldFetch);
-  const searchQuery = useOrderSearch({
-    search: appliedSearch,
-    period,
-    customStartDate,
-    customEndDate,
-    page: 1,
-    enabled: shouldFetch,
-  });
   const demandSummary = React.useMemo<ProductDemandSummary | null>(
     () =>
       planningQuery.data
@@ -770,8 +708,7 @@ export function OperationalDashboard() {
 
   const dashboardError =
     settingsQuery.error ??
-    (shouldFetch ? planningQuery.error : null) ??
-    (shouldFetch ? searchQuery.error : null);
+    (shouldFetch ? planningQuery.error : null);
 
   if (dashboardError) {
     return (
@@ -792,7 +729,7 @@ export function OperationalDashboard() {
     );
   }
 
-  if (settingsQuery.isLoading || (shouldFetch && (planningQuery.isLoading || searchQuery.isLoading))) {
+  if (settingsQuery.isLoading || (shouldFetch && planningQuery.isLoading)) {
     return (
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
@@ -806,11 +743,8 @@ export function OperationalDashboard() {
   }
 
   const planningData = shouldFetch ? planningQuery.data : undefined;
-  const searchData = shouldFetch ? searchQuery.data?.data ?? [] : [];
   const orders = planningData?.orders ?? [];
   const upcomingOrders = getUpcomingOrders(planningData?.orders ?? []);
-  const attentionOrders = getAttentionOrders(planningData?.orders ?? []);
-  const searchedOrders = (appliedSearch.trim() ? searchData : upcomingOrders).slice(0, 5);
 
   return (
     <DashboardContent
@@ -823,8 +757,6 @@ export function OperationalDashboard() {
       }}
       orders={orders}
       upcomingOrders={upcomingOrders}
-      attentionOrders={attentionOrders}
-      searchedOrders={searchedOrders}
       period={period}
       customStartDate={customStartDate}
       customEndDate={customEndDate}
@@ -846,15 +778,6 @@ export function OperationalDashboard() {
         customRangeTouchedRef.current = true;
         setCustomEndDate(value);
       }}
-      search={search}
-      appliedSearch={appliedSearch}
-      onSearchChange={setSearch}
-      onSearchSubmit={() => setAppliedSearch(search.trim())}
-      onSearchClear={() => {
-        setSearch("");
-        setAppliedSearch("");
-      }}
-      isSearching={searchQuery.isFetching}
       statusLabels={settingsQuery.data?.statusLabels}
     />
   );

@@ -113,19 +113,9 @@ export function AppShellNavigation({
           >
             <Icon className="size-4 shrink-0" />
             {!collapsed ? (
-              <div className="min-w-0">
-                <span className="block truncate text-sm font-medium">
-                  {item.label}
-                </span>
-                <span
-                  className={cn(
-                    "mt-0.5 block truncate text-xs",
-                    isActive ? "text-slate-600" : "text-slate-400",
-                  )}
-                >
-                  {item.description}
-                </span>
-              </div>
+              <span className="min-w-0 truncate text-base font-semibold">
+                {item.label}
+              </span>
             ) : null}
           </Link>
         );
