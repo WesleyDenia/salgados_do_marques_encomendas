@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 
 import { EmptyState } from "@/components/feedback/empty-state";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { OrderSearch } from "@/features/orders/components/order-search";
+import {
+  CUSTOMER_SORT_FIELDS,
+  type CustomerSortDirection,
+  type CustomerSortField,
+} from "@/features/customers/api";
 import { useCustomerSearch } from "@/features/customers/hooks/use-customer-search";
 
 function getPage(value: string | null) {
@@ -22,16 +28,72 @@ function getPage(value: string | null) {
   return Number.isInteger(page) && page > 0 ? page : 1;
 }
 
+function getSortField(value: string | null): CustomerSortField | undefined {
+  return CUSTOMER_SORT_FIELDS.find((field) => field === value);
+}
+
+function getSortDirection(value: string | null): CustomerSortDirection | undefined {
+  return value === "asc" || value === "desc" ? value : undefined;
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("pt-PT", {
+    style: "currency",
+    currency: "EUR",
+  }).format(value);
+}
+
+function SortableTableHead({
+  label,
+  field,
+  activeField,
+  direction,
+  align = "left",
+  onSort,
+}: Readonly<{
+  label: string;
+  field: CustomerSortField;
+  activeField?: CustomerSortField;
+  direction?: CustomerSortDirection;
+  align?: "left" | "right";
+  onSort: (field: CustomerSortField) => void;
+}>) {
+  const isActive = activeField === field;
+  const Icon = !isActive ? ChevronsUpDown : direction === "desc" ? ArrowDown : ArrowUp;
+
+  return (
+    <TableHead
+      className={align === "right" ? "text-right" : undefined}
+      aria-sort={isActive ? (direction === "desc" ? "descending" : "ascending") : "none"}
+    >
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={align === "right" ? "-mr-2 w-full justify-end" : "-ml-2"}
+        onClick={() => onSort(field)}
+      >
+        {label}
+        <Icon className="size-3.5" aria-hidden="true" />
+      </Button>
+    </TableHead>
+  );
+}
+
 export function CustomersOperationalRecord() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const urlSearch = searchParams.get("search") ?? "";
   const page = getPage(searchParams.get("page"));
+  const sort = getSortField(searchParams.get("sort"));
+  const direction = getSortDirection(searchParams.get("direction"));
   const [searchInput, setSearchInput] = React.useState(urlSearch);
   const { data, error, isFetching, isLoading, refetch } = useCustomerSearch({
     search: urlSearch,
     page,
+    sort,
+    direction,
   });
   const customers = data?.data ?? [];
   const lastPage = Math.max(1, data?.meta?.last_page ?? 1);
@@ -41,7 +103,17 @@ export function CustomersOperationalRecord() {
   }, [urlSearch]);
 
   const updateUrl = React.useCallback(
-    ({ search, nextPage }: { search?: string; nextPage?: number }) => {
+    ({
+      search,
+      nextPage,
+      sort: nextSort,
+      direction: nextDirection,
+    }: {
+      search?: string;
+      nextPage?: number;
+      sort?: CustomerSortField;
+      direction?: CustomerSortDirection;
+    }) => {
       const params = new URLSearchParams(searchParams.toString());
       const normalizedSearch = search?.trim() ?? urlSearch;
       const normalizedPage = nextPage ?? page;
@@ -58,11 +130,23 @@ export function CustomersOperationalRecord() {
         params.delete("page");
       }
 
+      if (nextSort) {
+        params.set("sort", nextSort);
+        params.set("direction", nextDirection ?? "asc");
+      }
+
       const query = params.toString();
       router.replace(query ? `${pathname}?${query}` : pathname);
     },
     [page, pathname, router, searchParams, urlSearch],
   );
+
+  const handleSort = (field: CustomerSortField) => {
+    const nextDirection: CustomerSortDirection =
+      sort === field && direction === "asc" ? "desc" : "asc";
+
+    updateUrl({ sort: field, direction: nextDirection, nextPage: 1 });
+  };
 
   if (error) {
     return (
@@ -121,9 +205,10 @@ export function CustomersOperationalRecord() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Telefone</TableHead>
-                <TableHead className="text-right">Pedidos</TableHead>
+                <SortableTableHead label="Nome" field="name" activeField={sort} direction={direction} onSort={handleSort} />
+                <SortableTableHead label="Telefone" field="phone" activeField={sort} direction={direction} onSort={handleSort} />
+                <SortableTableHead label="Pedidos" field="orders_count" activeField={sort} direction={direction} align="right" onSort={handleSort} />
+                <SortableTableHead label="Total" field="orders_total" activeField={sort} direction={direction} align="right" onSort={handleSort} />
                 <TableHead className="w-28 text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -133,6 +218,7 @@ export function CustomersOperationalRecord() {
                   <TableCell className="font-medium text-slate-950">{customer.name}</TableCell>
                   <TableCell>{customer.phone ?? "Não registado"}</TableCell>
                   <TableCell className="text-right">{customer.ordersCount}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(customer.ordersTotal)}</TableCell>
                   <TableCell className="text-right">
                     <Button
                       type="button"

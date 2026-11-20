@@ -5,6 +5,7 @@ export type Customer = {
   name: string;
   phone: string | null;
   ordersCount: number;
+  ordersTotal: number;
 };
 
 export type CustomerDetail = {
