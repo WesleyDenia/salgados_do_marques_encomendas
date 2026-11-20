@@ -134,8 +134,13 @@ export function CustomersOperationalRecord() {
                   <TableCell>{customer.phone ?? "Não registado"}</TableCell>
                   <TableCell className="text-right">{customer.ordersCount}</TableCell>
                   <TableCell className="text-right">
-                    <Button type="button" variant="outline" size="sm">
-                      Editar
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.push(`/customers/${customer.id}`)}
+                    >
+                      Abrir
                     </Button>
                   </TableCell>
                 </TableRow>

@@ -99,7 +99,7 @@ type BackendOrderItem = {
   } | null;
 };
 
-type BackendOrder = {
+export type BackendOrder = {
   id: number;
   parent_order_id?: number | null;
   status: string;
