@@ -18,16 +18,17 @@ export function FryingPlanningBoard() {
   const settings = useOrderSettings();
   const stores = useOrderStores();
   const zone = settings.data?.timezone ?? "Europe/Lisbon";
+  const storeOptions = React.useMemo(() => stores.data?.data ?? [], [stores.data]);
   const [date, setDate] = React.useState(() => normalizePlanningDay(undefined, zone));
   const [storeId, setStoreId] = React.useState(0);
-  React.useEffect(() => { if (!storeId && stores.data?.[0]) setStoreId(stores.data[0].id); }, [storeId, stores.data]);
+  React.useEffect(() => { if (!storeId && storeOptions[0]) setStoreId(storeOptions[0].id); }, [storeId, storeOptions]);
   const plan = useFryingPlan(date, storeId);
   const data = plan.data;
 
   return <div className="space-y-6">
     <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="space-y-2"><p className="text-sm font-medium uppercase tracking-[.24em] text-slate-500">Planeamento</p><h1 className="text-3xl font-semibold tracking-tight text-slate-950">Planeamento de fritura</h1><p className="max-w-3xl text-sm leading-6 text-slate-600">O cálculo começa pelas entregas mais tardias e reserva cada cuba para trás no tempo. A hora de pronto é arredondada para baixo a cada 30 minutos.</p></div>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2"><label className="space-y-1.5 text-sm font-medium">Data<Input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><label className="space-y-1.5 text-sm font-medium">Loja<select className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={storeId} onChange={(event) => setStoreId(Number(event.target.value))}><option value={0}>Selecione uma loja</option>{stores.data?.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}</select></label></div>
+      <div className="mt-6 grid gap-4 sm:grid-cols-2"><label className="space-y-1.5 text-sm font-medium">Data<Input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><label className="space-y-1.5 text-sm font-medium">Loja<select className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={storeId} onChange={(event) => setStoreId(Number(event.target.value))}><option value={0}>Selecione uma loja</option>{storeOptions.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}</select></label></div>
     </section>
     {plan.isLoading ? <p className="text-sm text-muted-foreground">A calcular o planeamento…</p> : null}
     {plan.isError ? <EmptyState title="Não foi possível obter o planeamento" description="Confirme a loja e tente novamente." /> : null}
