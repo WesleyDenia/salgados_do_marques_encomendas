@@ -33,6 +33,16 @@ const areaHighlights: Record<PanelRouteKey, readonly string[]> = {
     "Carga prevista por período",
     "Governança operacional de planeamento",
   ],
+  "frying-planning": [
+    "Filtro por data e loja",
+    "Sequência calculada das frituras",
+    "Hora de início, pronto e entrega por lote",
+  ],
+  "frying-capacity": [
+    "Cubas configuradas por loja",
+    "Clonagem de cuba com os seus tempos",
+    "Tempo e lote de fritura por artigo",
+  ],
   "settings-operational": [
     "Parâmetros globais de agendamento e cancelamento",
     "Validação de notificações WhatsApp",
@@ -65,6 +75,8 @@ export function ProtectedAreaPage({
       orders: "/orders",
       customers: "/customers",
       planning: "/planning",
+      "frying-planning": "/frying-planning",
+      "frying-capacity": "/frying-capacity",
       "settings-operational": "/settings/operational",
       "settings-access": "/settings/access",
       "audit-investigation": "/audit/investigation",
@@ -117,6 +129,10 @@ export function ProtectedAreaPage({
         {children}
       </section>
     );
+  }
+
+  if (routeKey === "frying-planning" || routeKey === "frying-capacity") {
+    return <section className="space-y-6">{children}</section>;
   }
 
   return (

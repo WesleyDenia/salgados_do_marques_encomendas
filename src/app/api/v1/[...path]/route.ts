@@ -398,6 +398,18 @@ function authorizeApiProxy(
   }
 
   if (primarySegment === "admin") {
+    if (secondarySegment === "frying-planning") {
+      return authorizePanelRoute(session.user, "/frying-planning").allowed;
+    }
+
+    if (
+      secondarySegment === "settings" &&
+      tertiarySegment === "operational" &&
+      pathSegments[3] === "preparation-capacity"
+    ) {
+      return authorizePanelRoute(session.user, "/frying-capacity").allowed;
+    }
+
     if (secondarySegment === "planning" && tertiarySegment === "slot-capacities") {
       return authorizePanelRoute(session.user, "/settings/access").allowed;
     }

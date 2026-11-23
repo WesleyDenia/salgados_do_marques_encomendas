@@ -14,6 +14,7 @@ import {
   Settings2,
   ShieldCheck,
   CalendarClock,
+  CookingPot,
   UsersRound,
 } from "lucide-react";
 
@@ -34,6 +35,8 @@ const navigationIcons = {
   "/orders": ClipboardList,
   "/customers": UsersRound,
   "/planning": CalendarClock,
+  "/frying-planning": CalendarClock,
+  "/frying-capacity": CookingPot,
   "/settings/operational": Settings2,
   "/settings/access": ShieldCheck,
   "/audit/investigation": ScanSearch,

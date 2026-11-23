@@ -113,7 +113,10 @@ test("getPanelNavigationItems keeps navigation centralized and role-aware", () =
     [
       "/dashboard",
       "/orders",
+      "/customers",
       "/planning",
+      "/frying-planning",
+      "/frying-capacity",
       "/settings/operational",
       "/settings/access",
       "/audit/investigation",
@@ -121,10 +124,10 @@ test("getPanelNavigationItems keeps navigation centralized and role-aware", () =
   );
   assert.deepEqual(
     getPanelNavigationItems("operacional").map((item) => item.href),
-    ["/dashboard", "/orders", "/planning"],
+    ["/dashboard", "/orders", "/customers", "/planning", "/frying-planning"],
   );
   assert.deepEqual(
     getPanelNavigationItems("atendimento").map((item) => item.href),
-    ["/dashboard", "/orders"],
+    ["/dashboard", "/orders", "/customers"],
   );
 });
