@@ -26,30 +26,30 @@ export function usePreparationCapacity(storeId: number) {
 
 export function useCreatePreparationSlot() {
   const client = useQueryClient();
-  return useMutation({ mutationFn: createPreparationSlot, onSuccess: (_data, input) => client.invalidateQueries({ queryKey: fryingKeys.capacity(input.storeId) }) });
+  return useMutation({ mutationFn: createPreparationSlot, onSuccess: () => client.invalidateQueries({ queryKey: fryingKeys.all }) });
 }
 
 export function useSavePreparationTime() {
   const client = useQueryClient();
-  return useMutation({ mutationFn: savePreparationTime, onSuccess: (_data, input) => client.invalidateQueries({ queryKey: fryingKeys.capacity(input.storeId) }) });
+  return useMutation({ mutationFn: savePreparationTime, onSuccess: () => client.invalidateQueries({ queryKey: fryingKeys.all }) });
 }
 
 export function useUpdatePreparationSlot() {
   const client = useQueryClient();
-  return useMutation({ mutationFn: updatePreparationSlot, onSuccess: (_data, input) => client.invalidateQueries({ queryKey: fryingKeys.capacity(input.storeId) }) });
+  return useMutation({ mutationFn: updatePreparationSlot, onSuccess: () => client.invalidateQueries({ queryKey: fryingKeys.all }) });
 }
 
 export function useDeletePreparationSlot() {
   const client = useQueryClient();
-  return useMutation({ mutationFn: deletePreparationSlot, onSuccess: (_data, input) => client.invalidateQueries({ queryKey: fryingKeys.capacity(input.storeId) }) });
+  return useMutation({ mutationFn: deletePreparationSlot, onSuccess: () => client.invalidateQueries({ queryKey: fryingKeys.all }) });
 }
 
 export function useUpdatePreparationTime() {
   const client = useQueryClient();
-  return useMutation({ mutationFn: updatePreparationTime, onSuccess: (_data, input) => client.invalidateQueries({ queryKey: fryingKeys.capacity(input.storeId) }) });
+  return useMutation({ mutationFn: updatePreparationTime, onSuccess: () => client.invalidateQueries({ queryKey: fryingKeys.all }) });
 }
 
 export function useDeletePreparationTime() {
   const client = useQueryClient();
-  return useMutation({ mutationFn: deletePreparationTime, onSuccess: (_data, input) => client.invalidateQueries({ queryKey: fryingKeys.capacity(input.storeId) }) });
+  return useMutation({ mutationFn: deletePreparationTime, onSuccess: () => client.invalidateQueries({ queryKey: fryingKeys.all }) });
 }
