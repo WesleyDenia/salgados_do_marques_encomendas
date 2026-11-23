@@ -29,14 +29,14 @@ function normalizePlan(value: RecordValue): FryingPlan {
     slots: array(value.slots).map((entry) => {
       const slot = entry as RecordValue;
       return {
-        id: number(slot.id), name: text(slot.name) || "Cuba", displayOrder: number(slot.display_order),
+        id: number(slot.id), name: text(slot.name) || "Cuba", heatingTimeSeconds: number(slot.heating_time_seconds), displayOrder: number(slot.display_order),
         tasks: array(slot.tasks).map((taskEntry) => {
           const task = taskEntry as RecordValue;
           return {
             allocationId: number(task.allocation_id), orderId: number(task.order_id),
             customerName: optionalText(task.customer_name), productName: text(task.product_name),
-            batchUnits: number(task.batch_units), preparationTimeSeconds: number(task.preparation_time_seconds),
-            pickupAt: optionalText(task.pickup_at), readyBy: optionalText(task.ready_by),
+            batchUnits: number(task.batch_units), preparationTimeSeconds: number(task.preparation_time_seconds), heatingTimeSeconds: number(task.heating_time_seconds),
+            pickupAt: optionalText(task.pickup_at), readyBy: optionalText(task.ready_by), heatingStartAt: optionalText(task.heating_start_at),
             startAt: optionalText(task.start_at), finishAt: optionalText(task.finish_at),
           };
         }),
@@ -49,7 +49,7 @@ function normalizeCapacity(value: RecordValue): PreparationCapacity {
   return {
     slots: array(value.slots).map((entry) => {
       const slot = entry as RecordValue;
-      return { id: number(slot.id), storeId: typeof slot.store_id === "number" ? slot.store_id : null, name: text(slot.name) || "Cuba", active: Boolean(slot.active), displayOrder: number(slot.display_order) };
+      return { id: number(slot.id), storeId: typeof slot.store_id === "number" ? slot.store_id : null, name: text(slot.name) || "Cuba", heatingTimeSeconds: number(slot.heating_time_seconds), active: Boolean(slot.active), displayOrder: number(slot.display_order) };
     }),
     settings: array(value.settings).map((entry) => {
       const setting = entry as RecordValue;
@@ -74,7 +74,7 @@ export async function getPreparationCapacity(storeId: number) {
 
 export async function createPreparationSlot(input: CreatePreparationSlotInput) {
   await apiClient.post("/admin/settings/operational/preparation-capacity/slots", {
-    store_id: input.storeId, name: input.name, clone_from_slot_id: input.cloneFromSlotId,
+    store_id: input.storeId, name: input.name, heating_minutes: input.heatingMinutes, clone_from_slot_id: input.cloneFromSlotId,
   });
 }
 
@@ -90,6 +90,7 @@ export async function updatePreparationSlot(input: UpdatePreparationSlotInput) {
   await apiClient.put(`/admin/settings/operational/preparation-capacity/slots/${input.slotId}`, {
     store_id: input.storeId,
     name: input.name,
+    heating_minutes: input.heatingMinutes,
   });
 }
 

@@ -25,6 +25,7 @@ export function PreparationCapacityManager() {
   const stores = useOrderStores();
   const [storeId, setStoreId] = React.useState(0);
   const [slotName, setSlotName] = React.useState("");
+  const [heatingMinutes, setHeatingMinutes] = React.useState("0");
   const [cloneFrom, setCloneFrom] = React.useState<number | undefined>();
   const [editingSlot, setEditingSlot] = React.useState<PreparationSlot | null>(null);
   const [slotDialog, setSlotDialog] = React.useState(false);
@@ -51,17 +52,20 @@ export function PreparationCapacityManager() {
     setSlotDialog(false);
     setEditingSlot(null);
     setCloneFrom(undefined);
+    setHeatingMinutes("0");
   };
   const openSlot = (clone?: PreparationSlot) => {
     setEditingSlot(null);
     setCloneFrom(clone?.id);
     setSlotName(clone ? `${clone.name} (cópia)` : "");
+    setHeatingMinutes(String((clone?.heatingTimeSeconds ?? 0) / 60));
     setSlotDialog(true);
   };
   const openSlotEditor = (slot: PreparationSlot) => {
     setCloneFrom(undefined);
     setEditingSlot(slot);
     setSlotName(slot.name);
+    setHeatingMinutes(String(slot.heatingTimeSeconds / 60));
     setSlotDialog(true);
   };
   const closeTimeDialog = () => {
@@ -87,10 +91,10 @@ export function PreparationCapacityManager() {
     if (!slotName.trim()) return;
     try {
       if (editingSlot) {
-        await updateSlot.mutateAsync({ storeId, slotId: editingSlot.id, name: slotName.trim() });
+        await updateSlot.mutateAsync({ storeId, slotId: editingSlot.id, name: slotName.trim(), heatingMinutes: Number(heatingMinutes) });
         toast("Cuba atualizada.", "success");
       } else {
-        await create.mutateAsync({ storeId, name: slotName.trim(), cloneFromSlotId: cloneFrom });
+        await create.mutateAsync({ storeId, name: slotName.trim(), heatingMinutes: Number(heatingMinutes), cloneFromSlotId: cloneFrom });
         toast(cloneFrom ? "Cuba clonada com os tempos de fritura." : "Cuba adicionada.", "success");
       }
       closeSlotDialog();
@@ -149,11 +153,11 @@ export function PreparationCapacityManager() {
     {data && (data.slots.length ? <div className="grid gap-5 lg:grid-cols-2">{data.slots.map((slot) => {
       const settings = data.settings.filter((setting) => setting.slotId === slot.id);
       return <article key={slot.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-semibold text-slate-950">{slot.name}</h2><p className="text-sm text-slate-500">{settings.length} artigo(s) configurado(s)</p></div><div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => openSlotEditor(slot)}><Pencil />Editar</Button><Button size="sm" variant="outline" onClick={() => openSlot(slot)}><CopyPlus />Clonar cuba</Button><Button size="sm" onClick={() => openNewTime(slot.id)}><Plus />Adicionar tempo</Button><Button size="icon-sm" variant="destructive" onClick={() => removeSlot(slot)} disabled={deleteSlot.isPending} aria-label={`Excluir ${slot.name}`}><Trash2 /></Button></div></div>
+        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-semibold text-slate-950">{slot.name}</h2><p className="text-sm text-slate-500">{settings.length} artigo(s) configurado(s) · aquecimento: {humanMinutes(slot.heatingTimeSeconds)}</p></div><div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => openSlotEditor(slot)}><Pencil />Editar</Button><Button size="sm" variant="outline" onClick={() => openSlot(slot)}><CopyPlus />Clonar cuba</Button><Button size="sm" onClick={() => openNewTime(slot.id)}><Plus />Adicionar tempo</Button><Button size="icon-sm" variant="destructive" onClick={() => removeSlot(slot)} disabled={deleteSlot.isPending} aria-label={`Excluir ${slot.name}`}><Trash2 /></Button></div></div>
         <div className="mt-5 space-y-2">{settings.length ? settings.map((setting) => <div key={setting.id} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-sm"><span>{data.products.find((product) => product.id === setting.productId)?.name ?? `Artigo #${setting.productId}`}</span><div className="flex items-center gap-1"><span className="mr-2 text-slate-600">{setting.batchSize} un. · {humanMinutes(setting.preparationTimeSeconds)}</span><Button size="icon-xs" variant="ghost" onClick={() => openTimeEditor(setting)} aria-label="Editar tempo de fritura"><Pencil /></Button><Button size="icon-xs" variant="ghost" onClick={() => removeTime(setting)} disabled={deleteTime.isPending} aria-label="Excluir tempo de fritura"><Trash2 className="text-destructive" /></Button></div></div>) : <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-500">Sem tempos configurados.</p>}</div>
       </article>;
     })}</div> : <EmptyState title="Ainda não existem cubas nesta loja" description="Adicione uma cuba e depois atribua os tempos de fritura aos artigos." />)}
-    {slotDialog ? <Modal title={editingSlot ? "Editar cuba" : cloneFrom ? "Clonar cuba" : "Adicionar cuba"} onClose={closeSlotDialog}><form className="space-y-4" onSubmit={submitSlot}><label className="block space-y-1.5 text-sm font-medium">Título da cuba<Input autoFocus value={slotName} onChange={(event) => setSlotName(event.target.value)} placeholder="Ex.: Cuba 1" /></label>{!editingSlot && data?.slots.length ? <label className="block space-y-1.5 text-sm font-medium">Clonar tempos de fritura (opcional)<select className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={cloneFrom ?? ""} onChange={(event) => setCloneFrom(event.target.value ? Number(event.target.value) : undefined)}><option value="">Não clonar</option>{data.slots.map((slot) => <option key={slot.id} value={slot.id}>{slot.name}</option>)}</select></label> : null}<div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={closeSlotDialog}>Cancelar</Button><Button type="submit" disabled={slotSaving}>{slotSaving ? "A guardar…" : editingSlot ? "Guardar alterações" : cloneFrom ? "Clonar cuba" : "Adicionar cuba"}</Button></div></form></Modal> : null}
+    {slotDialog ? <Modal title={editingSlot ? "Editar cuba" : cloneFrom ? "Clonar cuba" : "Adicionar cuba"} onClose={closeSlotDialog}><form className="space-y-4" onSubmit={submitSlot}><label className="block space-y-1.5 text-sm font-medium">Título da cuba<Input autoFocus value={slotName} onChange={(event) => setSlotName(event.target.value)} placeholder="Ex.: Cuba 1" /></label><label className="block space-y-1.5 text-sm font-medium">Tempo de aquecimento (minutos)<Input type="number" min="0" max="1440" step="0.1" value={heatingMinutes} onChange={(event) => setHeatingMinutes(event.target.value)} /><span className="block text-xs font-normal text-slate-500">Incluído na primeira fritura e após 15 minutos sem fritar.</span></label>{!editingSlot && data?.slots.length ? <label className="block space-y-1.5 text-sm font-medium">Clonar tempos de fritura (opcional)<select className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={cloneFrom ?? ""} onChange={(event) => { const source = data.slots.find((slot) => slot.id === Number(event.target.value)); setCloneFrom(event.target.value ? Number(event.target.value) : undefined); if (source) setHeatingMinutes(String(source.heatingTimeSeconds / 60)); }}><option value="">Não clonar</option>{data.slots.map((slot) => <option key={slot.id} value={slot.id}>{slot.name}</option>)}</select></label> : null}<div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={closeSlotDialog}>Cancelar</Button><Button type="submit" disabled={slotSaving}>{slotSaving ? "A guardar…" : editingSlot ? "Guardar alterações" : cloneFrom ? "Clonar cuba" : "Adicionar cuba"}</Button></div></form></Modal> : null}
     {timeSlot ? <Modal title={editingTime ? "Editar tempo de fritura" : "Adicionar tempo de fritura"} onClose={closeTimeDialog}><form className="space-y-4" onSubmit={submitTime}><label className="block space-y-1.5 text-sm font-medium">Artigo<select className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60" value={productId} onChange={(event) => setProductId(Number(event.target.value))} disabled={Boolean(editingTime)}>{data?.products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label><div className="grid grid-cols-2 gap-3"><label className="space-y-1.5 text-sm font-medium">Unidades por fritura<Input type="number" min="1" value={batch} onChange={(event) => setBatch(event.target.value)} /></label><label className="space-y-1.5 text-sm font-medium">Tempo (minutos)<Input type="number" min="0.1" step="0.1" value={prepMinutes} onChange={(event) => setPrepMinutes(event.target.value)} /></label></div><div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={closeTimeDialog}>Cancelar</Button><Button type="submit" disabled={timeSaving}>{timeSaving ? "A guardar…" : editingTime ? "Guardar alterações" : "Guardar tempo"}</Button></div></form></Modal> : null}
   </div>;
 }

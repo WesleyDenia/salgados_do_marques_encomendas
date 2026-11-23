@@ -7,8 +7,10 @@ export type FryingTask = {
   productName: string;
   batchUnits: number;
   preparationTimeSeconds: number;
+  heatingTimeSeconds: number;
   pickupAt: string | null;
   readyBy: string | null;
+  heatingStartAt: string | null;
   startAt: string | null;
   finishAt: string | null;
 };
@@ -30,6 +32,7 @@ export type PreparationSlot = {
   id: number;
   storeId: number | null;
   name: string;
+  heatingTimeSeconds: number;
   active: boolean;
   displayOrder: number;
 };
@@ -53,6 +56,7 @@ export type PreparationCapacity = {
 export type CreatePreparationSlotInput = {
   storeId: number;
   name: string;
+  heatingMinutes: number;
   cloneFromSlotId?: number;
 };
 
@@ -68,6 +72,7 @@ export type UpdatePreparationSlotInput = {
   storeId: number;
   slotId: number;
   name: string;
+  heatingMinutes: number;
 };
 
 export type DeletePreparationSlotInput = {
