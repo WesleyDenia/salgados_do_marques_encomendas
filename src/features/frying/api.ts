@@ -1,9 +1,13 @@
 import { apiClient } from "@/lib/api/http";
 import type {
   CreatePreparationSlotInput,
+  DeletePreparationSlotInput,
+  DeletePreparationTimeInput,
   FryingPlan,
   PreparationCapacity,
   SavePreparationTimeInput,
+  UpdatePreparationSlotInput,
+  UpdatePreparationTimeInput,
 } from "./types";
 
 type RecordValue = Record<string, unknown>;
@@ -79,5 +83,34 @@ export async function savePreparationTime(input: SavePreparationTimeInput) {
     store_id: input.storeId, operational_preparation_slot_id: input.slotId,
     product_id: input.productId, batch_size: input.batchSize,
     preparation_minutes: input.preparationMinutes,
+  });
+}
+
+export async function updatePreparationSlot(input: UpdatePreparationSlotInput) {
+  await apiClient.put(`/admin/settings/operational/preparation-capacity/slots/${input.slotId}`, {
+    store_id: input.storeId,
+    name: input.name,
+  });
+}
+
+export async function deletePreparationSlot(input: DeletePreparationSlotInput) {
+  await apiClient.delete(`/admin/settings/operational/preparation-capacity/slots/${input.slotId}`, {
+    data: { store_id: input.storeId },
+  });
+}
+
+export async function updatePreparationTime(input: UpdatePreparationTimeInput) {
+  await apiClient.put(`/admin/settings/operational/preparation-capacity/times/${input.settingId}`, {
+    store_id: input.storeId,
+    operational_preparation_slot_id: input.slotId,
+    product_id: input.productId,
+    batch_size: input.batchSize,
+    preparation_minutes: input.preparationMinutes,
+  });
+}
+
+export async function deletePreparationTime(input: DeletePreparationTimeInput) {
+  await apiClient.delete(`/admin/settings/operational/preparation-capacity/times/${input.settingId}`, {
+    data: { store_id: input.storeId },
   });
 }

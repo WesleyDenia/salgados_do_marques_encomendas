@@ -63,3 +63,23 @@ export type SavePreparationTimeInput = {
   batchSize: number;
   preparationMinutes: number;
 };
+
+export type UpdatePreparationSlotInput = {
+  storeId: number;
+  slotId: number;
+  name: string;
+};
+
+export type DeletePreparationSlotInput = {
+  storeId: number;
+  slotId: number;
+};
+
+export type UpdatePreparationTimeInput = SavePreparationTimeInput & {
+  settingId: number;
+};
+
+export type DeletePreparationTimeInput = {
+  storeId: number;
+  settingId: number;
+};
