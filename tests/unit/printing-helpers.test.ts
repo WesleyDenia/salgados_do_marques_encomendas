@@ -63,7 +63,8 @@ test("toThermalPrintOrder reuses normalized order data and applies operational f
   assert.equal(printable.paymentLabel, "PARCIAL");
   assert.equal(printable.paidAmountLabel, "20,00 €");
   assert.equal(printable.remainingAmountLabel, "28,00 €");
-  assert.deepEqual(printable.items[0].flavorLines, ["Carne", "Frango"]);
+  assert.equal(printable.customerLabel, "MARIA OPERACIONAL");
+  assert.deepEqual(printable.items[0].flavorLines, ["CARNE", "FRANGO"]);
   assert.deepEqual(printable.items[1].flavorLines, ["#3", "#9"]);
 });
 
@@ -83,10 +84,10 @@ test("toThermalPrintOrder expands repeated single-flavor pack selections for the
   });
 
   assert.deepEqual(printable.items[0].flavorLines, [
-    "Pack Mix",
-    "Pack Mix",
-    "Pack Mix",
-    "Pack Mix",
+    "PACK MIX",
+    "PACK MIX",
+    "PACK MIX",
+    "PACK MIX",
   ]);
 });
 
@@ -130,6 +131,12 @@ test("buildOrderPrintHref encodes ids for the dedicated print route", () => {
   assert.equal(
     buildOrderPrintHref(123, { attemptId: "attempt-1", intent: "reprint" }),
     "/orders/123/print?attemptId=attempt-1&intent=reprint",
+  );
+  assert.equal(
+    buildOrderPrintHref(123, {
+      fryingTiming: { startLabel: "15:41", finishLabel: "15:55", pickupLabel: "16:00" },
+    }),
+    "/orders/123/print?fryingStart=15%3A41&fryingFinish=15%3A55&fryingPickup=16%3A00",
   );
 });
 

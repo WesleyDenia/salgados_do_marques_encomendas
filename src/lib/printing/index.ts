@@ -40,6 +40,11 @@ export type ThermalPrintOrder = {
   remainingAmountLabel: string;
   notesLabel: string;
   items: ThermalPrintItem[];
+  fryingTiming?: {
+    startLabel: string;
+    finishLabel: string;
+    pickupLabel: string;
+  };
 };
 
 export function formatPrintCurrency(value?: number) {
@@ -58,11 +63,16 @@ export function buildOrderPrintHref(
   options?: {
     attemptId?: string;
     intent?: PrintFlowIntent;
+    fryingTiming?: {
+      startLabel: string;
+      finishLabel: string;
+      pickupLabel: string;
+    };
   },
 ) {
   const path = `/orders/${encodeURIComponent(String(orderId))}/print`;
 
-  if (!options?.attemptId && !options?.intent) {
+  if (!options?.attemptId && !options?.intent && !options?.fryingTiming) {
     return path;
   }
 
@@ -74,6 +84,12 @@ export function buildOrderPrintHref(
 
   if (options.intent) {
     params.set("intent", options.intent);
+  }
+
+  if (options.fryingTiming) {
+    params.set("fryingStart", options.fryingTiming.startLabel);
+    params.set("fryingFinish", options.fryingTiming.finishLabel);
+    params.set("fryingPickup", options.fryingTiming.pickupLabel);
   }
 
   return `${path}?${params.toString()}`;
@@ -193,16 +209,20 @@ function formatPickupStoreLabel(store?: Order["store"] | null) {
   return storeName ? storeName.toLocaleUpperCase("pt-PT") : "LOJA NÃO DEFINIDA";
 }
 
+function uppercasePrintText(value: string) {
+  return value.toLocaleUpperCase("pt-PT");
+}
+
 function buildPrintItemTitle(item: Order["items"][number]) {
   if (item.variantName?.trim()) {
-    return item.variantName.trim();
+    return uppercasePrintText(item.variantName.trim());
   }
 
   if (item.quantity > 1) {
-    return `${item.productName} x${item.quantity}`;
+    return uppercasePrintText(`${item.productName} x${item.quantity}`);
   }
 
-  return item.productName;
+  return uppercasePrintText(item.productName);
 }
 
 function inferPackFlavorSlots(item: Order["items"][number]) {
@@ -254,7 +274,7 @@ function buildFlavorLines(item: Order["items"][number]) {
 }
 
 function formatPrintFlavor(flavor: string, isFrozen?: boolean) {
-  return isFrozen ? `${flavor} - CONGELADO` : flavor;
+  return uppercasePrintText(isFrozen ? `${flavor} - CONGELADO` : flavor);
 }
 
 function buildWithdrawalLines(order: Order, timeZone: string) {
@@ -330,8 +350,9 @@ export function toThermalPrintOrder(
   return {
     idLabel: `Encomenda #${order.id} ·`,
     statusLabel: options?.statusLabels?.[order.status] ?? order.status,
-    customerLabel:
+    customerLabel: uppercasePrintText(
       order.customerName?.trim() || order.user?.name || "Cliente não identificado",
+    ),
     contactLabel: formatCustomerContact(order.customerContact),
     scheduledAtLabel: formatScheduledAtDetailed(order.scheduledAt, timeZone),
     pickupStoreLabel: formatPickupStoreLabel(order.store),

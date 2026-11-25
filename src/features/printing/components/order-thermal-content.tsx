@@ -92,6 +92,24 @@ export function OrderThermalContent({
             </div>
           </section>
 
+          {order.fryingTiming ? (
+            <section className={classes.section}>
+              <p className={classes.sectionTitle}>Planeamento de fritura</p>
+              <div className={classes.row}>
+                <span className={classes.label}>Início</span>
+                <span className={classes.value}>{order.fryingTiming.startLabel}</span>
+              </div>
+              <div className={classes.row}>
+                <span className={classes.label}>Término</span>
+                <span className={classes.value}>{order.fryingTiming.finishLabel}</span>
+              </div>
+              <div className={classes.row}>
+                <span className={classes.label}>Entrega</span>
+                <span className={classes.value}>{order.fryingTiming.pickupLabel}</span>
+              </div>
+            </section>
+          ) : null}
+
           <section className={classes.section}>
             {order.items.map((item) => (
               <div key={item.key} className={classes.item}>

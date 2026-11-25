@@ -45,12 +45,17 @@ test("OrderThermalContent renders the full operational document for 80mm printin
     createdAt: "2026-05-19T09:00:00Z",
   };
 
+  const printableOrder = toThermalPrintOrder(order, {
+    statusLabels: { ready: "Pronta" },
+    timeZone: "Europe/Lisbon",
+  });
+
   const markup = renderToStaticMarkup(
     <OrderThermalContent
-      order={toThermalPrintOrder(order, {
-        statusLabels: { ready: "Pronta" },
-        timeZone: "Europe/Lisbon",
-      })}
+      order={{
+        ...printableOrder,
+        fryingTiming: { startLabel: "15:41", finishLabel: "15:55", pickupLabel: "16:00" },
+      }}
       state="printing"
       statusMessage="Diálogo de impressão aberto"
     />,
@@ -58,20 +63,24 @@ test("OrderThermalContent renders the full operational document for 80mm printin
 
   assert.match(markup, /Documento térmico 80mm/);
   assert.match(markup, /Encomenda #555 ·/);
-  assert.match(markup, /Joana Silva/);
+  assert.match(markup, /JOANA SILVA/);
   assert.match(markup, /912 000 111/);
   assert.match(markup, /Sáb 13\/06\/2026 às 17:00/);
   assert.match(markup, /LOJA CENTRO/);
-  assert.match(markup, /Pack 100 Unidades/);
+  assert.match(markup, /PACK 100 UNIDADES/);
   assert.match(markup, /Sabores:/);
-  assert.match(markup, /- Pack Mix - CONGELADO/);
-  assert.match(markup, /- Coxinha de Frango - CONGELADO/);
+  assert.match(markup, /- PACK MIX - CONGELADO/);
+  assert.match(markup, /- COXINHA DE FRANGO - CONGELADO/);
   assert.match(markup, /Sem cebola/);
   assert.match(markup, /Separar para balcão/);
   assert.match(markup, /60,00/);
   assert.match(markup, /Valor pago/);
   assert.match(markup, /Falta pagar/);
   assert.match(markup, /PAGO/);
+  assert.match(markup, /Planeamento de fritura/);
+  assert.match(markup, /15:41/);
+  assert.match(markup, /15:55/);
+  assert.match(markup, /16:00/);
   assert.doesNotMatch(markup, /Data\/Hora/);
   assert.doesNotMatch(markup, /Criada em/);
   assert.doesNotMatch(markup, /Documento térmico operacional 80mm/);

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Clock3, LayoutGrid, List, PackageCheck } from "lucide-react";
+import { Clock3, LayoutGrid, List, PackageCheck, Printer } from "lucide-react";
 
 import { EmptyState } from "@/components/feedback/empty-state";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useOrderSettings, useOrderStores } from "@/features/orders/hooks/use-order-queries";
+import { buildOrderPrintHref, openPrintPreviewWindow } from "@/lib/printing";
 import { normalizePlanningDay } from "@/features/planning/utils";
 import type { FryingPlan, FryingSlot } from "../types";
 import { useFryingPlan } from "../hooks";
@@ -43,6 +44,14 @@ type FryingOrderSummary = {
   finishAt: string | null;
   pickupAt: string | null;
 };
+
+function uppercase(value: string) {
+  return value.toLocaleUpperCase("pt-PT");
+}
+
+function uppercaseOrFallback(value: string | null, fallback: string) {
+  return value?.trim() ? uppercase(value.trim()) : fallback;
+}
 
 function time(value: string | null, timeZone: string) {
   if (!value) return "—";
@@ -115,10 +124,10 @@ function ProductList({ products }: Readonly<{ products: Map<number, FryingOrderP
     <div className="space-y-3">
       {[...products.entries()].map(([itemId, product]) => (
         <div key={itemId}>
-          <p className="font-medium text-slate-950">{product.name}</p>
+          <p className="font-medium text-slate-950">{uppercase(product.name)}</p>
           {product.flavorNames.length ? (
             <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
-              {product.flavorNames.map((flavor, index) => <li key={`${flavor}-${index}`}>{flavor}</li>)}
+              {product.flavorNames.map((flavor, index) => <li key={`${flavor}-${index}`}>{uppercase(flavor)}</li>)}
             </ul>
           ) : null}
         </div>
@@ -159,7 +168,7 @@ function PaymentDetails({ summary }: Readonly<{ summary: FryingOrderSummary }>) 
 }
 
 function slotSummary(slotNames: Set<string>) {
-  return [...slotNames].join(", ");
+  return [...slotNames].map(uppercase).join(", ");
 }
 
 function TimingDetails({
@@ -187,18 +196,25 @@ function TimingDetail({ label, value }: Readonly<{ label: string; value: string 
   );
 }
 
-function PlanningCards({ summaries, data }: Readonly<{ summaries: FryingOrderSummary[]; data: FryingPlan }>) {
+function PlanningCards({ summaries, data, onPrint }: Readonly<{
+  summaries: FryingOrderSummary[];
+  data: FryingPlan;
+  onPrint: (summary: FryingOrderSummary) => void;
+}>) {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {summaries.map((summary) => (
         <article key={summary.orderId} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <header className="space-y-2">
-            <h2 className="text-base font-semibold text-slate-950">Encomenda #{summary.orderId}</h2>
+          <header className="flex items-start justify-between gap-3">
+            <div className="space-y-2">
+              <h2 className="text-base font-semibold text-slate-950">Encomenda #{summary.orderId}</h2>
             <div className="space-y-1 text-sm text-slate-700">
-              <p><span className="font-medium text-slate-950">Nome:</span> {summary.customerName ?? "Cliente não identificado"}</p>
+              <p><span className="font-medium text-slate-950">Nome:</span> {uppercaseOrFallback(summary.customerName, "Cliente não identificado")}</p>
               <p><span className="font-medium text-slate-950">Tel:</span> {summary.customerContact ?? "Por definir"}</p>
-              <p><span className="font-medium text-slate-950">Retirada na loja:</span> {summary.storeName ?? "Loja não carregada"}</p>
+              <p><span className="font-medium text-slate-950">Retirada na loja:</span> {uppercaseOrFallback(summary.storeName, "Loja não carregada")}</p>
             </div>
+            </div>
+            <Button type="button" variant="outline" size="sm" onClick={() => onPrint(summary)}><Printer className="size-3.5" />Imprimir</Button>
           </header>
           <div className="mt-4 border-t border-slate-200 pt-4">
             <ProductList products={summary.products} />
@@ -236,8 +252,8 @@ function PlanningList({ summaries, data }: Readonly<{ summaries: FryingOrderSumm
         <TableBody>
           {summaries.map((summary) => (
             <TableRow key={summary.orderId} className="hover:bg-slate-50/80">
-              <TableCell className="font-semibold text-slate-950">#{summary.orderId}<span className="mt-1 block text-sm font-normal text-slate-600">{summary.customerName ?? "Cliente não identificado"}</span><span className="mt-1 block text-sm font-normal text-slate-600">{summary.customerContact ?? "Por definir"}</span></TableCell>
-              <TableCell className="text-base text-slate-700">{summary.storeName ?? "Loja não carregada"}</TableCell>
+              <TableCell className="font-semibold text-slate-950">#{summary.orderId}<span className="mt-1 block text-sm font-normal text-slate-600">{uppercaseOrFallback(summary.customerName, "Cliente não identificado")}</span><span className="mt-1 block text-sm font-normal text-slate-600">{summary.customerContact ?? "Por definir"}</span></TableCell>
+              <TableCell className="text-base text-slate-700">{uppercaseOrFallback(summary.storeName, "Loja não carregada")}</TableCell>
               <TableCell className="text-sm text-slate-700"><ProductList products={summary.products} /></TableCell>
               <TableCell className="text-sm text-slate-700"><PaymentDetails summary={summary} /></TableCell>
               <TableCell className="max-w-56 whitespace-pre-wrap text-sm text-slate-700">{summary.notes?.trim() || null}</TableCell>
@@ -270,6 +286,18 @@ export function FryingPlanningBoard() {
   const data = plan.data;
   const summaries = React.useMemo(() => summarizeOrders(data?.slots ?? []), [data?.slots]);
 
+  const printSummary = React.useCallback((summary: FryingOrderSummary) => {
+    const printHref = buildOrderPrintHref(summary.orderId, {
+      fryingTiming: {
+        startLabel: time(summary.startAt, zone),
+        finishLabel: time(summary.finishAt, zone),
+        pickupLabel: time(summary.pickupAt, zone),
+      },
+    });
+
+    openPrintPreviewWindow(printHref, (href, target, features) => window.open(href, target, features));
+  }, [zone]);
+
   function updateViewMode(nextViewMode: ViewMode) {
     setViewMode(nextViewMode);
     window.localStorage.setItem(FRYING_PLAN_VIEW_MODE_STORAGE_KEY, nextViewMode);
@@ -293,7 +321,7 @@ export function FryingPlanningBoard() {
     {data ? <>
       <div className="grid gap-4 sm:grid-cols-2"><Metric icon={<PackageCheck className="size-5" />} label="Encomendas" value={String(data.ordersCount)} /><Metric icon={<Clock3 className="size-5" />} label="Primeiro início" value={time(data.earliestStartAt, data.timeZone)} /></div>
       {data.warnings.map((warning) => <p key={warning} className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-base text-amber-900">{warning}</p>)}
-      {summaries.length === 0 ? <EmptyState title="Sem frituras planeadas" description="Não existem cubas ou tempos de fritura configurados para estas encomendas." /> : viewMode === "cards" ? <PlanningCards summaries={summaries} data={data} /> : <PlanningList summaries={summaries} data={data} />}
+      {summaries.length === 0 ? <EmptyState title="Sem frituras planeadas" description="Não existem cubas ou tempos de fritura configurados para estas encomendas." /> : viewMode === "cards" ? <PlanningCards summaries={summaries} data={data} onPrint={printSummary} /> : <PlanningList summaries={summaries} data={data} />}
     </> : null}
   </div>;
 }

@@ -59,6 +59,17 @@ export function OrderPrintPageClient({
   const attemptId = searchParams.get("attemptId")?.trim() ?? "";
   const intent: PrintFlowIntent =
     searchParams.get("intent") === "reprint" ? "reprint" : "print";
+  const fryingTiming = React.useMemo(() => {
+    const startLabel = searchParams.get("fryingStart")?.trim();
+    const finishLabel = searchParams.get("fryingFinish")?.trim();
+    const pickupLabel = searchParams.get("fryingPickup")?.trim();
+
+    if (!startLabel || !finishLabel || !pickupLabel) {
+      return undefined;
+    }
+
+    return { startLabel, finishLabel, pickupLabel };
+  }, [searchParams]);
 
   const postFlowEvent = React.useCallback(
     (
@@ -94,6 +105,14 @@ export function OrderPrintPageClient({
     });
   }, [orderQuery.data, settingsQuery.data?.statusLabels, settingsQuery.data?.timezone]);
 
+  const printableOrderWithFryingTiming = React.useMemo(() => {
+    if (!printableOrder) {
+      return null;
+    }
+
+    return fryingTiming ? { ...printableOrder, fryingTiming } : printableOrder;
+  }, [fryingTiming, printableOrder]);
+
   const triggerPrint = React.useCallback(() => {
     if (typeof window === "undefined") {
       return;
@@ -121,22 +140,22 @@ export function OrderPrintPageClient({
   }, [postFlowEvent, toast]);
 
   React.useEffect(() => {
-    if (!printableOrder) {
+    if (!printableOrderWithFryingTiming) {
       return;
     }
 
     setState("preview");
     postFlowEvent("preview");
-  }, [postFlowEvent, printableOrder]);
+  }, [postFlowEvent, printableOrderWithFryingTiming]);
 
   React.useEffect(() => {
-    if (!printableOrder || attemptedRef.current) {
+    if (!printableOrderWithFryingTiming || attemptedRef.current) {
       return;
     }
 
     attemptedRef.current = true;
     triggerPrint();
-  }, [printableOrder, triggerPrint]);
+  }, [printableOrderWithFryingTiming, triggerPrint]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") {
@@ -197,7 +216,7 @@ export function OrderPrintPageClient({
     );
   }
 
-  if (orderQuery.isLoading || !printableOrder || settingsQuery.isLoading) {
+  if (orderQuery.isLoading || !printableOrderWithFryingTiming || settingsQuery.isLoading) {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-[80mm] items-center justify-center px-4 py-10 text-center text-sm text-muted-foreground">
         {intent === "reprint"
@@ -209,7 +228,7 @@ export function OrderPrintPageClient({
 
   return (
     <OrderThermalDocument
-      order={printableOrder}
+      order={printableOrderWithFryingTiming}
       state={state}
       statusMessage={buildStatusMessage(state, intent, errorMessage)}
       actionSlot={(
