@@ -110,7 +110,7 @@ function TimingDetails({
   timeZone: string;
 }>) {
   return (
-    <dl className="grid grid-cols-2 gap-x-5 gap-y-4">
+    <dl className="grid grid-cols-3 gap-x-3">
       <TimingDetail label="Início" value={time(summary.startAt, timeZone)} />
       <TimingDetail label="Término" value={time(summary.finishAt, timeZone)} />
       <TimingDetail label="Entrega" value={time(summary.pickupAt, timeZone)} />
