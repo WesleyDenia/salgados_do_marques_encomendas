@@ -1,11 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { Clock3, LayoutGrid, List, PackageCheck, Printer } from "lucide-react";
+import { BellRing, Clock3, LayoutGrid, List, PackageCheck, Printer } from "lucide-react";
 
 import { EmptyState } from "@/components/feedback/empty-state";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 import {
   Table,
   TableBody,
@@ -18,7 +19,7 @@ import { useOrderSettings, useOrderStores } from "@/features/orders/hooks/use-or
 import { buildOrderPrintHref, openPrintPreviewWindow } from "@/lib/printing";
 import { normalizePlanningDay } from "@/features/planning/utils";
 import type { FryingPlan, FryingSlot } from "../types";
-import { useFryingPlan } from "../hooks";
+import { useFryingPlan, useRegisterFryingAlarms } from "../hooks";
 
 const FRYING_PLAN_VIEW_MODE_STORAGE_KEY = "frying-planning-view-mode";
 
@@ -270,6 +271,7 @@ function PlanningList({ summaries, data }: Readonly<{ summaries: FryingOrderSumm
 }
 
 export function FryingPlanningBoard() {
+  const { toast } = useToast();
   const settings = useOrderSettings();
   const stores = useOrderStores();
   const zone = settings.data?.timezone ?? "Europe/Lisbon";
@@ -283,6 +285,7 @@ export function FryingPlanningBoard() {
     if (savedViewMode === "list" || savedViewMode === "cards") setViewMode(savedViewMode);
   }, []);
   const plan = useFryingPlan(date, storeId);
+  const registerAlarms = useRegisterFryingAlarms();
   const data = plan.data;
   const summaries = React.useMemo(() => summarizeOrders(data?.slots ?? []), [data?.slots]);
 
@@ -298,6 +301,32 @@ export function FryingPlanningBoard() {
     openPrintPreviewWindow(printHref, (href, target, features) => window.open(href, target, features));
   }, [zone]);
 
+  const handleRegisterAlarms = React.useCallback(() => {
+    if (!storeId || !data) {
+      return;
+    }
+
+    registerAlarms.mutate(
+      { date, storeId },
+      {
+        onSuccess: ({ queuedCount, skippedPastCount }) => {
+          if (queuedCount === 0) {
+            toast("Não há alarmes futuros para registar neste planeamento.", "info");
+            return;
+          }
+
+          const queuedLabel = `${queuedCount} ${queuedCount === 1 ? "alarme registado" : "alarmes registados"} na fila.`;
+          const skippedLabel = skippedPastCount > 0
+            ? ` ${skippedPastCount} ${skippedPastCount === 1 ? "início já passou" : "inícios já passaram"}.`
+            : "";
+
+          toast(`${queuedLabel}${skippedLabel}`, "success");
+        },
+        onError: (error) => toast(error instanceof Error ? error.message : "Não foi possível registar os alarmes.", "error"),
+      },
+    );
+  }, [data, date, registerAlarms, storeId, toast]);
+
   function updateViewMode(nextViewMode: ViewMode) {
     setViewMode(nextViewMode);
     window.localStorage.setItem(FRYING_PLAN_VIEW_MODE_STORAGE_KEY, nextViewMode);
@@ -310,9 +339,15 @@ export function FryingPlanningBoard() {
           <label className="space-y-1.5 text-base font-medium text-slate-900">Data<Input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
           <label className="space-y-1.5 text-base font-medium text-slate-900">Loja<select className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={storeId} onChange={(event) => setStoreId(Number(event.target.value))}><option value={0}>Selecione uma loja</option>{storeOptions.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}</select></label>
         </div>
-        <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
-          <Button type="button" variant={viewMode === "list" ? "default" : "ghost"} size="icon-sm" className="size-8" aria-label="Exibir em lista" onClick={() => updateViewMode("list")}><List className="size-4" /></Button>
-          <Button type="button" variant={viewMode === "cards" ? "default" : "ghost"} size="icon-sm" className="size-8" aria-label="Exibir em cartões" onClick={() => updateViewMode("cards")}><LayoutGrid className="size-4" /></Button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button type="button" onClick={handleRegisterAlarms} disabled={!data || !storeId || registerAlarms.isPending}>
+            <BellRing className="size-4" />
+            {registerAlarms.isPending ? "A registrar alarmes…" : "Registrar alarmes"}
+          </Button>
+          <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
+            <Button type="button" variant={viewMode === "list" ? "default" : "ghost"} size="icon-sm" className="size-8" aria-label="Exibir em lista" onClick={() => updateViewMode("list")}><List className="size-4" /></Button>
+            <Button type="button" variant={viewMode === "cards" ? "default" : "ghost"} size="icon-sm" className="size-8" aria-label="Exibir em cartões" onClick={() => updateViewMode("cards")}><LayoutGrid className="size-4" /></Button>
+          </div>
         </div>
       </div>
     </section>

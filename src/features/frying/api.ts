@@ -4,6 +4,7 @@ import type {
   DeletePreparationSlotInput,
   DeletePreparationTimeInput,
   FryingPlan,
+  FryingAlarmRegistration,
   PreparationCapacity,
   SavePreparationTimeInput,
   UpdatePreparationSlotInput,
@@ -70,6 +71,19 @@ function normalizeCapacity(value: RecordValue): PreparationCapacity {
 export async function getFryingPlan(date: string, storeId: number) {
   const response = await apiClient.get<{ data: RecordValue }>("/admin/frying-planning", { params: { date, store_id: storeId } });
   return normalizePlan(response.data.data ?? {});
+}
+
+export async function registerFryingAlarms(date: string, storeId: number): Promise<FryingAlarmRegistration> {
+  const response = await apiClient.post<{ data: RecordValue }>("/admin/frying-planning/alarms", {
+    date,
+    store_id: storeId,
+  });
+  const data = response.data.data ?? {};
+
+  return {
+    queuedCount: number(data.queued_count),
+    skippedPastCount: number(data.skipped_past_count),
+  };
 }
 
 export async function getPreparationCapacity(storeId: number) {

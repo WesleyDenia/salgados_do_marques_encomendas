@@ -5,6 +5,7 @@ import {
   deletePreparationTime,
   getFryingPlan,
   getPreparationCapacity,
+  registerFryingAlarms,
   savePreparationTime,
   updatePreparationSlot,
   updatePreparationTime,
@@ -18,6 +19,12 @@ export const fryingKeys = {
 
 export function useFryingPlan(date: string, storeId: number) {
   return useQuery({ queryKey: fryingKeys.plan(date, storeId), queryFn: () => getFryingPlan(date, storeId), enabled: Boolean(date && storeId), refetchInterval: 30_000 });
+}
+
+export function useRegisterFryingAlarms() {
+  return useMutation({
+    mutationFn: ({ date, storeId }: { date: string; storeId: number }) => registerFryingAlarms(date, storeId),
+  });
 }
 
 export function usePreparationCapacity(storeId: number) {

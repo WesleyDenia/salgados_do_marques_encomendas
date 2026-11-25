@@ -37,6 +37,11 @@ export type FryingPlan = {
   slots: FryingSlot[];
 };
 
+export type FryingAlarmRegistration = {
+  queuedCount: number;
+  skippedPastCount: number;
+};
+
 export type PreparationSlot = {
   id: number;
   storeId: number | null;
