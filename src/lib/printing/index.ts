@@ -309,7 +309,7 @@ function buildPrintNotesLabel(order: Order, timeZone: string) {
   const remainingUnitsLabel = buildRemainingWithdrawalUnitsLabel(order);
 
   if (withdrawalLines.length === 0) {
-    return baseNotes;
+    return baseNotes ?? undefined;
   }
 
   return [
