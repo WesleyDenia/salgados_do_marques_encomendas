@@ -131,7 +131,21 @@ export function ProtectedAreaPage({
     );
   }
 
-  if (routeKey === "frying-planning" || routeKey === "frying-capacity") {
+  if (routeKey === "frying-planning") {
+    return (
+      <section className="space-y-6">
+        <header className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
+            Planeamento de fritura
+          </h1>
+        </header>
+
+        {children}
+      </section>
+    );
+  }
+
+  if (routeKey === "frying-capacity") {
     return <section className="space-y-6">{children}</section>;
   }
 

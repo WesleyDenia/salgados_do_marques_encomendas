@@ -23,6 +23,7 @@ export type FryingPlan = {
   store: FryingStore;
   ordersCount: number;
   tasksCount: number;
+  packagingTimeSeconds: number;
   earliestStartAt: string | null;
   warnings: string[];
   slots: FryingSlot[];

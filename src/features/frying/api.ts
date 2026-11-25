@@ -24,6 +24,7 @@ function normalizePlan(value: RecordValue): FryingPlan {
     store: { id: number(store.id), name: text(store.name) },
     ordersCount: number(value.orders_count),
     tasksCount: number(value.tasks_count),
+    packagingTimeSeconds: number(value.packaging_time_seconds),
     earliestStartAt: optionalText(value.earliest_start_at),
     warnings: array(value.warnings).filter((item): item is string => typeof item === "string"),
     slots: array(value.slots).map((entry) => {
