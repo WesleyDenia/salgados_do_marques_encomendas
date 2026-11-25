@@ -149,7 +149,7 @@ export const PANEL_ROUTE_DEFINITIONS: readonly PanelRouteDefinition[] = [
     key: "frying-planning",
     href: "/frying-planning",
     label: "Planeamento",
-    description: "Sequência de fritura por loja, cuba e hora de entrega.",
+    description: "Planeamento de fritura",
     runtime: "live",
     allowedRoles: ["admin", "operacional"],
     requiredCapability: "planning:view",
