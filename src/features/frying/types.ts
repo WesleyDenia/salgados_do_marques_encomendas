@@ -3,8 +3,16 @@ export type FryingStore = { id: number; name: string };
 export type FryingTask = {
   allocationId: number;
   orderId: number;
+  orderItemId: number;
   customerName: string | null;
+  customerContact: string | null;
+  storeName: string | null;
+  paymentStatus: "pending" | "partial" | "paid" | null;
+  paidAmount: number;
+  orderTotal: number;
+  notes: string | null;
   productName: string;
+  flavorNames: string[];
   batchUnits: number;
   preparationTimeSeconds: number;
   heatingTimeSeconds: number;

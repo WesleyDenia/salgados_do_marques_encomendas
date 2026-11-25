@@ -23,10 +23,21 @@ const FRYING_PLAN_VIEW_MODE_STORAGE_KEY = "frying-planning-view-mode";
 
 type ViewMode = "list" | "cards";
 
+type FryingOrderProduct = {
+  name: string;
+  flavorNames: string[];
+};
+
 type FryingOrderSummary = {
   orderId: number;
   customerName: string | null;
-  products: Set<string>;
+  customerContact: string | null;
+  storeName: string | null;
+  paymentStatus: "pending" | "partial" | "paid" | null;
+  paidAmount: number;
+  orderTotal: number;
+  notes: string | null;
+  products: Map<number, FryingOrderProduct>;
   slotNames: Set<string>;
   startAt: string | null;
   finishAt: string | null;
@@ -65,7 +76,13 @@ function summarizeOrders(slots: FryingSlot[]): FryingOrderSummary[] {
       const current = summaries.get(task.orderId) ?? {
         orderId: task.orderId,
         customerName: task.customerName,
-        products: new Set<string>(),
+        customerContact: task.customerContact,
+        storeName: task.storeName,
+        paymentStatus: task.paymentStatus,
+        paidAmount: task.paidAmount,
+        orderTotal: task.orderTotal,
+        notes: task.notes,
+        products: new Map<number, FryingOrderProduct>(),
         slotNames: new Set<string>(),
         startAt: null,
         finishAt: null,
@@ -73,7 +90,10 @@ function summarizeOrders(slots: FryingSlot[]): FryingOrderSummary[] {
       };
       const startAt = task.heatingStartAt ?? task.startAt;
 
-      current.products.add(task.productName);
+      current.products.set(task.orderItemId, {
+        name: task.productName,
+        flavorNames: task.flavorNames,
+      });
       current.slotNames.add(slot.name);
       current.startAt = earliest(current.startAt, startAt);
       current.finishAt = latest(current.finishAt, task.finishAt);
@@ -90,11 +110,51 @@ function summarizeOrders(slots: FryingSlot[]): FryingOrderSummary[] {
   });
 }
 
-function ProductList({ products }: Readonly<{ products: Set<string> }>) {
+function ProductList({ products }: Readonly<{ products: Map<number, FryingOrderProduct> }>) {
   return (
-    <ul className="space-y-1 pt-1 text-sm leading-6 text-slate-700">
-      {[...products].map((product) => <li key={product}>{product}</li>)}
-    </ul>
+    <div className="space-y-3">
+      {[...products.entries()].map(([itemId, product]) => (
+        <div key={itemId}>
+          <p className="font-medium text-slate-950">{product.name}</p>
+          {product.flavorNames.length ? (
+            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+              {product.flavorNames.map((flavor, index) => <li key={`${flavor}-${index}`}>{flavor}</li>)}
+            </ul>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" }).format(value);
+}
+
+function paymentLabel(status: FryingOrderSummary["paymentStatus"]) {
+  const labels = { pending: "Pendente", partial: "Parcial", paid: "Pago" };
+
+  return status ? labels[status] : "Por definir";
+}
+
+function paidAmount(summary: FryingOrderSummary) {
+  if (summary.paymentStatus === "paid") return summary.orderTotal;
+
+  return Math.min(summary.orderTotal, Math.max(0, summary.paidAmount));
+}
+
+function PaymentDetails({ summary }: Readonly<{ summary: FryingOrderSummary }>) {
+  const paid = paidAmount(summary);
+  const remaining = Math.max(0, summary.orderTotal - paid);
+
+  return (
+    <div className="space-y-1 text-sm text-slate-700">
+      <p className="font-semibold text-slate-950">Estado do pagamento</p>
+      <p>{paymentLabel(summary.paymentStatus)}</p>
+      {summary.paymentStatus === "paid" ? <p><span className="font-medium text-slate-950">Valor pago:</span> {formatCurrency(paid)}</p> : null}
+      {summary.paymentStatus === "partial" ? <><p><span className="font-medium text-slate-950">Valor pago:</span> {formatCurrency(paid)}</p><p><span className="font-medium text-slate-950">Falta pagar:</span> {formatCurrency(remaining)}</p></> : null}
+      {summary.paymentStatus === "pending" ? <p><span className="font-medium text-slate-950">Falta pagar:</span> {formatCurrency(remaining)}</p> : null}
+    </div>
   );
 }
 
@@ -132,13 +192,22 @@ function PlanningCards({ summaries, data }: Readonly<{ summaries: FryingOrderSum
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {summaries.map((summary) => (
         <article key={summary.orderId} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <header className="space-y-1 border-b border-slate-100 pb-4">
+          <header className="space-y-2">
             <h2 className="text-base font-semibold text-slate-950">Encomenda #{summary.orderId}</h2>
-            <p className="text-sm text-slate-600">{summary.customerName ?? "Cliente não identificado"}</p>
-            <ProductList products={summary.products} />
-            <p className="text-sm text-slate-500">{slotSummary(summary.slotNames)}</p>
+            <div className="space-y-1 text-sm text-slate-700">
+              <p><span className="font-medium text-slate-950">Nome:</span> {summary.customerName ?? "Cliente não identificado"}</p>
+              <p><span className="font-medium text-slate-950">Tel:</span> {summary.customerContact ?? "Por definir"}</p>
+              <p><span className="font-medium text-slate-950">Retirada na loja:</span> {summary.storeName ?? "Loja não carregada"}</p>
+            </div>
           </header>
-          <div className="pt-4">
+          <div className="mt-4 border-t border-slate-200 pt-4">
+            <ProductList products={summary.products} />
+          </div>
+          <div className="mt-4 border-t border-slate-200 pt-4">
+            <PaymentDetails summary={summary} />
+          </div>
+          {summary.notes?.trim() ? <p className="mt-4 border-t border-slate-200 pt-4 text-sm leading-6 text-slate-700"><span className="font-medium text-slate-950">Observações:</span> {summary.notes.trim()}</p> : null}
+          <div className="mt-4 border-t border-slate-200 pt-4">
             <TimingDetails summary={summary} timeZone={data.timeZone} />
           </div>
         </article>
@@ -154,7 +223,10 @@ function PlanningList({ summaries, data }: Readonly<{ summaries: FryingOrderSumm
         <TableHeader>
           <TableRow className="bg-slate-50/80">
             <TableHead>Encomenda</TableHead>
+            <TableHead>Retirada na loja</TableHead>
             <TableHead>Produtos</TableHead>
+            <TableHead>Estado do pagamento</TableHead>
+            <TableHead>Observações</TableHead>
             <TableHead>Cuba</TableHead>
             <TableHead>Início</TableHead>
             <TableHead>Término</TableHead>
@@ -164,8 +236,11 @@ function PlanningList({ summaries, data }: Readonly<{ summaries: FryingOrderSumm
         <TableBody>
           {summaries.map((summary) => (
             <TableRow key={summary.orderId} className="hover:bg-slate-50/80">
-              <TableCell className="font-semibold text-slate-950">#{summary.orderId}<span className="mt-1 block text-sm font-normal text-slate-600">{summary.customerName ?? "Cliente não identificado"}</span></TableCell>
-              <TableCell className="text-base text-slate-700"><ProductList products={summary.products} /></TableCell>
+              <TableCell className="font-semibold text-slate-950">#{summary.orderId}<span className="mt-1 block text-sm font-normal text-slate-600">{summary.customerName ?? "Cliente não identificado"}</span><span className="mt-1 block text-sm font-normal text-slate-600">{summary.customerContact ?? "Por definir"}</span></TableCell>
+              <TableCell className="text-base text-slate-700">{summary.storeName ?? "Loja não carregada"}</TableCell>
+              <TableCell className="text-sm text-slate-700"><ProductList products={summary.products} /></TableCell>
+              <TableCell className="text-sm text-slate-700"><PaymentDetails summary={summary} /></TableCell>
+              <TableCell className="max-w-56 whitespace-pre-wrap text-sm text-slate-700">{summary.notes?.trim() || null}</TableCell>
               <TableCell className="text-base text-slate-700">{slotSummary(summary.slotNames)}</TableCell>
               <TableCell className="text-base font-medium tabular-nums text-slate-900">{time(summary.startAt, data.timeZone)}</TableCell>
               <TableCell className="text-base font-medium tabular-nums text-slate-900">{time(summary.finishAt, data.timeZone)}</TableCell>

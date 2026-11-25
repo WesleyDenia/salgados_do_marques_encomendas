@@ -35,7 +35,11 @@ function normalizePlan(value: RecordValue): FryingPlan {
           const task = taskEntry as RecordValue;
           return {
             allocationId: number(task.allocation_id), orderId: number(task.order_id),
-            customerName: optionalText(task.customer_name), productName: text(task.product_name),
+            orderItemId: number(task.order_item_id), customerName: optionalText(task.customer_name),
+            customerContact: optionalText(task.customer_contact), storeName: optionalText(task.store_name),
+            paymentStatus: task.payment_status === "pending" || task.payment_status === "partial" || task.payment_status === "paid" ? task.payment_status : null,
+            paidAmount: number(task.paid_amount), orderTotal: number(task.order_total), notes: optionalText(task.notes),
+            productName: text(task.product_name), flavorNames: array(task.flavor_names).filter((flavor): flavor is string => typeof flavor === "string"),
             batchUnits: number(task.batch_units), preparationTimeSeconds: number(task.preparation_time_seconds), heatingTimeSeconds: number(task.heating_time_seconds),
             pickupAt: optionalText(task.pickup_at), readyBy: optionalText(task.ready_by), heatingStartAt: optionalText(task.heating_start_at),
             startAt: optionalText(task.start_at), finishAt: optionalText(task.finish_at),
