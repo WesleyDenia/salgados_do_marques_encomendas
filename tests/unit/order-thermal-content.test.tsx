@@ -75,8 +75,9 @@ test("OrderThermalContent renders the full operational document for 80mm printin
   assert.match(markup, /Separar para balcão/);
   assert.match(markup, /60,00/);
   assert.match(markup, /Valor pago/);
-  assert.match(markup, /Falta pagar/);
-  assert.match(markup, /PAGO/);
+  assert.doesNotMatch(markup, /Falta pagar/);
+  assert.match(markup, /Estado do pagamento/);
+  assert.match(markup, /Pago/);
   assert.match(markup, /Planeamento de fritura/);
   assert.match(markup, /15:41/);
   assert.match(markup, /15:55/);
@@ -84,4 +85,31 @@ test("OrderThermalContent renders the full operational document for 80mm printin
   assert.doesNotMatch(markup, /Data\/Hora/);
   assert.doesNotMatch(markup, /Criada em/);
   assert.doesNotMatch(markup, /Documento térmico operacional 80mm/);
+});
+
+test("OrderThermalContent omits payment and observations when the order has neither", () => {
+  const order: Order = {
+    id: 556,
+    status: "accepted",
+    paymentStatus: null,
+    customerName: "Cliente sem notas",
+    customerContact: null,
+    scheduledAt: "2026-06-13T16:00:00Z",
+    total: 20,
+    notes: null,
+    items: [{ id: 1, productId: 1, productName: "Pack", quantity: 1, total: 20 }],
+    createdAt: "2026-05-19T09:00:00Z",
+  };
+
+  const markup = renderToStaticMarkup(
+    <OrderThermalContent
+      order={toThermalPrintOrder(order)}
+      state="preview"
+      statusMessage="Vista térmica pronta"
+    />,
+  );
+
+  assert.doesNotMatch(markup, /Estado do pagamento/);
+  assert.doesNotMatch(markup, /Sem notas operacionais/);
+  assert.doesNotMatch(markup, />Obs</);
 });

@@ -92,6 +92,43 @@ export function OrderThermalContent({
             </div>
           </section>
 
+          <section className={classes.section}>
+            {order.items.map((item) => (
+              <div key={item.key} className={classes.item}>
+                <div className={classes.itemMeta}>{item.title}</div>
+                {item.flavorLines.length > 0 ? (
+                  <div className={classes.itemMeta}>
+                    <div>Sabores:</div>
+                    {item.flavorLines.map((flavor, index) => (
+                      <div key={`${item.key}-flavor-${index}`}>- {flavor}</div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </section>
+
+          {order.payment ? (
+            <section className={classes.section}>
+              <p className={classes.sectionTitle}>Estado do pagamento</p>
+              <div className={classes.paymentStatusValue ?? classes.scheduledAtValue ?? classes.value}>
+                {order.payment.statusLabel}
+              </div>
+              {order.payment.paidAmountLabel ? (
+                <div className={classes.row}>
+                  <span className={classes.label}>Valor pago</span>
+                  <span className={classes.value}>{order.payment.paidAmountLabel}</span>
+                </div>
+              ) : null}
+              {order.payment.remainingAmountLabel ? (
+                <div className={classes.row}>
+                  <span className={classes.label}>Falta pagar</span>
+                  <span className={classes.value}>{order.payment.remainingAmountLabel}</span>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+
           {order.fryingTiming ? (
             <section className={classes.section}>
               <p className={classes.sectionTitle}>Planeamento de fritura</p>
@@ -110,44 +147,12 @@ export function OrderThermalContent({
             </section>
           ) : null}
 
-          <section className={classes.section}>
-            {order.items.map((item) => (
-              <div key={item.key} className={classes.item}>
-                <div className={classes.itemMeta}>{item.title}</div>
-                {item.flavorLines.length > 0 ? (
-                  <div className={classes.itemMeta}>
-                    <div>Sabores:</div>
-                    {item.flavorLines.map((flavor, index) => (
-                      <div key={`${item.key}-flavor-${index}`}>- {flavor}</div>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </section>
-
-          <section className={classes.section}>
-            <div className={classes.row}>
-              <span className={classes.label}>Valor</span>
-              <span className={classes.value}>{order.totalLabel}</span>
-            </div>
-            <div className={classes.row}>
-              <span className={classes.label}>Valor pago</span>
-              <span className={classes.value}>{order.paidAmountLabel}</span>
-            </div>
-            <div className={classes.row}>
-              <span className={classes.label}>Falta pagar</span>
-              <span className={classes.value}>{order.remainingAmountLabel}</span>
-            </div>
-            <div className={classes.paymentStatusValue ?? classes.scheduledAtValue ?? classes.value}>
-              {order.paymentLabel}
-            </div>
-          </section>
-
-          <section className={classes.section}>
-            <p className={classes.sectionTitle}>Obs</p>
-            <div className={classes.notes}>{order.notesLabel}</div>
-          </section>
+          {order.notesLabel ? (
+            <section className={classes.section}>
+              <p className={classes.sectionTitle}>Obs</p>
+              <div className={classes.notes}>{order.notesLabel}</div>
+            </section>
+          ) : null}
         </article>
       </div>
     </main>

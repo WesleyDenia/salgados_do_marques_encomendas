@@ -34,12 +34,13 @@ export type ThermalPrintOrder = {
   contactLabel: string;
   scheduledAtLabel: string;
   pickupStoreLabel: string;
-  paymentLabel: string;
-  totalLabel: string;
-  paidAmountLabel: string;
-  remainingAmountLabel: string;
-  notesLabel: string;
   items: ThermalPrintItem[];
+  payment?: {
+    statusLabel: string;
+    paidAmountLabel?: string;
+    remainingAmountLabel?: string;
+  };
+  notesLabel?: string;
   fryingTiming?: {
     startLabel: string;
     finishLabel: string;
@@ -147,18 +148,6 @@ function formatCustomerContact(value?: string | null) {
   }
 
   return value;
-}
-
-function formatPaymentLabel(value?: Order["paymentStatus"] | null) {
-  if (value === "paid") {
-    return "***** PAGO *****";
-  }
-
-  if (value === "partial") {
-    return "PARCIAL";
-  }
-
-  return "------- À PAGAR -------";
 }
 
 function formatScheduledAtDetailed(value?: string | null, timeZone = "Europe/Lisbon") {
@@ -315,7 +304,7 @@ function buildRemainingWithdrawalUnitsLabel(order: Order) {
 }
 
 function buildPrintNotesLabel(order: Order, timeZone: string) {
-  const baseNotes = order.notes?.trim() || "Sem notas operacionais";
+  const baseNotes = order.notes?.trim() || null;
   const withdrawalLines = buildWithdrawalLines(order, timeZone);
   const remainingUnitsLabel = buildRemainingWithdrawalUnitsLabel(order);
 
@@ -324,7 +313,7 @@ function buildPrintNotesLabel(order: Order, timeZone: string) {
   }
 
   return [
-    baseNotes,
+    ...(baseNotes ? [baseNotes] : []),
     "Retiradas parciais:",
     ...(remainingUnitsLabel ? [remainingUnitsLabel] : []),
     ...withdrawalLines,
@@ -336,6 +325,35 @@ function getPrintPaidAmount(order: Order) {
   const paidAmount = order.paidAmount ?? (order.paymentStatus === "paid" ? total : 0);
 
   return Math.min(total, Math.max(0, paidAmount));
+}
+
+function buildPrintPayment(order: Order): ThermalPrintOrder["payment"] {
+  if (!order.paymentStatus) {
+    return undefined;
+  }
+
+  const paidAmount = getPrintPaidAmount(order);
+  const remainingAmount = Math.max(0, (order.total ?? 0) - paidAmount);
+
+  if (order.paymentStatus === "paid") {
+    return {
+      statusLabel: "Pago",
+      paidAmountLabel: formatPrintCurrency(paidAmount),
+    };
+  }
+
+  if (order.paymentStatus === "partial") {
+    return {
+      statusLabel: "Parcial",
+      paidAmountLabel: formatPrintCurrency(paidAmount),
+      remainingAmountLabel: formatPrintCurrency(remainingAmount),
+    };
+  }
+
+  return {
+    statusLabel: "Pendente",
+    remainingAmountLabel: formatPrintCurrency(remainingAmount),
+  };
 }
 
 export function toThermalPrintOrder(
@@ -356,12 +374,7 @@ export function toThermalPrintOrder(
     contactLabel: formatCustomerContact(order.customerContact),
     scheduledAtLabel: formatScheduledAtDetailed(order.scheduledAt, timeZone),
     pickupStoreLabel: formatPickupStoreLabel(order.store),
-    paymentLabel: formatPaymentLabel(order.paymentStatus),
-    totalLabel: formatPrintCurrency(order.total),
-    paidAmountLabel: formatPrintCurrency(getPrintPaidAmount(order)),
-    remainingAmountLabel: formatPrintCurrency(
-      Math.max(0, (order.total ?? 0) - getPrintPaidAmount(order)),
-    ),
+    payment: buildPrintPayment(order),
     notesLabel: buildPrintNotesLabel(order, timeZone),
     items: order.items.map((item, index) => ({
       key: String(item.id ?? `${item.productId}-${index}`),

@@ -59,13 +59,31 @@ test("toThermalPrintOrder reuses normalized order data and applies operational f
   assert.equal(printable.statusLabel, "Aceite");
   assert.equal(printable.contactLabel, "Sem contacto registado");
   assert.equal(printable.pickupStoreLabel, "LOJA NORTE");
-  assert.equal(printable.notesLabel, "Sem notas operacionais");
-  assert.equal(printable.paymentLabel, "PARCIAL");
-  assert.equal(printable.paidAmountLabel, "20,00 €");
-  assert.equal(printable.remainingAmountLabel, "28,00 €");
+  assert.equal(printable.notesLabel, null);
+  assert.deepEqual(printable.payment, {
+    statusLabel: "Parcial",
+    paidAmountLabel: "20,00 €",
+    remainingAmountLabel: "28,00 €",
+  });
   assert.equal(printable.customerLabel, "MARIA OPERACIONAL");
   assert.deepEqual(printable.items[0].flavorLines, ["CARNE", "FRANGO"]);
   assert.deepEqual(printable.items[1].flavorLines, ["#3", "#9"]);
+});
+
+test("toThermalPrintOrder prints only the payment amounts that apply to each payment state", () => {
+  const pending = toThermalPrintOrder({ ...baseOrder, paymentStatus: "pending", paidAmount: 0 });
+  const paid = toThermalPrintOrder({ ...baseOrder, paymentStatus: "paid", paidAmount: 48 });
+  const withoutPayment = toThermalPrintOrder({ ...baseOrder, paymentStatus: null });
+
+  assert.deepEqual(pending.payment, {
+    statusLabel: "Pendente",
+    remainingAmountLabel: "48,00 €",
+  });
+  assert.deepEqual(paid.payment, {
+    statusLabel: "Pago",
+    paidAmountLabel: "48,00 €",
+  });
+  assert.equal(withoutPayment.payment, undefined);
 });
 
 test("toThermalPrintOrder expands repeated single-flavor pack selections for thermal printing", () => {
@@ -118,6 +136,7 @@ test("toThermalPrintOrder appends partial withdrawal observations to the thermal
     ],
   });
 
+  assert.ok(printable.notesLabel);
   assert.match(printable.notesLabel, /Cliente pediu confirmação/);
   assert.match(printable.notesLabel, /Retiradas parciais:/);
   assert.match(printable.notesLabel, /Saldo restante: 75 unid\./);
