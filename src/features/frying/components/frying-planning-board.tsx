@@ -26,7 +26,7 @@ type ViewMode = "list" | "cards";
 type FryingOrderSummary = {
   orderId: number;
   customerName: string | null;
-  products: Map<string, number>;
+  products: Set<string>;
   slotNames: Set<string>;
   startAt: string | null;
   finishAt: string | null;
@@ -41,10 +41,6 @@ function time(value: string | null, timeZone: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
-}
-
-function minutes(seconds: number) {
-  return `${Math.ceil(seconds / 60)} min`;
 }
 
 function earliest(left: string | null, right: string | null) {
@@ -69,7 +65,7 @@ function summarizeOrders(slots: FryingSlot[]): FryingOrderSummary[] {
       const current = summaries.get(task.orderId) ?? {
         orderId: task.orderId,
         customerName: task.customerName,
-        products: new Map<string, number>(),
+        products: new Set<string>(),
         slotNames: new Set<string>(),
         startAt: null,
         finishAt: null,
@@ -77,10 +73,7 @@ function summarizeOrders(slots: FryingSlot[]): FryingOrderSummary[] {
       };
       const startAt = task.heatingStartAt ?? task.startAt;
 
-      current.products.set(
-        task.productName,
-        (current.products.get(task.productName) ?? 0) + task.batchUnits,
-      );
+      current.products.add(task.productName);
       current.slotNames.add(slot.name);
       current.startAt = earliest(current.startAt, startAt);
       current.finishAt = latest(current.finishAt, task.finishAt);
@@ -97,10 +90,12 @@ function summarizeOrders(slots: FryingSlot[]): FryingOrderSummary[] {
   });
 }
 
-function productSummary(products: Map<string, number>) {
-  return [...products.entries()]
-    .map(([name, quantity]) => `${name} × ${quantity}`)
-    .join(" · ");
+function ProductList({ products }: Readonly<{ products: Set<string> }>) {
+  return (
+    <ul className="space-y-1 pt-1 text-sm leading-6 text-slate-700">
+      {[...products].map((product) => <li key={product}>{product}</li>)}
+    </ul>
+  );
 }
 
 function slotSummary(slotNames: Set<string>) {
@@ -110,17 +105,14 @@ function slotSummary(slotNames: Set<string>) {
 function TimingDetails({
   summary,
   timeZone,
-  packagingTimeSeconds,
 }: Readonly<{
   summary: FryingOrderSummary;
   timeZone: string;
-  packagingTimeSeconds: number;
 }>) {
   return (
-    <dl className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-4">
+    <dl className="grid grid-cols-2 gap-x-5 gap-y-4">
       <TimingDetail label="Início" value={time(summary.startAt, timeZone)} />
       <TimingDetail label="Término" value={time(summary.finishAt, timeZone)} />
-      <TimingDetail label="Embalamento" value={minutes(packagingTimeSeconds)} />
       <TimingDetail label="Entrega" value={time(summary.pickupAt, timeZone)} />
     </dl>
   );
@@ -143,11 +135,11 @@ function PlanningCards({ summaries, data }: Readonly<{ summaries: FryingOrderSum
           <header className="space-y-1 border-b border-slate-100 pb-4">
             <h2 className="text-base font-semibold text-slate-950">Encomenda #{summary.orderId}</h2>
             <p className="text-sm text-slate-600">{summary.customerName ?? "Cliente não identificado"}</p>
-            <p className="pt-1 text-sm leading-6 text-slate-700">{productSummary(summary.products)}</p>
+            <ProductList products={summary.products} />
             <p className="text-sm text-slate-500">{slotSummary(summary.slotNames)}</p>
           </header>
           <div className="pt-4">
-            <TimingDetails summary={summary} timeZone={data.timeZone} packagingTimeSeconds={data.packagingTimeSeconds} />
+            <TimingDetails summary={summary} timeZone={data.timeZone} />
           </div>
         </article>
       ))}
@@ -166,7 +158,6 @@ function PlanningList({ summaries, data }: Readonly<{ summaries: FryingOrderSumm
             <TableHead>Cuba</TableHead>
             <TableHead>Início</TableHead>
             <TableHead>Término</TableHead>
-            <TableHead>Embalamento</TableHead>
             <TableHead>Entrega</TableHead>
           </TableRow>
         </TableHeader>
@@ -174,11 +165,10 @@ function PlanningList({ summaries, data }: Readonly<{ summaries: FryingOrderSumm
           {summaries.map((summary) => (
             <TableRow key={summary.orderId} className="hover:bg-slate-50/80">
               <TableCell className="font-semibold text-slate-950">#{summary.orderId}<span className="mt-1 block text-sm font-normal text-slate-600">{summary.customerName ?? "Cliente não identificado"}</span></TableCell>
-              <TableCell className="text-base text-slate-700">{productSummary(summary.products)}</TableCell>
+              <TableCell className="text-base text-slate-700"><ProductList products={summary.products} /></TableCell>
               <TableCell className="text-base text-slate-700">{slotSummary(summary.slotNames)}</TableCell>
               <TableCell className="text-base font-medium tabular-nums text-slate-900">{time(summary.startAt, data.timeZone)}</TableCell>
               <TableCell className="text-base font-medium tabular-nums text-slate-900">{time(summary.finishAt, data.timeZone)}</TableCell>
-              <TableCell className="text-base text-slate-700">{minutes(data.packagingTimeSeconds)}</TableCell>
               <TableCell className="text-base font-medium tabular-nums text-slate-900">{time(summary.pickupAt, data.timeZone)}</TableCell>
             </TableRow>
           ))}
@@ -226,7 +216,7 @@ export function FryingPlanningBoard() {
     {plan.isLoading ? <p className="text-base text-muted-foreground">A calcular o planeamento…</p> : null}
     {plan.isError ? <EmptyState title="Não foi possível obter o planeamento" description="Confirme a loja e tente novamente." /> : null}
     {data ? <>
-      <div className="grid gap-4 sm:grid-cols-3"><Metric icon={<PackageCheck className="size-5" />} label="Encomendas" value={String(data.ordersCount)} /><Metric icon={<Clock3 className="size-5" />} label="Primeiro início" value={time(data.earliestStartAt, data.timeZone)} /><Metric icon={<Clock3 className="size-5" />} label="Embalamento" value={minutes(data.packagingTimeSeconds)} /></div>
+      <div className="grid gap-4 sm:grid-cols-2"><Metric icon={<PackageCheck className="size-5" />} label="Encomendas" value={String(data.ordersCount)} /><Metric icon={<Clock3 className="size-5" />} label="Primeiro início" value={time(data.earliestStartAt, data.timeZone)} /></div>
       {data.warnings.map((warning) => <p key={warning} className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-base text-amber-900">{warning}</p>)}
       {summaries.length === 0 ? <EmptyState title="Sem frituras planeadas" description="Não existem cubas ou tempos de fritura configurados para estas encomendas." /> : viewMode === "cards" ? <PlanningCards summaries={summaries} data={data} /> : <PlanningList summaries={summaries} data={data} />}
     </> : null}
