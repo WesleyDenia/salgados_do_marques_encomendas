@@ -2,6 +2,16 @@
 
 import * as React from "react";
 import Link from "next/link";
+import {
+  BanknoteArrowDown,
+  CalendarClock,
+  CircleAlert,
+  ClipboardCheck,
+  CreditCard,
+  PackageCheck,
+  UsersRound,
+  WalletCards,
+} from "lucide-react";
 
 import { EmptyState } from "@/components/feedback/empty-state";
 import { Button } from "@/components/ui/button";
@@ -167,16 +177,47 @@ function SummaryCard({
   title,
   value,
   description,
+  icon: Icon,
+  tone = "default",
 }: Readonly<{
   title: string;
   value: string | number;
   description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  tone?: "default" | "attention" | "positive" | "featured";
 }>) {
   return (
-    <article className="rounded-2xl border border-border/70 bg-card/90 p-5">
-      <p className="text-sm font-medium text-muted-foreground">{title}</p>
-      <p className="mt-3 text-3xl font-semibold tracking-tight text-foreground">{value}</p>
-      <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
+    <article
+      className={cn(
+        "relative overflow-hidden rounded-2xl border p-5 shadow-[0_10px_24px_-24px_rgba(15,23,42,0.6)]",
+        tone === "featured" && "border-slate-800 bg-slate-950 text-white",
+        tone === "attention" && "border-amber-200 bg-amber-50/80",
+        tone === "positive" && "border-emerald-200 bg-emerald-50/75",
+        tone === "default" && "border-border bg-card",
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <p className={cn("text-sm font-medium", tone === "featured" ? "text-slate-200" : "text-muted-foreground")}>
+          {title}
+        </p>
+        <span
+          className={cn(
+            "flex size-9 shrink-0 items-center justify-center rounded-xl",
+            tone === "featured" && "bg-white/10 text-amber-200",
+            tone === "attention" && "bg-amber-200/70 text-amber-950",
+            tone === "positive" && "bg-emerald-200/70 text-emerald-950",
+            tone === "default" && "bg-blue-50 text-blue-700",
+          )}
+        >
+          <Icon className="size-4" />
+        </span>
+      </div>
+      <p className={cn("mt-5 text-3xl font-semibold tracking-[-0.04em] tabular-nums", tone === "featured" ? "text-white" : "text-foreground")}>
+        {value}
+      </p>
+      <p className={cn("mt-2 text-sm leading-5", tone === "featured" ? "text-slate-300" : "text-muted-foreground")}>
+        {description}
+      </p>
     </article>
   );
 }
@@ -193,10 +234,10 @@ function OperationalSection({
   children: React.ReactNode;
 }>) {
   return (
-    <section className="rounded-3xl border border-border/70 bg-card/90 p-5">
+    <section className="operational-surface p-5">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="space-y-1">
-          <h2 className="text-lg font-semibold tracking-tight text-foreground">{title}</h2>
+          <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">{title}</h2>
           <p className="text-sm leading-6 text-muted-foreground">{description}</p>
         </div>
         {action}
@@ -225,15 +266,15 @@ function OrderList({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="divide-y divide-border/80 overflow-hidden rounded-2xl border border-border bg-slate-50/45">
       {orders.map((order) => (
         <article
           key={String(order.id)}
-          className="rounded-2xl border border-border/70 bg-background/80 p-4"
+          className="bg-card px-4 py-4 transition-colors hover:bg-blue-50/60"
         >
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-foreground">
+              <p className="text-sm font-semibold tabular-nums text-foreground">
                 Encomenda #{order.id} · {buildCustomerLabel(order)}
               </p>
               <p className="text-sm text-muted-foreground">
@@ -245,14 +286,14 @@ function OrderList({
             </div>
 
             <div className="flex flex-wrap gap-2 text-xs font-medium">
-              <span className="rounded-full border border-border/70 px-3 py-1 text-foreground">
+              <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-blue-800">
                 {buildOrderStatusLabel(order, statusLabels)}
               </span>
-              <span className="rounded-full border border-border/70 px-3 py-1 text-foreground">
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-700">
                 {ORDER_PAYMENT_STATUS_LABELS[(order.paymentStatus ?? "pending") as OrderPaymentStatus] ??
                   "Pagamento pendente"}
               </span>
-              <span className="rounded-full border border-border/70 px-3 py-1 text-foreground">
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-700">
                 {ORDER_SLOT_LABELS[(order.slot ?? "") as OrderSlot] ?? "Sem slot"}
               </span>
             </div>
@@ -276,7 +317,7 @@ function SlotOccupancyCard({
     slotKey;
 
   return (
-    <article className="rounded-2xl border border-border/70 bg-background/80 p-4">
+    <article className="rounded-xl border border-border bg-slate-50/65 p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-foreground">{label}</p>
@@ -458,10 +499,10 @@ function DashboardDateFilter({
   onEndDateChange: (value: string) => void;
 }>) {
   return (
-    <section className="rounded-3xl border border-border/70 bg-card/90 p-5" aria-label="Filtro do dashboard">
+    <section className="operational-surface p-4" aria-label="Filtro do dashboard">
       <div className="grid gap-4 md:grid-cols-[minmax(0,16rem)_minmax(0,16rem)_minmax(0,16rem)] md:items-end">
         <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground" htmlFor="dashboard-period">
+          <label className="operational-label" htmlFor="dashboard-period">
             Período do dashboard
           </label>
           <Select value={period} onValueChange={(value) => onPeriodChange(normalizeProductDemandPeriod(value))}>
@@ -481,13 +522,13 @@ function DashboardDateFilter({
         {period === "custom" ? (
           <>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="dashboard-start">
+              <label className="operational-label" htmlFor="dashboard-start">
                 Data inicial
               </label>
               <Input id="dashboard-start" type="date" value={customStartDate} onChange={(event) => onStartDateChange(event.target.value)} />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="dashboard-end">
+              <label className="operational-label" htmlFor="dashboard-end">
                 Data final
               </label>
               <Input id="dashboard-end" type="date" min={customStartDate || undefined} value={customEndDate} onChange={(event) => onEndDateChange(event.target.value)} />
@@ -557,7 +598,7 @@ function DashboardContent({
   const ordersHref = buildOrdersHref(period, undefined, customStartDate, customEndDate);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <DashboardDateFilter
         period={period}
         customStartDate={customStartDate}
@@ -567,46 +608,60 @@ function DashboardContent({
         onEndDateChange={onEndDateChange}
       />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <SummaryCard
           title="Encomendas de hoje"
           value={summary?.orderCount ?? 0}
           description="Total de encomendas no período selecionado."
+          icon={ClipboardCheck}
+          tone="featured"
         />
         <SummaryCard
           title="Clientes"
           value={customerCount}
           description="Clientes únicos com encomendas no período selecionado."
+          icon={UsersRound}
         />
         <SummaryCard
           title="Previsão de entradas €"
           value={formatCurrency(expectedRevenue)}
           description="Somatório das encomendas com pagamento pendente."
+          icon={WalletCards}
         />
         <SummaryCard
           title="Valores recebidos"
           value={formatCurrency(receivedRevenue)}
           description="Somatório das encomendas com pagamento confirmado."
+          icon={BanknoteArrowDown}
+          tone="positive"
         />
         <SummaryCard
           title="Pagamentos confirmados"
           value={summary?.paidCount ?? 0}
           description="Encomendas já marcadas como pagas no dataset oficial."
+          icon={CreditCard}
+          tone="positive"
         />
         <SummaryCard
           title="Encomendas não pagas"
           value={unpaidOrders}
           description="Encomendas ainda sem pagamento confirmado."
+          icon={CircleAlert}
+          tone={unpaidOrders > 0 ? "attention" : "default"}
         />
         <SummaryCard
           title="Data indefinida"
           value={operationalAttention.undefinedPickupDate.count}
           description="Encomendas sem dia de retirada, em qualquer período."
+          icon={CalendarClock}
+          tone={operationalAttention.undefinedPickupDate.count > 0 ? "attention" : "default"}
         />
         <SummaryCard
           title="Horário indefinido no período"
           value={operationalAttention.undefinedPickupTime.count}
           description="Encomendas com dia definido e sem horário de retirada neste período."
+          icon={PackageCheck}
+          tone={operationalAttention.undefinedPickupTime.count > 0 ? "attention" : "default"}
         />
       </section>
 

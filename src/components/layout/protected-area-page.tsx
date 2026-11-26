@@ -91,11 +91,14 @@ export function ProtectedAreaPage({
 
   if (routeKey === "dashboard") {
     return (
-      <section className="space-y-6">
-        <header>
-          <h1 className="text-3xl font-semibold tracking-tight">
+      <section className="space-y-5">
+        <header className="flex items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-[-0.03em] text-slate-950">
             Dashboard de encomendas
-          </h1>
+            </h1>
+            <p className="mt-1 text-sm text-slate-600">Acompanhe a procura, a produção e as retiradas do período.</p>
+          </div>
         </header>
 
         {children}
@@ -110,12 +113,9 @@ export function ProtectedAreaPage({
   if (routeKey === "planning") {
     return (
       <section className="space-y-6">
-        <header className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <header className="operational-surface p-6">
           <div className="space-y-2">
-            <p className="text-sm font-medium uppercase tracking-[0.24em] text-slate-500">
-              Planeamento
-            </p>
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
+            <h1 className="text-3xl font-semibold tracking-[-0.03em] text-slate-950">
               Carga operacional, slots e leitura de capacidade
             </h1>
             <p className="max-w-3xl text-sm leading-6 text-slate-600">

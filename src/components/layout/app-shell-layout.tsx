@@ -63,11 +63,11 @@ function SidebarBrand({ collapsed }: Readonly<{ collapsed: boolean }>) {
   return (
     <div
       className={cn(
-        "flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-3",
+        "flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3",
         collapsed && "justify-center px-2",
       )}
     >
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-amber-400 text-slate-950">
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-300 text-slate-950 shadow-[0_6px_18px_-10px_rgba(253,230,138,0.9)]">
         <PackagePlus className="size-5" />
       </div>
 
@@ -109,11 +109,11 @@ export function AppShellNavigation({
             href={item.href}
             onClick={onNavigate}
             className={cn(
-              "group flex items-center gap-3 rounded-2xl px-3 py-3 transition-colors",
+              "group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors",
               collapsed && "justify-center px-2",
               isActive
-                ? "bg-white text-slate-950 shadow-sm"
-                : "text-slate-200 hover:bg-white/8 hover:text-white",
+                ? "bg-amber-300 text-slate-950 shadow-[0_8px_18px_-14px_rgba(253,230,138,0.95)]"
+                : "text-slate-300 hover:bg-white/8 hover:text-white",
             )}
           >
             <Icon className="size-4 shrink-0" />
@@ -167,7 +167,7 @@ function SidebarContent({
       <div className="border-t border-white/10 p-4">
         <div
           className={cn(
-            "rounded-2xl border border-white/10 bg-white/5 p-3",
+            "rounded-xl border border-white/10 bg-white/5 p-3",
             collapsed && "px-2 py-3",
           )}
         >
@@ -203,13 +203,12 @@ function AppShellHeader({
 }>) {
   const pathname = usePathname() ?? "";
   const currentRoute = getPanelRouteDefinition(pathname);
-  const pageLabel = currentRoute?.label ?? "Painel operacional";
   const pageDescription =
     currentRoute?.description ??
     "Acompanhe encomendas, criação e planeamento num único fluxo operacional.";
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-slate-200/90 bg-slate-50/90 backdrop-blur">
       <div className="flex min-h-18 items-center justify-between gap-4 px-4 py-3 md:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <Button
@@ -233,12 +232,9 @@ function AppShellHeader({
           </Button>
 
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-              {pageLabel}
-            </p>
-            <h1 className="truncate text-lg font-semibold tracking-tight text-slate-950">
+            <p className="truncate text-lg font-semibold tracking-tight text-slate-950">
               {pageDescription}
-            </h1>
+            </p>
           </div>
         </div>
 
@@ -301,7 +297,7 @@ export function AppShellLayout({
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-background">
       <div className="flex min-h-screen">
         <aside className="hidden border-r border-white/10 bg-slate-950 md:block">
           <SidebarContent
@@ -327,7 +323,7 @@ export function AppShellLayout({
             onToggleDesktop={handleToggleDesktop}
           />
 
-          <main className="flex-1 p-4 md:p-6">
+          <main className="flex-1 p-4 md:p-6 lg:p-8">
             <div className="mx-auto w-full max-w-[1600px]">{children}</div>
           </main>
         </div>

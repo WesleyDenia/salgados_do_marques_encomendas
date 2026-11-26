@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-26T00:00:00Z",
+  "title": "Design System: Salgados Encomendas",
+  "extensions": {
+    "colorMeta": {
+      "ink-blue": { "role": "primary", "displayName": "Ink Blue", "canonical": "oklch(0.19 0.035 255)" },
+      "operational-blue": { "role": "primary", "displayName": "Operational Blue", "canonical": "oklch(0.34 0.09 250)" },
+      "cool-paper": { "role": "neutral", "displayName": "Cool Paper", "canonical": "oklch(0.975 0.007 245)" },
+      "cool-paper-depth": { "role": "neutral", "displayName": "Cool Paper Depth", "canonical": "oklch(0.96 0.012 245)" },
+      "amber-signal": { "role": "secondary", "displayName": "Amber Signal", "canonical": "oklch(0.72 0.15 80)" },
+      "amber-selection": { "role": "secondary", "displayName": "Amber Selection", "canonical": "oklch(0.78 0.13 82 / 55%)" },
+      "focus-blue": { "role": "primary", "displayName": "Focus Blue", "canonical": "oklch(0.52 0.11 250)" }
+    },
+    "shadows": [
+      { "name": "operational-surface", "value": "0 10px 28px -24px oklch(0.18 0.04 255 / 45%)", "purpose": "Separação subtil de painéis de trabalho." }
+    ],
+    "motion": [
+      { "name": "state-transition", "value": "150ms ease-out", "purpose": "Hover, seleção e mudanças de estado." }
+    ],
+    "breakpoints": [
+      { "name": "md", "value": "768px", "purpose": "Transição da navegação móvel e grelhas de duas colunas." },
+      { "name": "xl", "value": "1280px", "purpose": "Grelhas de quatro métricas e áreas de trabalho lado a lado." }
+    ],
+    "rules": [
+      "A cor deve ter significado operacional.",
+      "As tabelas têm zebra subtil e hover, mantendo etiquetas textuais de estado.",
+      "Painéis são usados para agrupar trabalho, não para envolver cada elemento individual."
+    ]
+  }
+}
