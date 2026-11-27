@@ -143,6 +143,10 @@ export function formatFryingFlavor(flavor: string, isFrozen: boolean) {
   return uppercase(isFrozen ? `${flavor} - CONGELADO` : flavor);
 }
 
+export function formatNextPreparationDetails(orderId: number, customerName: string | null) {
+  return `Encomenda #${orderId} · ${uppercaseOrFallback(customerName, "Cliente não identificado")}`;
+}
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" }).format(value);
 }
@@ -294,6 +298,7 @@ export function FryingPlanningBoard() {
   const registerAlarms = useRegisterFryingAlarms();
   const data = plan.data;
   const summaries = React.useMemo(() => summarizeOrders(data?.slots ?? []), [data?.slots]);
+  const nextPreparation = summaries[0];
 
   const printSummary = React.useCallback((summary: FryingOrderSummary) => {
     const printHref = buildOrderPrintHref(summary.orderId, {
@@ -360,13 +365,17 @@ export function FryingPlanningBoard() {
     {plan.isLoading ? <p className="text-base text-muted-foreground">A calcular o planeamento…</p> : null}
     {plan.isError ? <EmptyState title="Não foi possível obter o planeamento" description="Confirme a loja e tente novamente." /> : null}
     {data ? <>
-      <div className="grid gap-4 sm:grid-cols-2"><Metric icon={<PackageCheck className="size-5" />} label="Encomendas" value={String(data.ordersCount)} /><Metric icon={<Clock3 className="size-5" />} label="Primeiro início" value={time(data.earliestStartAt, data.timeZone)} /></div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Metric icon={<PackageCheck className="size-5" />} label="Encomendas" value={String(data.ordersCount)} />
+        <Metric icon={<Clock3 className="size-5" />} label="Início" value={time(data.earliestStartAt, data.timeZone)} />
+        <Metric icon={<Clock3 className="size-5" />} label="Próximo preparo" value={time(nextPreparation?.startAt ?? null, data.timeZone)} detail={nextPreparation ? formatNextPreparationDetails(nextPreparation.orderId, nextPreparation.customerName) : "Sem preparos planeados"} />
+      </div>
       {data.warnings.map((warning) => <p key={warning} className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-base text-amber-900">{warning}</p>)}
       {summaries.length === 0 ? <EmptyState title="Sem frituras planeadas" description="Não existem cubas ou tempos de fritura configurados para estas encomendas." /> : viewMode === "cards" ? <PlanningCards summaries={summaries} data={data} onPrint={printSummary} /> : <PlanningList summaries={summaries} data={data} />}
     </> : null}
   </div>;
 }
 
-function Metric({ icon, label, value }: Readonly<{ icon: React.ReactNode; label: string; value: string }>) {
-  return <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-2 text-slate-500">{icon}<p className="text-base">{label}</p></div><p className="mt-3 text-2xl font-semibold tabular-nums text-slate-950">{value}</p></article>;
+function Metric({ icon, label, value, detail }: Readonly<{ icon: React.ReactNode; label: string; value: string; detail?: string }>) {
+  return <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-2 text-slate-500">{icon}<p className="text-base">{label}</p></div><p className="mt-3 text-2xl font-semibold tabular-nums text-slate-950">{value}</p>{detail ? <p className="mt-1 truncate text-sm text-slate-600" title={detail}>{detail}</p> : null}</article>;
 }
