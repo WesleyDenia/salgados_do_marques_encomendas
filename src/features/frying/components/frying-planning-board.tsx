@@ -28,6 +28,7 @@ type ViewMode = "list" | "cards";
 type FryingOrderProduct = {
   name: string;
   flavorNames: string[];
+  isFrozen: boolean;
 };
 
 type FryingOrderSummary = {
@@ -103,6 +104,7 @@ function summarizeOrders(slots: FryingSlot[]): FryingOrderSummary[] {
       current.products.set(task.orderItemId, {
         name: task.productName,
         flavorNames: task.flavorNames,
+        isFrozen: task.isFrozen,
       });
       current.slotNames.add(slot.name);
       current.startAt = earliest(current.startAt, startAt);
@@ -128,13 +130,17 @@ function ProductList({ products }: Readonly<{ products: Map<number, FryingOrderP
           <p className="font-medium text-slate-950">{uppercase(product.name)}</p>
           {product.flavorNames.length ? (
             <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
-              {product.flavorNames.map((flavor, index) => <li key={`${flavor}-${index}`}>{uppercase(flavor)}</li>)}
+              {product.flavorNames.map((flavor, index) => <li key={`${flavor}-${index}`}>{formatFryingFlavor(flavor, product.isFrozen)}</li>)}
             </ul>
           ) : null}
         </div>
       ))}
     </div>
   );
+}
+
+export function formatFryingFlavor(flavor: string, isFrozen: boolean) {
+  return uppercase(isFrozen ? `${flavor} - CONGELADO` : flavor);
 }
 
 function formatCurrency(value: number) {

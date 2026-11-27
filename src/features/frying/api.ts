@@ -41,6 +41,7 @@ function normalizePlan(value: RecordValue): FryingPlan {
             paymentStatus: task.payment_status === "pending" || task.payment_status === "partial" || task.payment_status === "paid" ? task.payment_status : null,
             paidAmount: number(task.paid_amount), orderTotal: number(task.order_total), notes: optionalText(task.notes),
             productName: text(task.product_name), flavorNames: array(task.flavor_names).filter((flavor): flavor is string => typeof flavor === "string"),
+            isFrozen: task.is_frozen === true,
             batchUnits: number(task.batch_units), preparationTimeSeconds: number(task.preparation_time_seconds), heatingTimeSeconds: number(task.heating_time_seconds),
             pickupAt: optionalText(task.pickup_at), readyBy: optionalText(task.ready_by), heatingStartAt: optionalText(task.heating_start_at),
             startAt: optionalText(task.start_at), finishAt: optionalText(task.finish_at),

@@ -13,6 +13,7 @@ export type FryingTask = {
   notes: string | null;
   productName: string;
   flavorNames: string[];
+  isFrozen: boolean;
   batchUnits: number;
   preparationTimeSeconds: number;
   heatingTimeSeconds: number;
