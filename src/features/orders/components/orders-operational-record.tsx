@@ -194,7 +194,9 @@ function parsePersistedOrderRecordFilters(
         typeof parsed.paymentStatus === "string" ? parsed.paymentStatus : "",
       slot: typeof parsed.slot === "string" ? parsed.slot : "",
       storeId:
-        Number.isInteger(parsed.storeId) && (parsed.storeId ?? 0) > 0
+        typeof parsed.storeId === "number" &&
+        Number.isInteger(parsed.storeId) &&
+        parsed.storeId > 0
           ? parsed.storeId
           : 0,
       tagIds: Array.isArray(parsed.tagIds)

@@ -442,7 +442,11 @@ export async function getOrders(
   if (filters.paymentStatus?.trim())
     params.payment_status = filters.paymentStatus.trim();
   if (filters.slot?.trim()) params.slot = filters.slot.trim();
-  if (Number.isInteger(filters.storeId) && (filters.storeId ?? 0) > 0) {
+  if (
+    typeof filters.storeId === "number" &&
+    Number.isInteger(filters.storeId) &&
+    filters.storeId > 0
+  ) {
     params.store_id = filters.storeId;
   }
   if (Array.isArray(filters.tagIds) && filters.tagIds.length > 0) {
