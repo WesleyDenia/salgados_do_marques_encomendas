@@ -45,6 +45,7 @@ export function parsePersistedFryingPlanningFilters(
     if (
       typeof parsed.date !== "string" ||
       !/^\d{4}-\d{2}-\d{2}$/.test(parsed.date) ||
+      typeof parsed.storeId !== "number" ||
       !Number.isInteger(parsed.storeId) ||
       parsed.storeId <= 0
     ) {
