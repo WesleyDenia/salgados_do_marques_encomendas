@@ -36,6 +36,7 @@ function normalizePlan(value: RecordValue): FryingPlan {
           const task = taskEntry as RecordValue;
           return {
             allocationId: number(task.allocation_id), orderId: number(task.order_id),
+            status: text(task.status),
             orderItemId: number(task.order_item_id), customerName: optionalText(task.customer_name),
             customerContact: optionalText(task.customer_contact), storeName: optionalText(task.store_name),
             paymentStatus: task.payment_status === "pending" || task.payment_status === "partial" || task.payment_status === "paid" ? task.payment_status : null,

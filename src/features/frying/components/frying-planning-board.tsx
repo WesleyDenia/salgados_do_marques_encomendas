@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { BellRing, Clock3, LayoutGrid, List, PackageCheck, Printer } from "lucide-react";
+import { BellRing, Check, Clock3, LayoutGrid, List, PackageCheck, Printer } from "lucide-react";
 
 import { EmptyState } from "@/components/feedback/empty-state";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useOrderSettings, useOrderStores } from "@/features/orders/hooks/use-order-queries";
+import { useUpdateOrderStatus } from "@/features/orders/hooks/use-order-mutations";
 import { buildOrderPrintHref, openPrintPreviewWindow } from "@/lib/printing";
 import { normalizePlanningDay } from "@/features/planning/utils";
 import type { FryingPlan, FryingSlot } from "../types";
@@ -33,6 +34,7 @@ type FryingOrderProduct = {
 
 type FryingOrderSummary = {
   orderId: number;
+  status: string;
   customerName: string | null;
   customerContact: string | null;
   storeName: string | null;
@@ -86,6 +88,7 @@ function summarizeOrders(slots: FryingSlot[]): FryingOrderSummary[] {
     for (const task of slot.tasks) {
       const current = summaries.get(task.orderId) ?? {
         orderId: task.orderId,
+        status: task.status,
         customerName: task.customerName,
         customerContact: task.customerContact,
         storeName: task.storeName,
@@ -151,6 +154,18 @@ function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" }).format(value);
 }
 
+export function getFryingOrderStatusAction(status?: string) {
+  if (status === "ready") {
+    return { label: "Concluir", nextStatus: "done" };
+  }
+
+  if (status === "done" || status === "completed") {
+    return null;
+  }
+
+  return { label: "Pronto", nextStatus: "ready" };
+}
+
 function paymentLabel(status: FryingOrderSummary["paymentStatus"]) {
   const labels = { pending: "Pendente", partial: "Parcial", paid: "Pago" };
 
@@ -207,10 +222,13 @@ function TimingDetail({ label, value }: Readonly<{ label: string; value: string 
   );
 }
 
-function PlanningCards({ summaries, data, onPrint }: Readonly<{
+function PlanningCards({ summaries, data, onPrint, onStatusChange, isUpdatingOrder, orderStatuses }: Readonly<{
   summaries: FryingOrderSummary[];
   data: FryingPlan;
   onPrint: (summary: FryingOrderSummary) => void;
+  onStatusChange: (summary: FryingOrderSummary, nextStatus: string) => void;
+  isUpdatingOrder: (orderId: number) => boolean;
+  orderStatuses: ReadonlyMap<number, string>;
 }>) {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -225,7 +243,29 @@ function PlanningCards({ summaries, data, onPrint }: Readonly<{
               <p><span className="font-medium text-slate-950">Retirada na loja:</span> {uppercaseOrFallback(summary.storeName, "Loja não carregada")}</p>
             </div>
             </div>
-            <Button type="button" variant="outline" size="sm" onClick={() => onPrint(summary)}><Printer className="size-3.5" />Imprimir</Button>
+            <div className="flex shrink-0 flex-wrap justify-end gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => onPrint(summary)}>
+                <Printer className="size-3.5" />
+                Imprimir
+              </Button>
+              {(() => {
+                const action = getFryingOrderStatusAction(
+                  orderStatuses.get(summary.orderId) ?? summary.status,
+                );
+
+                return action ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isUpdatingOrder(summary.orderId)}
+                    onClick={() => onStatusChange(summary, action.nextStatus)}
+                  >
+                    <Check className="size-3.5" />
+                    {isUpdatingOrder(summary.orderId) ? "A atualizar…" : action.label}
+                  </Button>
+                ) : null;
+              })()}
+            </div>
           </header>
           <div className="mt-4 border-t border-slate-200 pt-4">
             <ProductList products={summary.products} />
@@ -296,9 +336,13 @@ export function FryingPlanningBoard() {
   }, []);
   const plan = useFryingPlan(date, storeId);
   const registerAlarms = useRegisterFryingAlarms();
+  const updateOrderStatus = useUpdateOrderStatus();
   const data = plan.data;
   const summaries = React.useMemo(() => summarizeOrders(data?.slots ?? []), [data?.slots]);
   const nextPreparation = summaries[0];
+  const [orderStatuses, setOrderStatuses] = React.useState<Map<number, string>>(
+    () => new Map(),
+  );
 
   const printSummary = React.useCallback((summary: FryingOrderSummary) => {
     const printHref = buildOrderPrintHref(summary.orderId, {
@@ -311,6 +355,45 @@ export function FryingPlanningBoard() {
 
     openPrintPreviewWindow(printHref, (href, target, features) => window.open(href, target, features));
   }, [zone]);
+
+  const updateOrderPreparationStatus = React.useCallback(
+    (summary: FryingOrderSummary, nextStatus: string) => {
+      updateOrderStatus.mutate(
+        { orderId: summary.orderId, status: nextStatus },
+        {
+          onSuccess: (order) => {
+            setOrderStatuses((current) => {
+              const next = new Map(current);
+              next.set(summary.orderId, order.status);
+              return next;
+            });
+            void plan.refetch();
+            toast(
+              nextStatus === "ready"
+                ? `Encomenda #${summary.orderId} marcada como pronta.`
+                : `Encomenda #${summary.orderId} concluída.`,
+              "success",
+            );
+          },
+          onError: (error) => {
+            toast(
+              error instanceof Error
+                ? error.message
+                : "Não foi possível atualizar o estado da encomenda.",
+              "error",
+            );
+          },
+        },
+      );
+    },
+    [plan, toast, updateOrderStatus],
+  );
+
+  const isUpdatingOrder = React.useCallback(
+    (orderId: number) =>
+      updateOrderStatus.isPending && updateOrderStatus.variables?.orderId === orderId,
+    [updateOrderStatus.isPending, updateOrderStatus.variables?.orderId],
+  );
 
   const handleRegisterAlarms = React.useCallback(() => {
     if (!storeId || !data) {
@@ -371,7 +454,7 @@ export function FryingPlanningBoard() {
         <Metric icon={<Clock3 className="size-5" />} label="Próximo preparo" value={time(nextPreparation?.startAt ?? null, data.timeZone)} detail={nextPreparation ? formatNextPreparationDetails(nextPreparation.orderId, nextPreparation.customerName) : "Sem preparos planeados"} />
       </div>
       {data.warnings.map((warning) => <p key={warning} className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-base text-amber-900">{warning}</p>)}
-      {summaries.length === 0 ? <EmptyState title="Sem frituras planeadas" description="Não existem cubas ou tempos de fritura configurados para estas encomendas." /> : viewMode === "cards" ? <PlanningCards summaries={summaries} data={data} onPrint={printSummary} /> : <PlanningList summaries={summaries} data={data} />}
+      {summaries.length === 0 ? <EmptyState title="Sem frituras planeadas" description="Não existem cubas ou tempos de fritura configurados para estas encomendas." /> : viewMode === "cards" ? <PlanningCards summaries={summaries} data={data} onPrint={printSummary} onStatusChange={updateOrderPreparationStatus} isUpdatingOrder={isUpdatingOrder} orderStatuses={orderStatuses} /> : <PlanningList summaries={summaries} data={data} />}
     </> : null}
   </div>;
 }

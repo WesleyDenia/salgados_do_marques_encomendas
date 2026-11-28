@@ -3,6 +3,7 @@ export type FryingStore = { id: number; name: string };
 export type FryingTask = {
   allocationId: number;
   orderId: number;
+  status: string;
   orderItemId: number;
   customerName: string | null;
   customerContact: string | null;
