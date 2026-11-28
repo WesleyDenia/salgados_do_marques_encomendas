@@ -55,6 +55,7 @@ import {
 import {
   useOrderDetail,
   useOrderProducts,
+  useOrderStores,
 } from "@/features/orders/hooks/use-order-queries";
 import { OrderSearch } from "@/features/orders/components/order-search";
 import {
@@ -122,6 +123,7 @@ type PersistedOrderRecordFilters = {
   status: string;
   paymentStatus: string;
   slot: string;
+  storeId: number;
   tagIds: number[];
   pickupDateUndefined: boolean;
   customStartDate: string;
@@ -161,6 +163,7 @@ function hasExplicitOrderFilterParams(searchParams: OrderRecordSearchParams) {
     "status",
     "payment_status",
     "slot",
+    "store_id",
     "tag_ids",
     "pickup_date_undefined",
     "start_date",
@@ -190,6 +193,10 @@ function parsePersistedOrderRecordFilters(
       paymentStatus:
         typeof parsed.paymentStatus === "string" ? parsed.paymentStatus : "",
       slot: typeof parsed.slot === "string" ? parsed.slot : "",
+      storeId:
+        Number.isInteger(parsed.storeId) && (parsed.storeId ?? 0) > 0
+          ? parsed.storeId
+          : 0,
       tagIds: Array.isArray(parsed.tagIds)
         ? parsed.tagIds.filter((tagId): tagId is number => Number.isInteger(tagId) && tagId > 0)
         : [],
@@ -534,6 +541,7 @@ export function buildOrdersRecordUrl({
   status,
   paymentStatus,
   slot,
+  storeId = 0,
   tagIds = [],
   pickupDateUndefined = false,
   statusLabels,
@@ -549,6 +557,7 @@ export function buildOrdersRecordUrl({
   status: string;
   paymentStatus: string;
   slot: string;
+  storeId?: number;
   tagIds?: number[];
   pickupDateUndefined?: boolean;
   statusLabels?: Record<string, string>;
@@ -560,6 +569,7 @@ export function buildOrdersRecordUrl({
   const rawStatusParam = searchParams.get("status");
   const rawPaymentStatusParam = searchParams.get("payment_status");
   const rawSlotParam = searchParams.get("slot");
+  const rawStoreIdParam = searchParams.get("store_id");
   const rawTagIdsParam = searchParams.get("tag_ids");
   const rawPickupDateUndefinedParam = searchParams.get("pickup_date_undefined");
   const rawStartDateParam = searchParams.get("start_date");
@@ -576,6 +586,11 @@ export function buildOrdersRecordUrl({
     searchParams.get("payment_status"),
   );
   const currentUrlSlot = normalizeOrderOperationalSlot(searchParams.get("slot"));
+  const currentUrlStoreId = Number(rawStoreIdParam);
+  const normalizedUrlStoreId =
+    Number.isInteger(currentUrlStoreId) && currentUrlStoreId > 0
+      ? currentUrlStoreId
+      : 0;
   const currentUrlTagIds = normalizeOrderOperationalTagIds(rawTagIdsParam);
   const pageParamIsCanonical =
     effectivePage === 1
@@ -591,6 +606,8 @@ export function buildOrdersRecordUrl({
       : rawPaymentStatusParam === paymentStatus;
   const slotParamIsCanonical =
     slot === "" ? rawSlotParam == null : rawSlotParam === slot;
+  const storeIdParamIsCanonical =
+    storeId === 0 ? rawStoreIdParam == null : rawStoreIdParam === String(storeId);
   const normalizedTagIdsParam = currentUrlTagIds.join(",");
   const localTagIdsParam = tagIds.join(",");
   const tagIdsParamIsCanonical =
@@ -612,12 +629,14 @@ export function buildOrdersRecordUrl({
     currentUrlStatus === status &&
     currentUrlPaymentStatus === paymentStatus &&
     currentUrlSlot === slot &&
+    normalizedUrlStoreId === storeId &&
     normalizedTagIdsParam === localTagIdsParam &&
     pageParamIsCanonical &&
     periodParamIsCanonical &&
     statusParamIsCanonical &&
     paymentStatusParamIsCanonical &&
     slotParamIsCanonical &&
+    storeIdParamIsCanonical &&
     tagIdsParamIsCanonical &&
     pickupDateUndefinedParamIsCanonical &&
     startDateParamIsCanonical &&
@@ -640,6 +659,7 @@ export function buildOrdersRecordUrl({
     status !== currentUrlStatus ||
     paymentStatus !== currentUrlPaymentStatus ||
     slot !== currentUrlSlot ||
+    storeId !== normalizedUrlStoreId ||
     localTagIdsParam !== normalizedTagIdsParam ||
     pickupDateUndefined !== (rawPickupDateUndefinedParam === "1") ||
     (period === "custom" &&
@@ -675,6 +695,12 @@ export function buildOrdersRecordUrl({
     params.set("slot", slot);
   } else {
     params.delete("slot");
+  }
+
+  if (storeId > 0) {
+    params.set("store_id", String(storeId));
+  } else {
+    params.delete("store_id");
   }
 
   if (tagIds.length > 0) {
@@ -754,6 +780,7 @@ export function OrdersOperationalRecordEmptyState({
   statusLabel,
   paymentStatusLabel,
   slotLabel,
+  storeLabel,
   tagLabel,
   onClear,
   mode = "operational",
@@ -763,6 +790,7 @@ export function OrdersOperationalRecordEmptyState({
   statusLabel?: string;
   paymentStatusLabel?: string;
   slotLabel?: string;
+  storeLabel?: string;
   tagLabel?: string;
   onClear?: () => void;
   mode?: OrderRecordMode;
@@ -773,6 +801,7 @@ export function OrdersOperationalRecordEmptyState({
     statusLabel ? `estado ${statusLabel}` : "",
     paymentStatusLabel ? `pagamento ${paymentStatusLabel}` : "",
     slotLabel ? `slot ${slotLabel}` : "",
+    storeLabel ? `loja ${storeLabel}` : "",
     tagLabel ? `tags ${tagLabel}` : "",
   ].filter(Boolean);
 
@@ -1975,6 +2004,7 @@ export function OrdersOperationalRecord({
   const rawUrlStatus = searchParams.get("status");
   const rawUrlPaymentStatus = searchParams.get("payment_status");
   const rawUrlSlot = searchParams.get("slot");
+  const rawUrlStoreId = searchParams.get("store_id");
   const rawUrlTagIds = searchParams.get("tag_ids");
   const rawUrlPickupDateUndefined = searchParams.get("pickup_date_undefined");
   const rawUrlStartDate = searchParams.get("start_date") ?? "";
@@ -1983,6 +2013,11 @@ export function OrdersOperationalRecord({
   const rawCurrentStatus = rawUrlStatus?.trim() ?? "";
   const rawCurrentPaymentStatus = rawUrlPaymentStatus?.trim() ?? "";
   const rawCurrentSlot = rawUrlSlot?.trim() ?? "";
+  const rawCurrentStoreId = Number(rawUrlStoreId);
+  const currentStoreId =
+    Number.isInteger(rawCurrentStoreId) && rawCurrentStoreId > 0
+      ? rawCurrentStoreId
+      : 0;
   const rawCurrentTagIds = React.useMemo(
     () => normalizeOrderOperationalTagIds(rawUrlTagIds),
     [rawUrlTagIds],
@@ -1995,6 +2030,7 @@ export function OrdersOperationalRecord({
   const [status, setStatus] = React.useState(rawUrlStatus?.trim() ?? "");
   const [paymentStatus, setPaymentStatus] = React.useState(rawUrlPaymentStatus?.trim() ?? "");
   const [slot, setSlot] = React.useState(rawUrlSlot?.trim() ?? "");
+  const [storeId, setStoreId] = React.useState(currentStoreId);
   const [tagIds, setTagIds] = React.useState<number[]>(rawCurrentTagIds);
   const [pickupDateUndefined, setPickupDateUndefined] = React.useState(
     currentPickupDateUndefined,
@@ -2016,6 +2052,7 @@ export function OrdersOperationalRecord({
   const printAttemptByOrderIdRef = React.useRef<Record<string, string | null>>({});
   const detailQuery = useOrderDetail(selectedOrder?.id ?? null);
   const productsQuery = useOrderProducts();
+  const storesQuery = useOrderStores();
   const createPartialWithdrawalMutation = useCreateOrderPartialWithdrawal();
   const updateOrderStatusMutation = useUpdateOrderStatus();
   const updateOrderMutation = useUpdateOrder();
@@ -2027,6 +2064,7 @@ export function OrdersOperationalRecord({
     status !== rawCurrentStatus ||
     paymentStatus !== rawCurrentPaymentStatus ||
     slot !== rawCurrentSlot ||
+    storeId !== currentStoreId ||
     tagIds.join(",") !== rawCurrentTagIds.join(",") ||
     pickupDateUndefined !== currentPickupDateUndefined ||
     (period === "custom" &&
@@ -2039,6 +2077,7 @@ export function OrdersOperationalRecord({
       status: status || undefined,
       paymentStatus: paymentStatus || undefined,
       slot: slot || undefined,
+      storeId: storeId || undefined,
       tagIds,
       pickupDateUndefined,
       customStartDate: period === "custom" ? customStartDate : undefined,
@@ -2051,6 +2090,10 @@ export function OrdersOperationalRecord({
   );
   const currentPaymentStatus = normalizeOrderOperationalPaymentStatus(rawUrlPaymentStatus);
   const currentSlot = normalizeOrderOperationalSlot(rawUrlSlot);
+  const storeOptions = React.useMemo(
+    () => storesQuery.data?.data ?? [],
+    [storesQuery.data?.data],
+  );
   const currentTagIds = React.useMemo(
     () => normalizeOrderOperationalTagIds(rawUrlTagIds),
     [rawUrlTagIds],
@@ -2076,6 +2119,9 @@ export function OrdersOperationalRecord({
     : undefined;
   const selectedSlotLabel = slot
     ? slotLabels[slot] ?? slot
+    : undefined;
+  const selectedStoreLabel = storeId
+    ? storeOptions.find((store) => store.id === storeId)?.name ?? `Loja #${storeId}`
     : undefined;
   const selectedTagsLabel =
     tagIds.length > 0
@@ -2105,6 +2151,7 @@ export function OrdersOperationalRecord({
     setStatus(currentStatus);
     setPaymentStatus(currentPaymentStatus);
     setSlot(currentSlot);
+    setStoreId(currentStoreId);
     setTagIds(currentTagIds);
     setPickupDateUndefined(currentPickupDateUndefined);
     setCustomStartDate(rawUrlStartDate);
@@ -2114,6 +2161,7 @@ export function OrdersOperationalRecord({
     currentStatus,
     currentPaymentStatus,
     currentSlot,
+    currentStoreId,
     currentTagIds,
     currentPickupDateUndefined,
     rawUrlEndDate,
@@ -2152,6 +2200,7 @@ export function OrdersOperationalRecord({
       setStatus(persistedFilters.status);
       setPaymentStatus(persistedFilters.paymentStatus);
       setSlot(persistedFilters.slot);
+      setStoreId(persistedFilters.storeId);
       setTagIds(persistedFilters.tagIds);
       setPickupDateUndefined(persistedFilters.pickupDateUndefined);
       setCustomStartDate(persistedFilters.customStartDate);
@@ -2174,6 +2223,7 @@ export function OrdersOperationalRecord({
         status,
         paymentStatus,
         slot,
+        storeId,
         tagIds,
         pickupDateUndefined,
         customStartDate,
@@ -2190,6 +2240,7 @@ export function OrdersOperationalRecord({
     period,
     searchTerm,
     slot,
+    storeId,
     status,
     tagIds,
   ]);
@@ -2241,6 +2292,7 @@ export function OrdersOperationalRecord({
       status,
       paymentStatus,
       slot,
+      storeId,
       tagIds,
       pickupDateUndefined,
       statusLabels,
@@ -2266,6 +2318,7 @@ export function OrdersOperationalRecord({
     paymentStatus,
     pickupDateUndefined,
     slot,
+    storeId,
     tagIds,
     filtersHydrated,
     rawUrlStatus,
@@ -2346,6 +2399,11 @@ export function OrdersOperationalRecord({
     [],
   );
 
+  const updateStore = React.useCallback((value: string | null) => {
+    const nextStoreId = Number(value);
+    setStoreId(Number.isInteger(nextStoreId) && nextStoreId > 0 ? nextStoreId : 0);
+  }, []);
+
   const updatePickupDateFilter = React.useCallback((value: string | null) => {
     const isUndefinedDate = value === "undefined";
 
@@ -2383,6 +2441,7 @@ export function OrdersOperationalRecord({
     setStatus("");
     setPaymentStatus("");
     setSlot("");
+    setStoreId(0);
     setTagIds([]);
     setPickupDateUndefined(false);
     setCustomStartDate("");
@@ -2838,6 +2897,22 @@ export function OrdersOperationalRecord({
               </Select>
             </div>
             <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Loja</label>
+              <Select value={storeId > 0 ? String(storeId) : "all"} onValueChange={updateStore}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todas as lojas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as lojas</SelectItem>
+                  {storeOptions.map((store) => (
+                    <SelectItem key={store.id} value={String(store.id)}>
+                      {store.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">
                 Data de retirada
               </label>
@@ -2971,6 +3046,7 @@ export function OrdersOperationalRecord({
           statusLabel={selectedStatusLabel}
           paymentStatusLabel={selectedPaymentStatusLabel}
           slotLabel={selectedSlotLabel}
+          storeLabel={selectedStoreLabel}
           tagLabel={selectedTagsLabel}
           onClear={clearSearch}
           mode={mode}

@@ -237,6 +237,7 @@ export type OrderSearchFilters = {
   status?: string;
   paymentStatus?: string;
   slot?: string;
+  storeId?: number;
   tagIds?: number[];
   pickupDateUndefined?: boolean;
   scheduledFrom?: string;
@@ -441,6 +442,9 @@ export async function getOrders(
   if (filters.paymentStatus?.trim())
     params.payment_status = filters.paymentStatus.trim();
   if (filters.slot?.trim()) params.slot = filters.slot.trim();
+  if (Number.isInteger(filters.storeId) && (filters.storeId ?? 0) > 0) {
+    params.store_id = filters.storeId;
+  }
   if (Array.isArray(filters.tagIds) && filters.tagIds.length > 0) {
     params.tag_ids = filters.tagIds.join(",");
   }

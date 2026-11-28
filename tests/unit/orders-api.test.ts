@@ -1,7 +1,26 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { normalizeOrderResource } from "@/features/orders/api";
+import { getOrders, normalizeOrderResource } from "@/features/orders/api";
+import { apiClient } from "@/lib/api/http";
+
+test("getOrders sends the selected store as the admin search filter", async () => {
+  const originalGet = apiClient.get;
+  let capturedParams: Record<string, unknown> | undefined;
+
+  apiClient.get = (async (_url, config) => {
+    capturedParams = config?.params as Record<string, unknown> | undefined;
+    return { data: { data: [] } };
+  }) as typeof apiClient.get;
+
+  try {
+    await getOrders({ storeId: 7 });
+
+    assert.equal(capturedParams?.store_id, 7);
+  } finally {
+    apiClient.get = originalGet;
+  }
+});
 
 test("normalizeOrderResource preserves order history for future investigation flows", () => {
   const order = normalizeOrderResource({

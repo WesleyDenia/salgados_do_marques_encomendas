@@ -23,8 +23,39 @@ import type { FryingPlan, FryingSlot } from "../types";
 import { useFryingPlan, useRegisterFryingAlarms } from "../hooks";
 
 const FRYING_PLAN_VIEW_MODE_STORAGE_KEY = "frying-planning-view-mode";
+const FRYING_PLAN_FILTERS_STORAGE_KEY = "frying-planning-filters";
 
 type ViewMode = "list" | "cards";
+
+type PersistedFryingPlanningFilters = {
+  date: string;
+  storeId: number;
+};
+
+export function parsePersistedFryingPlanningFilters(
+  value: string | null,
+): PersistedFryingPlanningFilters | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as Partial<PersistedFryingPlanningFilters>;
+
+    if (
+      typeof parsed.date !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(parsed.date) ||
+      !Number.isInteger(parsed.storeId) ||
+      parsed.storeId <= 0
+    ) {
+      return null;
+    }
+
+    return { date: parsed.date, storeId: parsed.storeId };
+  } catch {
+    return null;
+  }
+}
 
 type FryingOrderProduct = {
   name: string;
@@ -155,6 +186,10 @@ function formatCurrency(value: number) {
 }
 
 export function getFryingOrderStatusAction(status?: string) {
+  if (status === "placed") {
+    return { label: "Aceitar", nextStatus: "accepted" };
+  }
+
   if (status === "ready") {
     return { label: "Concluir", nextStatus: "done" };
   }
@@ -329,7 +364,44 @@ export function FryingPlanningBoard() {
   const [date, setDate] = React.useState(() => normalizePlanningDay(undefined, zone));
   const [storeId, setStoreId] = React.useState(0);
   const [viewMode, setViewMode] = React.useState<ViewMode>("list");
-  React.useEffect(() => { if (!storeId && storeOptions[0]) setStoreId(storeOptions[0].id); }, [storeId, storeOptions]);
+  const [filtersHydrated, setFiltersHydrated] = React.useState(false);
+
+  React.useEffect(() => {
+    const savedFilters = parsePersistedFryingPlanningFilters(
+      window.localStorage.getItem(FRYING_PLAN_FILTERS_STORAGE_KEY),
+    );
+
+    if (savedFilters) {
+      setDate(savedFilters.date);
+      setStoreId(savedFilters.storeId);
+    }
+
+    setFiltersHydrated(true);
+  }, []);
+
+  React.useEffect(() => {
+    if (!filtersHydrated || storeOptions.length === 0) {
+      return;
+    }
+
+    if (storeOptions.some((store) => store.id === storeId)) {
+      return;
+    }
+
+    setStoreId(storeOptions[0].id);
+  }, [filtersHydrated, storeId, storeOptions]);
+
+  React.useEffect(() => {
+    if (!filtersHydrated || storeId <= 0) {
+      return;
+    }
+
+    window.localStorage.setItem(
+      FRYING_PLAN_FILTERS_STORAGE_KEY,
+      JSON.stringify({ date, storeId } satisfies PersistedFryingPlanningFilters),
+    );
+  }, [date, filtersHydrated, storeId]);
+
   React.useEffect(() => {
     const savedViewMode = window.localStorage.getItem(FRYING_PLAN_VIEW_MODE_STORAGE_KEY);
     if (savedViewMode === "list" || savedViewMode === "cards") setViewMode(savedViewMode);
@@ -369,9 +441,11 @@ export function FryingPlanningBoard() {
             });
             void plan.refetch();
             toast(
-              nextStatus === "ready"
-                ? `Encomenda #${summary.orderId} marcada como pronta.`
-                : `Encomenda #${summary.orderId} concluída.`,
+              nextStatus === "accepted"
+                ? `Encomenda #${summary.orderId} aceite.`
+                : nextStatus === "ready"
+                  ? `Encomenda #${summary.orderId} marcada como pronta.`
+                  : `Encomenda #${summary.orderId} concluída.`,
               "success",
             );
           },

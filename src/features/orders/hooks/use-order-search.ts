@@ -35,6 +35,7 @@ export type OrderSearchState = {
   status?: string;
   paymentStatus?: string;
   slot?: string;
+  storeId?: number;
   tagIds?: number[];
   pickupDateUndefined?: boolean;
   customStartDate?: string;
@@ -246,6 +247,7 @@ export function buildOrderSearchFilters(
     status: state.status,
     paymentStatus: state.paymentStatus,
     slot: state.slot,
+    storeId: state.storeId,
     tagIds: state.tagIds,
     pickupDateUndefined: state.pickupDateUndefined,
     scheduledFrom: dateRange.scheduledFrom,
@@ -282,6 +284,7 @@ export function useOrderSearch(state: OrderSearchState) {
       status: normalizedStatus ?? "",
       paymentStatus: normalizedPaymentStatus ?? "",
       slot: normalizedSlot ?? "",
+      storeId: state.storeId ?? 0,
       tagIds: normalizedTagIds?.join(",") ?? "",
       pickupDateUndefined: state.pickupDateUndefined ?? false,
       customStartDate: state.customStartDate ?? "",

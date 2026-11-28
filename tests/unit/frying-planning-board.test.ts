@@ -5,6 +5,7 @@ import {
   formatFryingFlavor,
   formatNextPreparationDetails,
   getFryingOrderStatusAction,
+  parsePersistedFryingPlanningFilters,
 } from "@/features/frying/components/frying-planning-board";
 
 test("formatFryingFlavor marks flavors from frozen order items", () => {
@@ -17,8 +18,12 @@ test("formatNextPreparationDetails identifies the order and customer", () => {
   assert.equal(formatNextPreparationDetails(738, null), "Encomenda #738 · Cliente não identificado");
 });
 
-test("getFryingOrderStatusAction advances an order from ready to done", () => {
-  assert.deepEqual(getFryingOrderStatusAction(), {
+test("getFryingOrderStatusAction follows the operational order flow", () => {
+  assert.deepEqual(getFryingOrderStatusAction("placed"), {
+    label: "Aceitar",
+    nextStatus: "accepted",
+  });
+  assert.deepEqual(getFryingOrderStatusAction("accepted"), {
     label: "Pronto",
     nextStatus: "ready",
   });
@@ -27,4 +32,13 @@ test("getFryingOrderStatusAction advances an order from ready to done", () => {
     nextStatus: "done",
   });
   assert.equal(getFryingOrderStatusAction("done"), null);
+});
+
+test("parsePersistedFryingPlanningFilters restores only complete planning filters", () => {
+  assert.deepEqual(
+    parsePersistedFryingPlanningFilters('{"date":"2026-11-25","storeId":4}'),
+    { date: "2026-11-25", storeId: 4 },
+  );
+  assert.equal(parsePersistedFryingPlanningFilters('{"date":"invalid","storeId":4}'), null);
+  assert.equal(parsePersistedFryingPlanningFilters('{"date":"2026-11-25","storeId":0}'), null);
 });
